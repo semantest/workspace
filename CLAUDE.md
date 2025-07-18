@@ -1,2 +1,2 @@
 - Maintain an overall `JOURNAL.md` and `STORY.md`, but also spread reduced versions in each specific module.
-- Github issues for each task should belong to the github:semantest/workspace repository. 
+- Create Github issues for each task in the github:semantest/workspace repository. 
