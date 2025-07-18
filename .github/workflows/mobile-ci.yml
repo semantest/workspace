@@ -1,0 +1,255 @@
+name: Mobile CI/CD
+
+on:
+  push:
+    branches: [main, develop, 'feature/mobile-*']
+    paths:
+      - 'semantest-mobile/**'
+      - 'web-pwa/**'
+      - '.github/workflows/mobile-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'semantest-mobile/**'
+      - 'web-pwa/**'
+
+env:
+  NODE_VERSION: '18.x'
+  JAVA_VERSION: '11'
+  RUBY_VERSION: '3.0'
+
+jobs:
+  # Shared setup job
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}" >> $GITHUB_OUTPUT
+
+  # Test job for both mobile and PWA
+  test:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [semantest-mobile, web-pwa]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd ${{ matrix.project }}
+          npm ci
+      
+      - name: Run tests
+        run: |
+          cd ${{ matrix.project }}
+          npm test -- --coverage --passWithNoTests
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          directory: ./${{ matrix.project }}/coverage
+          flags: ${{ matrix.project }}
+
+  # iOS Build
+  build-ios:
+    needs: test
+    runs-on: macos-latest
+    if: github.event_name == 'push' && contains(github.ref, 'main')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ env.RUBY_VERSION }}
+          bundler-cache: true
+      
+      - name: Install CocoaPods
+        run: |
+          cd semantest-mobile/ios
+          pod install
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd semantest-mobile
+          npm ci
+      
+      - name: Build iOS app
+        run: |
+          cd semantest-mobile/ios
+          xcodebuild -workspace SemantestMobile.xcworkspace \
+            -scheme SemantestMobile \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=YES \
+            build
+      
+      - name: Upload iOS artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-build
+          path: semantest-mobile/ios/build/Build/Products/Release-iphonesimulator/
+
+  # Android Build
+  build-android:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && contains(github.ref, 'main')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd semantest-mobile
+          npm ci
+      
+      - name: Build Android app
+        run: |
+          cd semantest-mobile/android
+          ./gradlew assembleRelease
+      
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: android-build
+          path: semantest-mobile/android/app/build/outputs/apk/release/
+
+  # PWA Build
+  build-pwa:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          cd web-pwa
+          npm ci
+      
+      - name: Build PWA
+        run: |
+          cd web-pwa
+          npm run build
+      
+      - name: Upload PWA artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: pwa-build
+          path: web-pwa/dist/
+
+  # Deploy to TestFlight (iOS)
+  deploy-testflight:
+    needs: build-ios
+    runs-on: macos-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download iOS artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: ios-build
+          path: ios-build
+      
+      - name: Deploy to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+        run: |
+          # Install fastlane
+          gem install fastlane
+          
+          # Deploy to TestFlight
+          cd semantest-mobile/ios
+          fastlane pilot upload \
+            --ipa ios-build/SemantestMobile.ipa \
+            --skip_waiting_for_build_processing
+
+  # Deploy to Play Console (Android)
+  deploy-play-console:
+    needs: build-android
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Android artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: android-build
+          path: android-build
+      
+      - name: Deploy to Play Console
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_CONSOLE_SERVICE_ACCOUNT }}
+          packageName: com.semantest.app
+          releaseFiles: android-build/app-release.apk
+          track: internal
+          status: draft
+
+  # Deploy PWA to Vercel
+  deploy-pwa:
+    needs: build-pwa
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download PWA artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: pwa-build
+          path: pwa-build
+      
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./pwa-build

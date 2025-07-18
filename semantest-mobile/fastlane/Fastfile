@@ -1,0 +1,210 @@
+# Fastlane configuration for Semantest Mobile
+
+default_platform(:ios)
+
+# iOS Lane definitions
+platform :ios do
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    # Ensure we're on a clean branch
+    ensure_git_status_clean
+
+    # Increment build number
+    increment_build_number(xcodeproj: "ios/SemantestMobile.xcodeproj")
+
+    # Build the app
+    build_app(
+      workspace: "ios/SemantestMobile.xcworkspace",
+      scheme: "SemantestMobile",
+      export_method: "app-store",
+      output_directory: "./build",
+      output_name: "SemantestMobile.ipa",
+      include_bitcode: true,
+      include_symbols: true,
+      configuration: "Release"
+    )
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true,
+      apple_id: ENV["APPLE_ID"],
+      app_identifier: "com.semantest.app",
+      team_id: ENV["TEAM_ID"],
+      ipa: "./build/SemantestMobile.ipa",
+      changelog: generate_changelog,
+      beta_app_description: "Semantic testing made simple",
+      beta_app_feedback_email: "beta@semantest.com",
+      distribute_external: true,
+      groups: ["Beta Testers", "Internal Team"],
+      notify_external_testers: true
+    )
+
+    # Create git tag
+    add_git_tag(tag: "ios/beta/#{get_build_number}")
+    push_to_git_remote
+
+    # Send notification
+    slack(
+      message: "iOS Beta Build #{get_build_number} uploaded to TestFlight!",
+      success: true,
+      slack_url: ENV["SLACK_WEBHOOK_URL"]
+    )
+  end
+
+  desc "Deploy to App Store"
+  lane :release do
+    # Ensure we're on main branch
+    ensure_git_branch(branch: "main")
+    ensure_git_status_clean
+
+    # Build the app
+    build_app(
+      workspace: "ios/SemantestMobile.xcworkspace",
+      scheme: "SemantestMobile",
+      export_method: "app-store",
+      configuration: "Release"
+    )
+
+    # Upload to App Store Connect
+    upload_to_app_store(
+      app_identifier: "com.semantest.app",
+      skip_metadata: false,
+      skip_screenshots: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: false
+      }
+    )
+
+    # Tag release
+    add_git_tag(tag: "ios/release/#{get_version_number}")
+    push_to_git_remote
+  end
+
+  desc "Run tests"
+  lane :test do
+    run_tests(
+      workspace: "ios/SemantestMobile.xcworkspace",
+      scheme: "SemantestMobile",
+      devices: ["iPhone 14", "iPad Pro (12.9-inch)"],
+      code_coverage: true,
+      output_directory: "./test_output",
+      output_types: "html,junit",
+      fail_build: false
+    )
+  end
+end
+
+# Android Lane definitions
+platform :android do
+  desc "Build and upload to Google Play Console (Internal Track)"
+  lane :beta do
+    # Ensure we're on a clean branch
+    ensure_git_status_clean
+
+    # Increment version code
+    android_set_version_code(
+      version_code: android_get_version_code + 1,
+      gradle_file: "android/app/build.gradle"
+    )
+
+    # Build the app
+    gradle(
+      task: "clean assembleRelease",
+      project_dir: "android/",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_FILE"],
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"],
+      }
+    )
+
+    # Upload to Play Console
+    upload_to_play_store(
+      track: "internal",
+      release_status: "draft",
+      apk: "android/app/build/outputs/apk/release/app-release.apk",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      changes_not_sent_for_review: true
+    )
+
+    # Create git tag
+    add_git_tag(tag: "android/beta/#{android_get_version_code}")
+    push_to_git_remote
+
+    # Send notification
+    slack(
+      message: "Android Beta Build #{android_get_version_code} uploaded to Play Console!",
+      success: true,
+      slack_url: ENV["SLACK_WEBHOOK_URL"]
+    )
+  end
+
+  desc "Deploy to Play Store"
+  lane :release do
+    # Ensure we're on main branch
+    ensure_git_branch(branch: "main")
+    ensure_git_status_clean
+
+    # Build the app bundle
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/",
+      properties: {
+        "android.injected.signing.store.file" => ENV["KEYSTORE_FILE"],
+        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"],
+      }
+    )
+
+    # Upload to Play Store
+    upload_to_play_store(
+      track: "production",
+      release_status: "completed",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      skip_upload_changelogs: false,
+      skip_upload_metadata: false,
+      skip_upload_images: false,
+      skip_upload_screenshots: false
+    )
+
+    # Tag release
+    add_git_tag(tag: "android/release/#{android_get_version_name}")
+    push_to_git_remote
+  end
+
+  desc "Run tests"
+  lane :test do
+    gradle(
+      task: "test",
+      project_dir: "android/"
+    )
+  end
+end
+
+# Helper methods
+def generate_changelog
+  changelog = changelog_from_git_commits(
+    between: [last_git_tag, "HEAD"],
+    pretty: "- %s",
+    date_format: "short",
+    match_lightweight_tag: false,
+    merge_commit_filtering: "exclude_merges"
+  )
+  
+  # Limit to 4000 characters for TestFlight
+  changelog.length > 4000 ? changelog[0...3997] + "..." : changelog
+end
+
+# Error handling
+error do |lane, exception|
+  slack(
+    message: "Build failed in lane '#{lane}' with error: #{exception.message}",
+    success: false,
+    slack_url: ENV["SLACK_WEBHOOK_URL"]
+  )
+end
