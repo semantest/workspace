@@ -12,7 +12,9 @@
     "google.com",
     "images.google.com",
     "nodejs.server",
-    "typescript.client"
+    "typescript.client",
+    "web-pwa",
+    "semantest-mobile"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
