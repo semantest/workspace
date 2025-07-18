@@ -1,0 +1,137 @@
+# Kubernetes ingress for Semantest Enterprise
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: semantest-ingress
+  namespace: semantest
+  labels:
+    app: semantest
+    component: ingress
+  annotations:
+    # NGINX Ingress Controller
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "600"
+    
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: SAMEORIGIN";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+      more_set_headers "Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';";
+    
+    # Rate limiting
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    
+    # AWS Load Balancer Controller (if using AWS)
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/load-balancer-name: semantest-alb
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS-1-2-2017-01
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012
+    
+    # Cert-manager for automatic SSL
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    
+    # External DNS
+    external-dns.alpha.kubernetes.io/hostname: semantest.com,www.semantest.com
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - semantest.com
+    - www.semantest.com
+    secretName: semantest-tls
+  rules:
+  - host: semantest.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+  - host: www.semantest.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service
+            port:
+              number: 80
+
+---
+# Ingress for API endpoints
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: semantest-api-ingress
+  namespace: semantest
+  labels:
+    app: semantest
+    component: api-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    
+    # API rate limiting
+    nginx.ingress.kubernetes.io/rate-limit: "1000"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+    
+    # WebSocket support
+    nginx.ingress.kubernetes.io/websocket-services: "semantest-service"
+    nginx.ingress.kubernetes.io/proxy-set-headers: "semantest/websocket-headers"
+    
+    # CORS
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://semantest.com,https://www.semantest.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET,POST,PUT,DELETE,OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization"
+    
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - api.semantest.com
+    secretName: semantest-api-tls
+  rules:
+  - host: api.semantest.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: semantest-service
+            port:
+              number: 3000
+
+---
+# ConfigMap for WebSocket headers
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: websocket-headers
+  namespace: semantest
+data:
+  Upgrade: "$http_upgrade"
+  Connection: "upgrade"
+  Host: "$host"
+  X-Real-IP: "$remote_addr"
+  X-Forwarded-For: "$proxy_add_x_forwarded_for"
+  X-Forwarded-Proto: "$scheme"

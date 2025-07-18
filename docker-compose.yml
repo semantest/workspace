@@ -1,0 +1,177 @@
+# Docker Compose for Semantest Enterprise
+version: '3.8'
+
+services:
+  # Main application
+  semantest:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: semantest-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://semantest:${POSTGRES_PASSWORD}@postgres:5432/semantest
+      - REDIS_URL=redis://redis:6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - MONITORING_ENABLED=true
+      - ANALYTICS_ENABLED=true
+      - SECURITY_ENABLED=true
+    depends_on:
+      - postgres
+      - redis
+      - elasticsearch
+    volumes:
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+    restart: unless-stopped
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: semantest-postgres
+    environment:
+      - POSTGRES_DB=semantest
+      - POSTGRES_USER=semantest
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semantest -d semantest"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: semantest-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Elasticsearch for analytics and logging
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    container_name: semantest-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: semantest-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./docker/ssl:/etc/ssl/certs
+    depends_on:
+      - semantest
+    restart: unless-stopped
+    networks:
+      - semantest-network
+
+  # Monitoring stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: semantest-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    restart: unless-stopped
+    networks:
+      - semantest-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: semantest-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    restart: unless-stopped
+    networks:
+      - semantest-network
+
+  # Security scanning
+  clair:
+    image: quay.io/coreos/clair:latest
+    container_name: semantest-clair
+    ports:
+      - "6060:6060"
+    depends_on:
+      - postgres
+    volumes:
+      - ./docker/clair/config.yaml:/etc/clair/config.yaml
+    restart: unless-stopped
+    networks:
+      - semantest-network
+
+networks:
+  semantest-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:

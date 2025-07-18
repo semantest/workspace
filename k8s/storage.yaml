@@ -1,0 +1,115 @@
+# Persistent volumes and claims for Semantest Enterprise
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: semantest-logs-pvc
+  namespace: semantest
+  labels:
+    app: semantest
+    component: logs
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: aws-efs # or nfs, gce-pd, etc.
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: semantest-uploads-pvc
+  namespace: semantest
+  labels:
+    app: semantest
+    component: uploads
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: aws-efs
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: semantest
+  labels:
+    app: semantest
+    component: postgres
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: gp3 # or ssd, fast-disk, etc.
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-pvc
+  namespace: semantest
+  labels:
+    app: semantest
+    component: redis
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: gp3
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: elasticsearch-pvc
+  namespace: semantest
+  labels:
+    app: semantest
+    component: elasticsearch
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: gp3
+
+---
+# StorageClass for fast SSD (example for AWS)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  iops: "3000"
+  throughput: "125"
+  encrypted: "true"
+allowVolumeExpansion: true
+volumeBindingMode: WaitForFirstConsumer
+
+---
+# StorageClass for shared storage (example for AWS EFS)
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: aws-efs
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-12345678
+  directoryPerms: "0755"
+  basePath: "/semantest"
+volumeBindingMode: Immediate

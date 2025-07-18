@@ -1,0 +1,60 @@
+# Helm Chart for Semantest Enterprise
+apiVersion: v2
+name: semantest
+description: Semantest Enterprise Platform - Intelligent automation and analytics
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://semantest.com
+icon: https://semantest.com/icon.png
+sources:
+- https://github.com/semantest/semantest
+maintainers:
+- name: Semantest Team
+  email: team@semantest.com
+  url: https://semantest.com
+keywords:
+- automation
+- analytics
+- enterprise
+- intelligence
+- platform
+annotations:
+  category: Analytics
+  licenses: Apache-2.0
+  images: |
+    - name: semantest
+      image: semantest/enterprise:1.0.0
+    - name: postgres
+      image: postgres:15-alpine
+    - name: redis
+      image: redis:7-alpine
+    - name: elasticsearch
+      image: docker.elastic.co/elasticsearch/elasticsearch:8.10.0
+    - name: nginx
+      image: nginx:alpine
+dependencies:
+- name: postgresql
+  version: 12.x.x
+  repository: https://charts.bitnami.com/bitnami
+  condition: postgresql.enabled
+- name: redis
+  version: 17.x.x
+  repository: https://charts.bitnami.com/bitnami
+  condition: redis.enabled
+- name: elasticsearch
+  version: 19.x.x
+  repository: https://charts.bitnami.com/bitnami
+  condition: elasticsearch.enabled
+- name: nginx
+  version: 13.x.x
+  repository: https://charts.bitnami.com/bitnami
+  condition: nginx.enabled
+- name: prometheus
+  version: 15.x.x
+  repository: https://prometheus-community.github.io/helm-charts
+  condition: monitoring.prometheus.enabled
+- name: grafana
+  version: 6.x.x
+  repository: https://grafana.github.io/helm-charts
+  condition: monitoring.grafana.enabled

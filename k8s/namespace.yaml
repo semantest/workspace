@@ -1,0 +1,13 @@
+# Kubernetes namespace for Semantest Enterprise
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: semantest
+  labels:
+    name: semantest
+    environment: production
+    managed-by: semantest-platform
+  annotations:
+    semantest.io/description: "Semantest Enterprise Platform"
+    semantest.io/version: "1.0.0"
+    semantest.io/team: "platform"

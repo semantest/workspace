@@ -1,0 +1,181 @@
+# ConfigMap for Semantest Enterprise configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: semantest-config
+  namespace: semantest
+  labels:
+    app: semantest
+    component: config
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  MONITORING_ENABLED: "true"
+  ANALYTICS_ENABLED: "true"
+  SECURITY_ENABLED: "true"
+  LOG_LEVEL: "info"
+  CLUSTER_MODE: "kubernetes"
+  METRICS_PORT: "9090"
+  HEALTH_CHECK_PORT: "8080"
+  
+  # Database configuration
+  DATABASE_HOST: "postgres-service"
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: "semantest"
+  DATABASE_MAX_CONNECTIONS: "20"
+  DATABASE_POOL_SIZE: "10"
+  
+  # Redis configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  
+  # Elasticsearch configuration
+  ELASTICSEARCH_HOST: "elasticsearch-service"
+  ELASTICSEARCH_PORT: "9200"
+  ELASTICSEARCH_INDEX_PREFIX: "semantest"
+  
+  # Application configuration
+  SESSION_TIMEOUT: "3600"
+  RATE_LIMIT_WINDOW: "900"
+  RATE_LIMIT_MAX: "1000"
+  
+  # Security configuration
+  SECURITY_HEADERS_ENABLED: "true"
+  CSRF_PROTECTION_ENABLED: "true"
+  CORS_ENABLED: "true"
+  CORS_ORIGIN: "https://semantest.com"
+  
+  # Analytics configuration
+  ANALYTICS_RETENTION_DAYS: "90"
+  ANALYTICS_BATCH_SIZE: "100"
+  ANALYTICS_FLUSH_INTERVAL: "10000"
+  
+  # Monitoring configuration
+  PROMETHEUS_METRICS_ENABLED: "true"
+  GRAFANA_DASHBOARDS_ENABLED: "true"
+  ALERT_MANAGER_ENABLED: "true"
+
+---
+# Nginx configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-config
+  namespace: semantest
+  labels:
+    app: semantest
+    component: nginx
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes auto;
+    error_log /var/log/nginx/error.log warn;
+    pid /var/run/nginx.pid;
+    
+    events {
+        worker_connections 1024;
+        use epoll;
+        multi_accept on;
+    }
+    
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+        
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+        
+        access_log /var/log/nginx/access.log main;
+        
+        sendfile on;
+        tcp_nopush on;
+        tcp_nodelay on;
+        keepalive_timeout 65;
+        types_hash_max_size 2048;
+        
+        gzip on;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_proxied any;
+        gzip_comp_level 6;
+        gzip_types
+            application/atom+xml
+            application/javascript
+            application/json
+            application/rss+xml
+            application/vnd.ms-fontobject
+            application/x-font-ttf
+            application/x-web-app-manifest+json
+            application/xhtml+xml
+            application/xml
+            font/opentype
+            image/svg+xml
+            image/x-icon
+            text/css
+            text/plain
+            text/x-component;
+        
+        upstream semantest_backend {
+            server semantest-service:3000;
+            keepalive 32;
+        }
+        
+        server {
+            listen 80;
+            server_name _;
+            
+            # Security headers
+            add_header X-Frame-Options "SAMEORIGIN" always;
+            add_header X-Content-Type-Options "nosniff" always;
+            add_header X-XSS-Protection "1; mode=block" always;
+            add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+            add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self';" always;
+            
+            # Health check endpoint
+            location /health {
+                access_log off;
+                return 200 "healthy\n";
+                add_header Content-Type text/plain;
+            }
+            
+            # API routes
+            location /api/ {
+                proxy_pass http://semantest_backend;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection 'upgrade';
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_cache_bypass $http_upgrade;
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+            
+            # WebSocket support
+            location /socket.io/ {
+                proxy_pass http://semantest_backend;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+            
+            # Static files
+            location / {
+                proxy_pass http://semantest_backend;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+    }

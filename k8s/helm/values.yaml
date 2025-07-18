@@ -1,0 +1,349 @@
+# Default values for Semantest Enterprise Helm Chart
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+  storageClass: "default"
+
+# Application configuration
+image:
+  registry: docker.io
+  repository: semantest/enterprise
+  tag: "1.0.0"
+  pullPolicy: IfNotPresent
+
+# Deployment configuration
+replicaCount: 3
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+  targetPort: 3000
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+  hosts:
+    - host: semantest.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: www.semantest.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: semantest-tls
+      hosts:
+        - semantest.com
+        - www.semantest.com
+
+# Resource limits
+resources:
+  limits:
+    cpu: 1000m
+    memory: 2Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+# Auto-scaling configuration
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node affinity and tolerations
+nodeSelector: {}
+tolerations: []
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - semantest
+          topologyKey: kubernetes.io/hostname
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+
+podSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+    - ALL
+
+# Environment variables
+env:
+  NODE_ENV: production
+  PORT: "3000"
+  MONITORING_ENABLED: "true"
+  ANALYTICS_ENABLED: "true"
+  SECURITY_ENABLED: "true"
+
+# Secrets configuration
+secrets:
+  create: true
+  existingSecret: ""
+  data:
+    jwt-secret: "your-jwt-secret-key"
+    encryption-key: "your-encryption-key"
+
+# ConfigMap configuration
+configMap:
+  create: true
+  existingConfigMap: ""
+  data:
+    LOG_LEVEL: "info"
+    RATE_LIMIT_WINDOW: "900"
+    RATE_LIMIT_MAX: "1000"
+    SESSION_TIMEOUT: "3600"
+
+# Persistent storage
+persistence:
+  enabled: true
+  storageClass: "default"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  annotations: {}
+
+# Database configuration
+postgresql:
+  enabled: true
+  auth:
+    username: semantest
+    password: "password"
+    database: semantest
+  primary:
+    persistence:
+      enabled: true
+      size: 100Gi
+      storageClass: "default"
+    resources:
+      limits:
+        cpu: 1000m
+        memory: 1Gi
+      requests:
+        cpu: 500m
+        memory: 512Mi
+
+# Redis configuration
+redis:
+  enabled: true
+  auth:
+    enabled: true
+    password: "password"
+  master:
+    persistence:
+      enabled: true
+      size: 20Gi
+      storageClass: "default"
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 250m
+        memory: 256Mi
+
+# Elasticsearch configuration
+elasticsearch:
+  enabled: true
+  clusterName: semantest-elasticsearch
+  nodeGroup: master
+  replicas: 1
+  minimumMasterNodes: 1
+  persistence:
+    enabled: true
+    size: 100Gi
+    storageClass: "default"
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+
+# Nginx configuration
+nginx:
+  enabled: true
+  replicaCount: 2
+  service:
+    type: LoadBalancer
+    ports:
+      http: 80
+      https: 443
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  prometheus:
+    enabled: true
+    server:
+      retention: "30d"
+      persistentVolume:
+        enabled: true
+        size: 50Gi
+        storageClass: "default"
+    alertmanager:
+      enabled: true
+      persistentVolume:
+        enabled: true
+        size: 10Gi
+        storageClass: "default"
+  grafana:
+    enabled: true
+    adminPassword: "admin"
+    persistence:
+      enabled: true
+      size: 10Gi
+      storageClass: "default"
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+
+# Health checks
+healthCheck:
+  enabled: true
+  path: /api/health
+  port: 3000
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  successThreshold: 1
+  failureThreshold: 3
+
+readinessProbe:
+  enabled: true
+  path: /api/health/ready
+  port: 3000
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  successThreshold: 1
+  failureThreshold: 3
+
+# Network policies
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+    from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      - namespaceSelector:
+          matchLabels:
+            name: monitoring
+  egress:
+    enabled: true
+    to:
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: postgresql
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: redis
+      - podSelector:
+          matchLabels:
+            app.kubernetes.io/name: elasticsearch
+
+# Service account
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: ""
+    azure.workload.identity/client-id: ""
+    gcp.workload.identity/service-account: ""
+  name: ""
+
+# RBAC
+rbac:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "services", "endpoints"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["configmaps", "secrets"]
+      verbs: ["get", "list", "watch"]
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+  maxUnavailable: 1
+
+# Backup configuration
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  retention: "30d"
+  storageClass: "default"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Migration jobs
+migration:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: semantest/migrations
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+# Testing
+testing:
+  enabled: false
+  image:
+    registry: docker.io
+    repository: semantest/tests
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent

@@ -1,0 +1,332 @@
+# Google Cloud Deployment Manager template for Semantest Enterprise
+resources:
+  # VPC Network
+  - name: semantest-vpc
+    type: compute.v1.network
+    properties:
+      autoCreateSubnetworks: false
+      routingConfig:
+        routingMode: REGIONAL
+  
+  # Subnet for GKE cluster
+  - name: semantest-subnet
+    type: compute.v1.subnetwork
+    properties:
+      network: $(ref.semantest-vpc.selfLink)
+      ipCidrRange: 10.0.0.0/24
+      region: us-central1
+      privateIpGoogleAccess: true
+      secondaryIpRanges:
+        - rangeName: pods
+          ipCidrRange: 10.1.0.0/16
+        - rangeName: services
+          ipCidrRange: 10.2.0.0/16
+  
+  # Firewall rules
+  - name: semantest-firewall-internal
+    type: compute.v1.firewall
+    properties:
+      network: $(ref.semantest-vpc.selfLink)
+      sourceRanges: ["10.0.0.0/8"]
+      allowed:
+        - IPProtocol: tcp
+          ports: ["1-65535"]
+        - IPProtocol: udp
+          ports: ["1-65535"]
+        - IPProtocol: icmp
+  
+  - name: semantest-firewall-external
+    type: compute.v1.firewall
+    properties:
+      network: $(ref.semantest-vpc.selfLink)
+      sourceRanges: ["0.0.0.0/0"]
+      allowed:
+        - IPProtocol: tcp
+          ports: ["80", "443"]
+  
+  # GKE Cluster
+  - name: semantest-cluster
+    type: container.v1.cluster
+    properties:
+      zone: us-central1-a
+      network: $(ref.semantest-vpc.selfLink)
+      subnetwork: $(ref.semantest-subnet.selfLink)
+      initialClusterVersion: "1.28"
+      locations:
+        - us-central1-a
+        - us-central1-b
+        - us-central1-c
+      ipAllocationPolicy:
+        useIpAliases: true
+        clusterSecondaryRangeName: pods
+        servicesSecondaryRangeName: services
+      addonsConfig:
+        httpLoadBalancing:
+          disabled: false
+        horizontalPodAutoscaling:
+          disabled: false
+        networkPolicyConfig:
+          disabled: false
+      networkPolicy:
+        enabled: true
+        provider: CALICO
+      masterAuth:
+        clientCertificateConfig:
+          issueClientCertificate: false
+      loggingService: logging.googleapis.com/kubernetes
+      monitoringService: monitoring.googleapis.com/kubernetes
+      nodePools:
+        - name: default-pool
+          initialNodeCount: 3
+          config:
+            machineType: e2-medium
+            diskSizeGb: 100
+            diskType: pd-standard
+            imageType: COS_CONTAINERD
+            oauthScopes:
+              - https://www.googleapis.com/auth/cloud-platform
+            metadata:
+              disable-legacy-endpoints: "true"
+            labels:
+              environment: production
+              app: semantest
+            tags:
+              - semantest-node
+          management:
+            autoUpgrade: true
+            autoRepair: true
+          autoscaling:
+            enabled: true
+            minNodeCount: 2
+            maxNodeCount: 10
+  
+  # Cloud SQL PostgreSQL instance
+  - name: semantest-database
+    type: sqladmin.v1beta4.instance
+    properties:
+      databaseVersion: POSTGRES_15
+      region: us-central1
+      settings:
+        tier: db-f1-micro
+        dataDiskType: PD_SSD
+        dataDiskSizeGb: 100
+        storageAutoResize: true
+        storageAutoResizeLimit: 1000
+        backupConfiguration:
+          enabled: true
+          startTime: "03:00"
+          pointInTimeRecoveryEnabled: true
+        ipConfiguration:
+          ipv4Enabled: true
+          privateNetwork: $(ref.semantest-vpc.selfLink)
+          authorizedNetworks:
+            - name: allow-gke
+              value: 10.0.0.0/8
+        maintenanceWindow:
+          hour: 4
+          day: 7
+        databaseFlags:
+          - name: log_statement
+            value: all
+          - name: log_min_duration_statement
+            value: "1000"
+        userLabels:
+          environment: production
+          app: semantest
+  
+  # Database
+  - name: semantest-db
+    type: sqladmin.v1beta4.database
+    properties:
+      name: semantest
+      instance: $(ref.semantest-database.name)
+      charset: UTF8
+      collation: en_US.UTF8
+  
+  # Database user
+  - name: semantest-db-user
+    type: sqladmin.v1beta4.user
+    properties:
+      name: semantest
+      instance: $(ref.semantest-database.name)
+      password: $(ref.semantest-database-password.value)
+  
+  # Redis instance
+  - name: semantest-redis
+    type: redis.v1.instance
+    properties:
+      instanceId: semantest-redis
+      displayName: Semantest Redis
+      region: us-central1
+      tier: STANDARD_HA
+      memorySizeGb: 1
+      redisVersion: REDIS_7_0
+      authEnabled: true
+      transitEncryptionMode: SERVER_AUTHENTICATION
+      redisConfigs:
+        maxmemory-policy: allkeys-lru
+      labels:
+        environment: production
+        app: semantest
+  
+  # Cloud Storage bucket
+  - name: semantest-storage
+    type: storage.v1.bucket
+    properties:
+      name: semantest-storage-$(ref.project-id)
+      location: US-CENTRAL1
+      storageClass: STANDARD
+      uniformBucketLevelAccess:
+        enabled: true
+      encryption:
+        defaultKmsKeyName: projects/$(ref.project-id)/locations/us-central1/keyRings/semantest-keyring/cryptoKeys/semantest-key
+      lifecycle:
+        rule:
+          - condition:
+              age: 90
+            action:
+              type: Delete
+      labels:
+        environment: production
+        app: semantest
+  
+  # Cloud KMS key ring
+  - name: semantest-keyring
+    type: cloudkms.v1.keyRing
+    properties:
+      keyRingId: semantest-keyring
+      location: us-central1
+  
+  # Cloud KMS key
+  - name: semantest-key
+    type: cloudkms.v1.cryptoKey
+    properties:
+      parent: $(ref.semantest-keyring.name)
+      cryptoKeyId: semantest-key
+      purpose: ENCRYPT_DECRYPT
+      versionTemplate:
+        algorithm: GOOGLE_SYMMETRIC_ENCRYPTION
+        protectionLevel: SOFTWARE
+      labels:
+        environment: production
+        app: semantest
+  
+  # Cloud Logging sink
+  - name: semantest-logging-sink
+    type: logging.v2.sink
+    properties:
+      name: semantest-logs
+      destination: storage.googleapis.com/$(ref.semantest-storage.name)/logs
+      filter: |
+        resource.type="k8s_cluster"
+        resource.labels.cluster_name="semantest-cluster"
+      includeChildren: true
+  
+  # Cloud Monitoring notification channel
+  - name: semantest-notification-channel
+    type: monitoring.v1.notificationChannel
+    properties:
+      type: email
+      displayName: Semantest Alerts
+      labels:
+        email_address: alerts@semantest.com
+      enabled: true
+  
+  # Cloud Monitoring alert policy
+  - name: semantest-alert-policy
+    type: monitoring.v1.alertPolicy
+    properties:
+      displayName: Semantest High CPU Usage
+      conditions:
+        - displayName: High CPU Usage
+          conditionThreshold:
+            filter: |
+              resource.type="k8s_container"
+              resource.labels.cluster_name="semantest-cluster"
+              metric.type="kubernetes.io/container/cpu/core_usage_time"
+            comparison: COMPARISON_GREATER_THAN
+            thresholdValue: 0.8
+            duration: 300s
+            aggregations:
+              - alignmentPeriod: 300s
+                perSeriesAligner: ALIGN_RATE
+                crossSeriesReducer: REDUCE_MEAN
+                groupByFields:
+                  - resource.labels.container_name
+                  - resource.labels.pod_name
+      notificationChannels:
+        - $(ref.semantest-notification-channel.name)
+      enabled: true
+  
+  # IAM service account for workload identity
+  - name: semantest-workload-identity
+    type: iam.v1.serviceAccount
+    properties:
+      accountId: semantest-workload-identity
+      displayName: Semantest Workload Identity
+      description: Service account for Semantest workload identity
+  
+  # Container Registry
+  - name: semantest-registry
+    type: artifactregistry.v1.repository
+    properties:
+      repositoryId: semantest
+      location: us-central1
+      format: DOCKER
+      description: Semantest container registry
+      labels:
+        environment: production
+        app: semantest
+  
+  # Load balancer IP
+  - name: semantest-ip
+    type: compute.v1.globalAddress
+    properties:
+      name: semantest-ip
+      description: Static IP for Semantest load balancer
+  
+  # Secret Manager secret for database password
+  - name: semantest-database-password
+    type: secretmanager.v1.secret
+    properties:
+      secretId: semantest-database-password
+      replication:
+        automatic: {}
+      labels:
+        environment: production
+        app: semantest
+  
+  # Secret Manager secret version
+  - name: semantest-database-password-version
+    type: secretmanager.v1.secretVersion
+    properties:
+      parent: $(ref.semantest-database-password.name)
+      payload:
+        data: $(ref.generate-password.password)
+  
+  # Cloud Function for password generation
+  - name: generate-password
+    type: cloud_function_gen2.yaml
+    properties:
+      name: generate-password
+      runtime: python39
+      entryPoint: generate_password
+      source:
+        zipUrl: gs://semantest-deployment-source/generate-password.zip
+      httpsTrigger: {}
+      environmentVariables:
+        PASSWORD_LENGTH: "32"
+
+outputs:
+  - name: cluster-name
+    value: $(ref.semantest-cluster.name)
+  - name: cluster-endpoint
+    value: $(ref.semantest-cluster.endpoint)
+  - name: database-connection
+    value: $(ref.semantest-database.connectionName)
+  - name: redis-host
+    value: $(ref.semantest-redis.host)
+  - name: storage-bucket
+    value: $(ref.semantest-storage.name)
+  - name: static-ip
+    value: $(ref.semantest-ip.address)

@@ -1,0 +1,203 @@
+# RBAC configuration for Semantest Enterprise
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: semantest-service-account
+  namespace: semantest
+  labels:
+    app: semantest
+    component: service-account
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/semantest-pod-role
+    azure.workload.identity/client-id: "12345678-1234-1234-1234-123456789012"
+    gcp.workload.identity/service-account: semantest@project.iam.gserviceaccount.com
+automountServiceAccountToken: true
+
+---
+# Role for application pods
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: semantest-role
+  namespace: semantest
+  labels:
+    app: semantest
+    component: rbac
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["pods/log"]
+  verbs: ["get", "list"]
+
+---
+# RoleBinding for application
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: semantest-role-binding
+  namespace: semantest
+  labels:
+    app: semantest
+    component: rbac
+subjects:
+- kind: ServiceAccount
+  name: semantest-service-account
+  namespace: semantest
+roleRef:
+  kind: Role
+  name: semantest-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ClusterRole for monitoring and metrics
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: semantest-monitoring-role
+  labels:
+    app: semantest
+    component: monitoring
+rules:
+- apiGroups: [""]
+  resources: ["nodes", "nodes/proxy", "nodes/metrics", "services", "endpoints", "pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["ingresses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["create", "patch"]
+- nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+  verbs: ["get"]
+
+---
+# ClusterRoleBinding for monitoring
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: semantest-monitoring-binding
+  labels:
+    app: semantest
+    component: monitoring
+subjects:
+- kind: ServiceAccount
+  name: semantest-service-account
+  namespace: semantest
+roleRef:
+  kind: ClusterRole
+  name: semantest-monitoring-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# PodSecurityPolicy (deprecated in K8s 1.25+, use Pod Security Standards instead)
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: semantest-psp
+  labels:
+    app: semantest
+    component: security
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+  - ALL
+  volumes:
+  - configMap
+  - emptyDir
+  - projected
+  - secret
+  - downwardAPI
+  - persistentVolumeClaim
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: MustRunAsNonRoot
+  seLinux:
+    rule: RunAsAny
+  fsGroup:
+    rule: RunAsAny
+
+---
+# NetworkPolicy for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: semantest-network-policy
+  namespace: semantest
+  labels:
+    app: semantest
+    component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app: semantest
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    - podSelector:
+        matchLabels:
+          app: semantest
+    ports:
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 9090
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: semantest
+          component: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: semantest
+          component: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+  - to:
+    - podSelector:
+        matchLabels:
+          app: semantest
+          component: elasticsearch
+    ports:
+    - protocol: TCP
+      port: 9200
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 53
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 80
