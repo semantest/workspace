@@ -1,0 +1,20 @@
+{
+  "name": "@semantest/instagram.com",
+  "version": "1.0.0",
+  "description": "Instagram domain module for Semantest - AI-powered post management and story archiving",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": ["semantest", "instagram", "post-management", "story-archiving", "domain-module", "ai-automation", "social-media", "typescript", "event-driven", "ddd"],
+  "author": "Semantest Team <team@semantest.com>",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "@semantest/core": "^1.0.0",
+    "axios": "^1.7.2",
+    "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/jest": "^29.5.0",
+    "typescript": "^5.5.3"
+  }
+}
