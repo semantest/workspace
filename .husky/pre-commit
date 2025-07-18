@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit hooks..."
+
+# Run lint-staged for staged files
+npx lint-staged
+
+# Run domain boundary validation
+echo "🏗️  Validating domain boundaries..."
+npm run lint:domain-boundaries
+
+# Run type checking
+echo "🔧 Type checking..."
+npm run type-check
+
+# Run unit tests for changed files
+echo "🧪 Running tests for changed files..."
+npm run test:changed
+
+# Validate commit message format
+echo "📝 Validating commit message..."
+npm run validate-commit-msg
+
+echo "✅ Pre-commit hooks completed successfully!"

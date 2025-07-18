@@ -1,0 +1,410 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "project": "./tsconfig.json",
+    "ecmaVersion": 2022,
+    "sourceType": "module"
+  },
+  "plugins": [
+    "@typescript-eslint",
+    "import",
+    "jest",
+    "security",
+    "prettier",
+    "@semantest/eslint-plugin-ddd"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/recommended-requiring-type-checking",
+    "plugin:@typescript-eslint/strict",
+    "plugin:import/recommended",
+    "plugin:import/typescript",
+    "plugin:jest/recommended",
+    "plugin:security/recommended",
+    "plugin:prettier/recommended",
+    "plugin:@semantest/eslint-plugin-ddd/recommended"
+  ],
+  "env": {
+    "node": true,
+    "jest": true,
+    "es2022": true
+  },
+  "rules": {
+    // Enhanced TypeScript rules for domain modules
+    "@typescript-eslint/explicit-function-return-type": [
+      "error",
+      {
+        "allowExpressions": true,
+        "allowTypedFunctionExpressions": true,
+        "allowHigherOrderFunctions": true,
+        "allowDirectConstAssertionInArrowFunctions": true
+      }
+    ],
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_",
+        "caughtErrorsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/consistent-type-definitions": ["error", "interface"],
+    "@typescript-eslint/strict-boolean-expressions": [
+      "error",
+      {
+        "allowString": false,
+        "allowNumber": false,
+        "allowNullableObject": false
+      }
+    ],
+    "@typescript-eslint/no-floating-promises": "error",
+    "@typescript-eslint/no-misused-promises": "error",
+    "@typescript-eslint/await-thenable": "error",
+    "@typescript-eslint/no-unnecessary-type-assertion": "error",
+    "@typescript-eslint/prefer-nullish-coalescing": "error",
+    "@typescript-eslint/prefer-optional-chain": "error",
+    "@typescript-eslint/prefer-readonly": "error",
+    "@typescript-eslint/prefer-as-const": "error",
+    "@typescript-eslint/no-non-null-assertion": "error",
+    "@typescript-eslint/require-array-sort-compare": "error",
+    "@typescript-eslint/prefer-for-of": "error",
+    "@typescript-eslint/prefer-includes": "error",
+    "@typescript-eslint/prefer-string-starts-ends-with": "error",
+    "@typescript-eslint/switch-exhaustiveness-check": "error",
+    "@typescript-eslint/no-confusing-void-expression": "error",
+    "@typescript-eslint/no-meaningless-void-operator": "error",
+    "@typescript-eslint/no-unnecessary-boolean-literal-compare": "error",
+    "@typescript-eslint/no-unnecessary-condition": "error",
+    "@typescript-eslint/no-unnecessary-qualifier": "error",
+    "@typescript-eslint/no-useless-empty-export": "error",
+    "@typescript-eslint/prefer-reduce-type-parameter": "error",
+    "@typescript-eslint/prefer-return-this-type": "error",
+    "@typescript-eslint/promise-function-async": "error",
+    "@typescript-eslint/require-await": "error",
+    "@typescript-eslint/return-await": ["error", "always"],
+    "@typescript-eslint/naming-convention": [
+      "error",
+      {
+        "selector": "default",
+        "format": ["camelCase"]
+      },
+      {
+        "selector": "variable",
+        "format": ["camelCase", "UPPER_CASE", "PascalCase"],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "parameter",
+        "format": ["camelCase"],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "memberLike",
+        "modifiers": ["private"],
+        "format": ["camelCase"],
+        "leadingUnderscore": "allow"
+      },
+      {
+        "selector": "typeLike",
+        "format": ["PascalCase"]
+      },
+      {
+        "selector": "interface",
+        "format": ["PascalCase"],
+        "custom": {
+          "regex": "^I[A-Z]",
+          "match": false
+        }
+      },
+      {
+        "selector": "enum",
+        "format": ["PascalCase"]
+      },
+      {
+        "selector": "enumMember",
+        "format": ["PascalCase"]
+      },
+      {
+        "selector": "class",
+        "format": ["PascalCase"],
+        "custom": {
+          "regex": "^(.*Aggregate|.*ValueObject|.*Event|.*Error|.*Service|.*Repository|.*Handler|.*Saga)$",
+          "match": true
+        }
+      }
+    ],
+
+    // Enhanced import rules for domain modules
+    "import/order": [
+      "error",
+      {
+        "groups": [
+          "builtin",
+          "external",
+          "internal",
+          "parent",
+          "sibling",
+          "index",
+          "object",
+          "type"
+        ],
+        "pathGroups": [
+          {
+            "pattern": "@semantest/core/**",
+            "group": "internal",
+            "position": "before"
+          },
+          {
+            "pattern": "@semantest/shared/**",
+            "group": "internal",
+            "position": "before"
+          },
+          {
+            "pattern": "@semantest/video.google.com/**",
+            "group": "internal"
+          },
+          {
+            "pattern": "@semantest/pinterest.com/**",
+            "group": "internal"
+          },
+          {
+            "pattern": "@semantest/instagram.com/**",
+            "group": "internal"
+          },
+          {
+            "pattern": "@semantest/unsplash.com/**",
+            "group": "internal"
+          },
+          {
+            "pattern": "@semantest/twitter.com/**",
+            "group": "internal"
+          },
+          {
+            "pattern": "@semantest/images.google.com/**",
+            "group": "internal"
+          }
+        ],
+        "pathGroupsExcludedImportTypes": ["@semantest/**"],
+        "newlines-between": "always",
+        "alphabetize": {
+          "order": "asc",
+          "caseInsensitive": true
+        }
+      }
+    ],
+    "import/no-unresolved": "error",
+    "import/no-cycle": "error",
+    "import/no-unused-modules": "error",
+    "import/no-deprecated": "error",
+    "import/no-extraneous-dependencies": [
+      "error",
+      {
+        "devDependencies": [
+          "**/*.test.ts",
+          "**/*.spec.ts",
+          "**/*.e2e.ts",
+          "**/test/**",
+          "**/tests/**",
+          "**/__tests__/**"
+        ]
+      }
+    ],
+
+    // Domain-driven design custom rules
+    "@semantest/ddd/domain-boundary-enforcement": "error",
+    "@semantest/ddd/aggregate-root-validation": "error",
+    "@semantest/ddd/event-naming-convention": "error",
+    "@semantest/ddd/value-object-immutability": "error",
+    "@semantest/ddd/repository-pattern-compliance": "error",
+    "@semantest/ddd/no-anemic-domain-models": "error",
+    "@semantest/ddd/domain-service-validation": "error",
+    "@semantest/ddd/integration-event-structure": "error",
+    "@semantest/ddd/anti-corruption-layer-validation": "error",
+    "@semantest/ddd/error-handling-consistency": "error",
+
+    // Enhanced Jest rules
+    "jest/consistent-test-it": ["error", { "fn": "it" }],
+    "jest/expect-expect": "error",
+    "jest/no-disabled-tests": "warn",
+    "jest/no-focused-tests": "error",
+    "jest/no-identical-title": "error",
+    "jest/prefer-to-have-length": "error",
+    "jest/valid-expect": "error",
+    "jest/no-done-callback": "error",
+    "jest/no-duplicate-hooks": "error",
+    "jest/no-export": "error",
+    "jest/no-hooks": "off",
+    "jest/no-if": "error",
+    "jest/no-interpolation-in-snapshots": "error",
+    "jest/no-jasmine-globals": "error",
+    "jest/no-large-snapshots": "error",
+    "jest/no-mocks-import": "error",
+    "jest/no-standalone-expect": "error",
+    "jest/no-test-prefixes": "error",
+    "jest/no-test-return-statement": "error",
+    "jest/prefer-called-with": "error",
+    "jest/prefer-hooks-on-top": "error",
+    "jest/prefer-spy-on": "error",
+    "jest/prefer-strict-equal": "error",
+    "jest/prefer-to-be": "error",
+    "jest/prefer-to-contain": "error",
+    "jest/prefer-todo": "error",
+    "jest/require-hook": "error",
+    "jest/require-to-throw-message": "error",
+    "jest/require-top-level-describe": "error",
+    "jest/valid-describe-callback": "error",
+    "jest/valid-title": "error",
+
+    // Enhanced security rules
+    "security/detect-object-injection": "off",
+    "security/detect-non-literal-regexp": "off",
+    "security/detect-unsafe-regex": "error",
+    "security/detect-buffer-noassert": "error",
+    "security/detect-child-process": "error",
+    "security/detect-disable-mustache-escape": "error",
+    "security/detect-eval-with-expression": "error",
+    "security/detect-no-csrf-before-method-override": "error",
+    "security/detect-non-literal-fs-filename": "error",
+    "security/detect-non-literal-require": "error",
+    "security/detect-possible-timing-attacks": "error",
+    "security/detect-pseudoRandomBytes": "error",
+
+    // Enhanced general rules
+    "no-console": ["error", { "allow": ["warn", "error"] }],
+    "prefer-const": "error",
+    "no-var": "error",
+    "eqeqeq": ["error", "always"],
+    "curly": ["error", "all"],
+    "no-throw-literal": "error",
+    "no-return-await": "off",
+    "no-unused-expressions": "error",
+    "no-useless-constructor": "error",
+    "no-duplicate-imports": "error",
+    "no-shadow": "off",
+    "@typescript-eslint/no-shadow": "error",
+    "no-param-reassign": "error",
+    "no-magic-numbers": [
+      "error",
+      {
+        "ignore": [-1, 0, 1, 2, 10, 100, 1000],
+        "ignoreArrayIndexes": true,
+        "enforceConst": true,
+        "detectObjects": false
+      }
+    ],
+    "complexity": ["error", { "max": 10 }],
+    "max-depth": ["error", { "max": 4 }],
+    "max-lines": ["error", { "max": 500, "skipBlankLines": true, "skipComments": true }],
+    "max-lines-per-function": ["error", { "max": 100, "skipBlankLines": true, "skipComments": true }],
+    "max-params": ["error", { "max": 4 }],
+    "max-statements": ["error", { "max": 20 }],
+    "no-nested-ternary": "error",
+    "no-underscore-dangle": ["error", { "allowAfterThis": true, "allow": ["_id", "_type"] }],
+    "prefer-destructuring": ["error", { "array": true, "object": true }],
+    "prefer-template": "error",
+    "prettier/prettier": "error"
+  },
+  "settings": {
+    "import/resolver": {
+      "typescript": {
+        "alwaysTryTypes": true,
+        "project": "./tsconfig.json"
+      }
+    },
+    "@semantest/ddd": {
+      "domainModules": [
+        "video.google.com",
+        "pinterest.com",
+        "instagram.com",
+        "unsplash.com",
+        "twitter.com",
+        "images.google.com"
+      ],
+      "sharedKernel": "@semantest/core",
+      "aggregateRootSuffix": "Aggregate",
+      "valueObjectSuffix": "ValueObject",
+      "eventSuffix": "Event",
+      "repositorySuffix": "Repository",
+      "serviceSuffix": "Service"
+    }
+  },
+  "overrides": [
+    {
+      "files": ["*.spec.ts", "*.test.ts", "*.e2e.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/no-unsafe-assignment": "off",
+        "@typescript-eslint/no-unsafe-member-access": "off",
+        "@typescript-eslint/no-unsafe-call": "off",
+        "@typescript-eslint/no-unsafe-return": "off",
+        "security/detect-object-injection": "off",
+        "no-magic-numbers": "off",
+        "max-lines-per-function": "off",
+        "max-statements": "off",
+        "@semantest/ddd/domain-boundary-enforcement": "off"
+      }
+    },
+    {
+      "files": ["*.js"],
+      "rules": {
+        "@typescript-eslint/no-var-requires": "off",
+        "@typescript-eslint/explicit-function-return-type": "off"
+      }
+    },
+    {
+      "files": ["**/domain/**/*.ts"],
+      "rules": {
+        "@semantest/ddd/aggregate-root-validation": "error",
+        "@semantest/ddd/value-object-immutability": "error",
+        "@semantest/ddd/no-anemic-domain-models": "error",
+        "@semantest/ddd/domain-service-validation": "error",
+        "max-lines-per-function": ["error", { "max": 50 }],
+        "max-statements": ["error", { "max": 15 }],
+        "complexity": ["error", { "max": 8 }]
+      }
+    },
+    {
+      "files": ["**/infrastructure/**/*.ts"],
+      "rules": {
+        "@semantest/ddd/anti-corruption-layer-validation": "error",
+        "@semantest/ddd/repository-pattern-compliance": "error",
+        "max-lines-per-function": ["error", { "max": 75 }]
+      }
+    },
+    {
+      "files": ["**/application/**/*.ts"],
+      "rules": {
+        "@semantest/ddd/integration-event-structure": "error",
+        "@semantest/ddd/error-handling-consistency": "error",
+        "max-params": ["error", { "max": 3 }]
+      }
+    },
+    {
+      "files": ["**/*event*.ts", "**/*Event*.ts"],
+      "rules": {
+        "@semantest/ddd/event-naming-convention": "error",
+        "@semantest/ddd/integration-event-structure": "error"
+      }
+    },
+    {
+      "files": ["**/*error*.ts", "**/*Error*.ts"],
+      "rules": {
+        "@semantest/ddd/error-handling-consistency": "error"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "dist",
+    "build",
+    "coverage",
+    "node_modules",
+    "*.config.js",
+    "*.config.ts",
+    "scripts/*.js",
+    "**/*.d.ts"
+  ]
+}
