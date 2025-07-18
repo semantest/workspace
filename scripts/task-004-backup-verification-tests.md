@@ -176,14 +176,14 @@ test-project/
 │   ├── index.ts (1KB)
 │   ├── utils.ts (2KB)
 │   └── components/
-│       └── WebBuddy.tsx (3KB)
+│       └── Semantest.tsx (3KB)
 ├── public/
 │   ├── index.html (1KB)
 │   └── assets/
 │       ├── logo.png (50KB binary)
 │       └── styles.css (5KB)
 ├── tests/
-│   └── WebBuddy.test.ts (2KB)
+│   └── Semantest.test.ts (2KB)
 ├── docs/
 │   └── README.md (10KB)
 ├── package.json (1KB)

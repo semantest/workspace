@@ -2,7 +2,7 @@
 
 ## 🛡️ Overview
 
-This document outlines the comprehensive backup procedures for the WebBuddy → Semantest migration process. All migrations create automatic backups to ensure zero data loss.
+This document outlines the comprehensive backup procedures for the Semantest → Semantest migration process. All migrations create automatic backups to ensure zero data loss.
 
 ## 📦 What's Included in Backups
 
@@ -53,7 +53,7 @@ This document outlines the comprehensive backup procedures for the WebBuddy → 
 ### Automatic Backup (Default)
 ```bash
 # Migration script creates backup automatically
-./migrate-buddy.sh /path/to/project
+./migrate-semantest.sh /path/to/project
 
 # Creates: /path/to/project.backup-YYYYMMDD-HHMMSS/
 # Example: /home/user/myapp.backup-20250118-140215/

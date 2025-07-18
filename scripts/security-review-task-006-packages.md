@@ -14,7 +14,7 @@
 ```json
 "repository": {
   "type": "git",
-  "url": "https://github.com/rydnr/chatgpt-buddy.git",  // PRIVATE REPO!
+  "url": "https://github.com/rydnr/chatgpt-semantest.git",  // PRIVATE REPO!
   "directory": "extension"
 }
 ```
@@ -23,7 +23,7 @@
 ```json
 "repository": {
   "type": "git", 
-  "url": "https://github.com/rydnr/web-buddy-nodejs-server.git"  // PRIVATE REPO!
+  "url": "https://github.com/rydnr/semantest-nodejs-server.git"  // PRIVATE REPO!
 }
 ```
 
@@ -34,8 +34,8 @@
 **Issue**: Mixed buddy/semantest naming creates confusion
 
 **Inconsistencies Found**:
-- `@chatgpt-buddy/extension` vs `@semantest/chatgpt.com`
-- `@web-buddy/nodejs-server` vs semantest branding
+- `@chatgpt-semantest/extension` vs `@semantest/chatgpt.com`
+- `@semantest/nodejs-server` vs semantest branding
 - Migration in progress but incomplete
 
 **Risk**: Package confusion, supply chain attacks
@@ -152,8 +152,8 @@ npm update express ws
 ```
 
 ### 5. **Complete Package Renaming**
-- `@chatgpt-buddy/extension` → `@semantest/extension`
-- `@web-buddy/nodejs-server` → `@semantest/nodejs-server`
+- `@chatgpt-semantest/extension` → `@semantest/extension`
+- `@semantest/nodejs-server` → `@semantest/nodejs-server`
 - Update all cross-references
 
 ## 🚨 SECURITY RECOMMENDATIONS

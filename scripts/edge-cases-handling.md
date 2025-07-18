@@ -6,8 +6,8 @@
 **Problem**: Multiple "buddy" contexts in same file
 ```typescript
 // Example file with collision
-import { WebBuddyClient } from '@web-buddy/core';  // Replace
-import { StudyBuddy } from '@education/study-buddy'; // Don't replace
+import { SemantestClient } from '@semantest/core';  // Replace
+import { StudyBuddy } from '@education/study-semantest'; // Don't replace
 ```
 **Solution**: Use AST parsing to identify import sources
 
@@ -35,7 +35,7 @@ const pattern = /^buddy-[a-z]+$/; // Matching buddy-* patterns
 ### 5. Conditional Compilation
 **Problem**: Build-time constants
 ```typescript
-#ifdef WEB_BUDDY_LEGACY
+#ifdef SEMANTEST_LEGACY
   // Legacy code
 #endif
 ```
@@ -44,7 +44,7 @@ const pattern = /^buddy-[a-z]+$/; // Matching buddy-* patterns
 ### 6. API Endpoints
 **Problem**: External API compatibility
 ```typescript
-fetch('/api/buddy/status') // External API expects this
+fetch('/api/semantest/status') // External API expects this
 ```
 **Solution**: Maintain compatibility layer
 
@@ -77,8 +77,8 @@ analytics.track('buddy_connected', { ... });
 
 ### 10. Binary/Compiled Assets
 **Problem**: Images, compiled bundles
-- `buddy-logo.png`
-- `web-buddy.min.js`
+- `semantest-logo.png`
+- `semantest.min.js`
 - Binary protocols using "buddy" identifiers
 **Solution**: Asset regeneration pipeline
 
@@ -144,9 +144,9 @@ describe('Edge case handling', () => {
 ### Level 2: Compatibility Mode
 ```typescript
 // Temporary compatibility layer
-class WebBuddyClient extends SemanTestClient {
+class SemantestClient extends SemanTestClient {
   constructor() {
-    console.warn('WebBuddyClient is deprecated');
+    console.warn('SemantestClient is deprecated');
     super();
   }
 }

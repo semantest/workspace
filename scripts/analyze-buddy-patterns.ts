@@ -42,14 +42,14 @@ const scanReport = JSON.parse(fs.readFileSync(reportPath, 'utf-8'));
 // Pattern definitions
 const PATTERNS = {
   imports: {
-    requireWebBuddy: {
-      regex: /require\s*\(\s*['"`]@?web-buddy[^'"`]*['"`]\s*\)/g,
-      description: "require() statements for web-buddy packages",
+    requireSemantest: {
+      regex: /require\s*\(\s*['"`]@?semantest[^'"`]*['"`]\s*\)/g,
+      description: "require() statements for semantest packages",
       complexity: 'simple' as const
     },
-    importWebBuddy: {
-      regex: /import\s+.*\s+from\s+['"`]@?web-buddy[^'"`]*['"`]/g,
-      description: "ES6 import statements for web-buddy",
+    importSemantest: {
+      regex: /import\s+.*\s+from\s+['"`]@?semantest[^'"`]*['"`]/g,
+      description: "ES6 import statements for semantest",
       complexity: 'simple' as const
     },
     importBuddy: {
@@ -67,7 +67,7 @@ const PATTERNS = {
   variables: {
     webBuddyClient: {
       regex: /\b(web|Web)BuddyClient\b/g,
-      description: "WebBuddyClient variable/class references",
+      description: "SemantestClient variable/class references",
       complexity: 'simple' as const
     },
     buddyAdapter: {
@@ -88,9 +88,9 @@ const PATTERNS = {
   },
   
   classesInterfaces: {
-    interfaceWebBuddy: {
-      regex: /\binterface\s+I?WebBuddy\w*/g,
-      description: "Interface definitions with WebBuddy",
+    interfaceSemantest: {
+      regex: /\binterface\s+I?Semantest\w*/g,
+      description: "Interface definitions with Semantest",
       complexity: 'ast' as const
     },
     classBuddy: {
@@ -98,9 +98,9 @@ const PATTERNS = {
       description: "Class definitions with Buddy in name",
       complexity: 'ast' as const
     },
-    typeWebBuddy: {
-      regex: /\btype\s+\w*WebBuddy\w*/g,
-      description: "Type definitions with WebBuddy",
+    typeSemantest: {
+      regex: /\btype\s+\w*Semantest\w*/g,
+      description: "Type definitions with Semantest",
       complexity: 'ast' as const
     },
     buddyConfig: {
@@ -116,7 +116,7 @@ const PATTERNS = {
   },
   
   functions: {
-    initWebBuddy: {
+    initSemantest: {
       regex: /\binit(Web)?Buddy\s*\(/g,
       description: "Initialization functions for buddy",
       complexity: 'simple' as const
@@ -160,7 +160,7 @@ const PATTERNS = {
       complexity: 'manual' as const
     },
     packageJson: {
-      regex: /"@?web-buddy[^"]*"\s*:/g,
+      regex: /"@?semantest[^"]*"\s*:/g,
       description: "package.json dependency entries",
       complexity: 'simple' as const
     },

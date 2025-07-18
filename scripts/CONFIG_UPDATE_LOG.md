@@ -1,8 +1,8 @@
-# WebBuddy → Semantest Configuration Update Log
+# Semantest → Semantest Configuration Update Log
 
 ## ⚙️ Overview
 
-This document tracks all configuration file updates, environment variable changes, and setup procedures for the WebBuddy → Semantest rebranding migration.
+This document tracks all configuration file updates, environment variable changes, and setup procedures for the Semantest → Semantest rebranding migration.
 
 ### Migration Summary
 - **Date**: 2025-07-18 15:10 CEST
@@ -62,26 +62,26 @@ This document tracks all configuration file updates, environment variable change
 ### Core Environment Variables
 | Old Variable | New Variable | Purpose | Status |
 |-------------|-------------|---------|---------|
-| `WEB_BUDDY_API_URL` | `SEMANTEST_API_URL` | API endpoint | ✅ Updated |
-| `WEB_BUDDY_PORT` | `SEMANTEST_PORT` | Server port | ✅ Updated |
-| `WEB_BUDDY_ENV` | `SEMANTEST_ENV` | Environment | ✅ Updated |
-| `WEB_BUDDY_LOG_LEVEL` | `SEMANTEST_LOG_LEVEL` | Logging level | ✅ Updated |
-| `WEB_BUDDY_DEBUG` | `SEMANTEST_DEBUG` | Debug mode | ✅ Updated |
+| `SEMANTEST_API_URL` | `SEMANTEST_API_URL` | API endpoint | ✅ Updated |
+| `SEMANTEST_PORT` | `SEMANTEST_PORT` | Server port | ✅ Updated |
+| `SEMANTEST_ENV` | `SEMANTEST_ENV` | Environment | ✅ Updated |
+| `SEMANTEST_LOG_LEVEL` | `SEMANTEST_LOG_LEVEL` | Logging level | ✅ Updated |
+| `SEMANTEST_DEBUG` | `SEMANTEST_DEBUG` | Debug mode | ✅ Updated |
 
 ### Security Environment Variables
 | Old Variable | New Variable | Purpose | Status |
 |-------------|-------------|---------|---------|
-| `WEB_BUDDY_JWT_SECRET` | `SEMANTEST_JWT_SECRET` | JWT signing | ✅ Updated |
-| `WEB_BUDDY_ENCRYPTION_KEY` | `SEMANTEST_ENCRYPTION_KEY` | Data encryption | ✅ Updated |
-| `WEB_BUDDY_SESSION_SECRET` | `SEMANTEST_SESSION_SECRET` | Session security | ✅ Updated |
+| `SEMANTEST_JWT_SECRET` | `SEMANTEST_JWT_SECRET` | JWT signing | ✅ Updated |
+| `SEMANTEST_ENCRYPTION_KEY` | `SEMANTEST_ENCRYPTION_KEY` | Data encryption | ✅ Updated |
+| `SEMANTEST_SESSION_SECRET` | `SEMANTEST_SESSION_SECRET` | Session security | ✅ Updated |
 
 ### Service Environment Variables
 | Old Variable | New Variable | Purpose | Status |
 |-------------|-------------|---------|---------|
-| `WEB_BUDDY_REDIS_URL` | `SEMANTEST_REDIS_URL` | Redis connection | ✅ Updated |
-| `WEB_BUDDY_DB_HOST` | `SEMANTEST_DB_HOST` | Database host | ✅ Updated |
-| `WEB_BUDDY_DB_NAME` | `SEMANTEST_DB_NAME` | Database name | ✅ Updated |
-| `WEB_BUDDY_SMTP_HOST` | `SEMANTEST_SMTP_HOST` | Email server | ✅ Updated |
+| `SEMANTEST_REDIS_URL` | `SEMANTEST_REDIS_URL` | Redis connection | ✅ Updated |
+| `SEMANTEST_DB_HOST` | `SEMANTEST_DB_HOST` | Database host | ✅ Updated |
+| `SEMANTEST_DB_NAME` | `SEMANTEST_DB_NAME` | Database name | ✅ Updated |
+| `SEMANTEST_SMTP_HOST` | `SEMANTEST_SMTP_HOST` | Email server | ✅ Updated |
 
 ### Application Environment Variables
 | Old Variable | New Variable | Purpose | Status |
@@ -93,9 +93,9 @@ This document tracks all configuration file updates, environment variable change
 ### Development Environment Variables
 | Old Variable | New Variable | Purpose | Status |
 |-------------|-------------|---------|---------|
-| `WEB_BUDDY_DEV_MODE` | `SEMANTEST_DEV_MODE` | Development mode | ✅ Updated |
-| `WEB_BUDDY_TEST_DB` | `SEMANTEST_TEST_DB` | Test database | ✅ Updated |
-| `WEB_BUDDY_COVERAGE_DIR` | `SEMANTEST_COVERAGE_DIR` | Coverage reports | ✅ Updated |
+| `SEMANTEST_DEV_MODE` | `SEMANTEST_DEV_MODE` | Development mode | ✅ Updated |
+| `SEMANTEST_TEST_DB` | `SEMANTEST_TEST_DB` | Test database | ✅ Updated |
+| `SEMANTEST_COVERAGE_DIR` | `SEMANTEST_COVERAGE_DIR` | Coverage reports | ✅ Updated |
 
 ## 📄 Configuration File Details
 
@@ -281,12 +281,12 @@ jobs:
 cp .env.example .env.semantest
 
 # Update environment variables
-sed -i 's/WEB_BUDDY_/SEMANTEST_/g' .env.semantest
+sed -i 's/SEMANTEST_/SEMANTEST_/g' .env.semantest
 sed -i 's/CHATGPT_BUDDY_/CHATGPT_SEMANTEST_/g' .env.semantest
 sed -i 's/GOOGLE_BUDDY_/GOOGLE_SEMANTEST_/g' .env.semantest
 
 # Backup old environment file
-mv .env .env.web-buddy.backup
+mv .env .env.semantest.backup
 
 # Use new environment file
 mv .env.semantest .env
@@ -419,7 +419,7 @@ npm run test:external
 ### Emergency Rollback
 ```bash
 # Restore original environment variables
-cp .env.web-buddy.backup .env
+cp .env.semantest.backup .env
 
 # Restore original configuration files
 git checkout HEAD~1 -- **/*.json **/*.yml **/*.yaml
@@ -438,7 +438,7 @@ npm run test:services
 git checkout HEAD~1 -- path/to/config.json
 
 # Rollback specific environment variable
-export WEB_BUDDY_API_URL=$SEMANTEST_API_URL
+export SEMANTEST_API_URL=$SEMANTEST_API_URL
 
 # Restart affected service
 docker-compose restart service-name

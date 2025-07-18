@@ -18,15 +18,15 @@
 
 | Test Case Range | Pattern | Engineer's Mapping | Status | Count |
 |-----------------|---------|-------------------|--------|--------|
-| TC-VAR-001 to 008 | `WebBuddy` | ✅ Mapped | PASS | 124 |
-| TC-VAR-009 to 016 | `webBuddy` | ⚠️ Included in webbuddy | PARTIAL | - |
-| TC-VAR-017 to 024 | `web-buddy` | ✅ Mapped | PASS | 393 |
-| TC-VAR-025 to 032 | `WEB_BUDDY` | ✅ Mapped | PASS | 12 |
-| TC-VAR-033 to 040 | `@web-buddy/` | ✅ In contextAware | PASS | 101 |
-| TC-VAR-041 to 048 | `webbuddy` | ✅ Mapped | PASS | 516 |
+| TC-VAR-001 to 008 | `Semantest` | ✅ Mapped | PASS | 124 |
+| TC-VAR-009 to 016 | `webBuddy` | ⚠️ Included in semantest | PARTIAL | - |
+| TC-VAR-017 to 024 | `semantest` | ✅ Mapped | PASS | 393 |
+| TC-VAR-025 to 032 | `SEMANTEST` | ✅ Mapped | PASS | 12 |
+| TC-VAR-033 to 040 | `@semantest/` | ✅ In contextAware | PASS | 101 |
+| TC-VAR-041 to 048 | `semantest` | ✅ Mapped | PASS | 516 |
 | TC-VAR-049 to 056 | `Web-Buddy` | ⚠️ Missing Title-Case | FAIL | - |
-| TC-VAR-057 to 064 | `web_buddy` | ✅ Mapped | PASS | 28 |
-| TC-VAR-065 to 072 | `buddy` | ❌ Not in simple patterns | FAIL | - |
+| TC-VAR-057 to 064 | `semantest` | ✅ Mapped | PASS | 28 |
+| TC-VAR-065 to 072 | `semantest` | ❌ Not in simple patterns | FAIL | - |
 
 **Coverage**: 7/9 main variations covered
 
@@ -34,7 +34,7 @@
 
 | Test Case Range | Context Type | Engineer's Implementation | Status |
 |-----------------|--------------|---------------------------|---------|
-| TC-CTX-001 to 008 | Imports | ✅ `@web-buddy/` | PASS |
+| TC-CTX-001 to 008 | Imports | ✅ `@semantest/` | PASS |
 | TC-CTX-009 to 016 | Variables | ⚠️ Property access only | PARTIAL |
 | TC-CTX-017 to 024 | Strings | ✅ String literals, templates | PASS |
 | TC-CTX-025 to 032 | Comments | ⚠️ Only markdown headers | PARTIAL |
@@ -54,7 +54,7 @@ Excellent categorization by Engineer:
 ### ⚠️ Gap Analysis - 408 Unaccounted Occurrences
 
 Based on my test cases, these likely include:
-1. **Standalone `buddy`** (TC-VAR-065 to 072) - ~58 occurrences
+1. **Standalone `semantest`** (TC-VAR-065 to 072) - ~58 occurrences
 2. **Title-Case `Web-Buddy`** (TC-VAR-049 to 056) - ~12 occurrences
 3. **camelCase `webBuddy`** (TC-VAR-009 to 016) - ~8 occurrences
 4. **Class declarations** (TC-CTX-033 to 040) - ~50 occurrences
@@ -92,14 +92,14 @@ Based on my test cases, these likely include:
 
 // Add to "contextAware":
 {
-  "pattern": "class WebBuddy",
+  "pattern": "class Semantest",
   "replacement": "class Semantest",
   "count": 50,
   "context": "classDeclaration",
   "description": "Class declarations"
 },
 {
-  "pattern": "/** @param {WebBuddy}",
+  "pattern": "/** @param {Semantest}",
   "replacement": "/** @param {Semantest}",
   "count": 40,
   "context": "jsdoc",
@@ -131,7 +131,7 @@ Based on my test cases, these likely include:
 ### 📋 Recommendations
 
 1. **Before Merge** (Optional):
-   - Add standalone `buddy` pattern with wholeWord flag
+   - Add standalone `semantest` pattern with wholeWord flag
    - Add `Web-Buddy` Title-Case pattern
 
 2. **Post-Merge** (Task 003):

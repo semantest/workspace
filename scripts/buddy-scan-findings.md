@@ -1,4 +1,4 @@
-# WebBuddy Reference Scan Report
+# Semantest Reference Scan Report
 
 ## Summary
 - Total Files: 164
@@ -27,9 +27,9 @@
 | 1 | `extension.chrome/manifest.json` | 89 | Config | Context-aware |
 | 2 | `docs/GOOGLE_IMAGES_GETTING_STARTED.md` | 78 | Docs | Manual review |
 | 3 | `typescript.client/src/event-driven-client.ts` | 67 | Code | Context-aware |
-| 4 | `nodejs.server/src/web-buddy-server.ts` | 65 | Code | Context-aware |
+| 4 | `nodejs.server/src/semantest-server.ts` | 65 | Code | Context-aware |
 | 5 | `chatgpt.com/README.org` | 58 | Docs | Manual review |
-| 6 | `google.com/src/google-buddy-adapter.ts` | 54 | Code | Simple |
+| 6 | `google.com/src/google-semantest-adapter.ts` | 54 | Code | Simple |
 | 7 | `browser/src/types.ts` | 48 | Code | Simple |
 | 8 | `extension.chrome/src/background.ts` | 45 | Code | Context-aware |
 | 9 | `package.json` (root) | 42 | Config | Simple |
@@ -46,13 +46,13 @@
 ## Breakdown by Replacement Type
 
 ### Simple Replacements (892 occurrences)
-- Package names in imports: `@web-buddy/*` → `@semantest/*`
+- Package names in imports: `@semantest/*` → `@semantest/*`
 - Class names ending in "Buddy": `*Buddy` → `*Client`
-- Configuration values: `web-buddy` → `semantest`
-- File paths: `/web-buddy/` → `/semantest/`
+- Configuration values: `semantest` → `semantest`
+- File paths: `/semantest/` → `/semantest/`
 
 ### Context-Aware Replacements (1,143 occurrences)
-- Variable names: `buddyClient` → `semantestClient`
+- Variable names: `semantestClient` → `semantestClient`
 - Function names: `createBuddyConnection` → `createSemanTestConnection`
 - Event types: `BuddyEvent` → `SemanTestEvent`
 - Comments referencing functionality

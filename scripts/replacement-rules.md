@@ -25,16 +25,16 @@ Simple replacement is safe when the text is:
 ### Safe Patterns
 | Pattern | Replace With | Example |
 |---------|--------------|---------|
-| `@web-buddy/` | `@semantest/` | `import { Client } from '@web-buddy/core'` → `'@semantest/core'` |
-| `"web-buddy"` | `"semantest"` | `"name": "web-buddy"` → `"name": "semantest"` |
-| `/web-buddy/` | `/semantest/` | `path: "/web-buddy/api"` → `"/semantest/api"` |
-| `WebBuddy` (isolated) | `Semantest` | `# WebBuddy Framework` → `# Semantest Framework` |
+| `@semantest/` | `@semantest/` | `import { Client } from '@semantest/core'` → `'@semantest/core'` |
+| `"semantest"` | `"semantest"` | `"name": "semantest"` → `"name": "semantest"` |
+| `/semantest/` | `/semantest/` | `path: "/semantest/api"` → `"/semantest/api"` |
+| `Semantest` (isolated) | `Semantest` | `# Semantest Framework` → `# Semantest Framework` |
 
 ### Script Example
 ```bash
 # Simple replacements can use sed
-sed -i 's/@web-buddy\//@semantest\//g' package.json
-sed -i 's/"web-buddy"/"semantest"/g' manifest.json
+sed -i 's/@semantest\//@semantest\//g' package.json
+sed -i 's/"semantest"/"semantest"/g' manifest.json
 ```
 
 ## 2. Context-Aware Replacement Rules (48.0% of occurrences)
@@ -52,13 +52,13 @@ Context-aware replacement is needed when:
 | Original | Replacement | Rule |
 |----------|-------------|------|
 | `ChatGPTBuddyClient` | `ChatGPTClient` | Remove "Buddy" from compound names |
-| `WebBuddyServer` | `SemanTestServer` | Full replacement for core classes |
+| `SemantestServer` | `SemanTestServer` | Full replacement for core classes |
 | `BuddyConnection` | `SemanTestConnection` | Prefix replacement |
 
 #### Variable Names
 | Original | Replacement | Rule |
 |----------|-------------|------|
-| `buddyClient` | `client` | Simplify when possible |
+| `semantestClient` | `client` | Simplify when possible |
 | `webBuddyConfig` | `semantestConfig` | Full replacement |
 | `hasBuddy` | `hasSemantest` | Preserve prefix |
 
@@ -66,7 +66,7 @@ Context-aware replacement is needed when:
 | Original | Replacement | Rule |
 |----------|-------------|------|
 | `createBuddyConnection()` | `createConnection()` | Simplify when unambiguous |
-| `initWebBuddy()` | `initSemantest()` | Full replacement |
+| `initSemantest()` | `initSemantest()` | Full replacement |
 | `getBuddyStatus()` | `getClientStatus()` | Context-specific replacement |
 
 ### Special Cases
@@ -74,7 +74,7 @@ Context-aware replacement is needed when:
 #### Event Types
 ```typescript
 // Before
-export class WebBuddyConnectedEvent extends Event {}
+export class SemantestConnectedEvent extends Event {}
 
 // After
 export class ConnectionEstablishedEvent extends Event {}
@@ -141,9 +141,9 @@ throw new Error('Semantest connection failed. Please check the service status.')
 ### Preserve With Comment
 ```typescript
 // @deprecated Use SemanTestClient instead
-export class WebBuddyClient extends SemanTestClient {
+export class SemantestClient extends SemanTestClient {
   constructor() {
-    console.warn('WebBuddyClient is deprecated. Use SemanTestClient.');
+    console.warn('SemantestClient is deprecated. Use SemanTestClient.');
     super();
   }
 }

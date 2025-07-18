@@ -1,0 +1,324 @@
+{
+  "metadata": {
+    "generated": "2025-07-18T08:56:00Z",
+    "updated": "2025-07-18T09:10:00Z",
+    "totalOccurrences": 2380,
+    "sourceFile": "buddy-scan-report.json",
+    "securityReview": "UPDATED - Added env vars and API key patterns"
+  },
+  "securityExclusions": [
+    {
+      "pattern": "WEB_BUDDY_API_KEY",
+      "reason": "API key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_API_KEY",
+      "reason": "API key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_SECRET",
+      "reason": "Secret key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_SECRET",
+      "reason": "Secret key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_TOKEN",
+      "reason": "Auth token environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_TOKEN",
+      "reason": "Auth token environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_PASSWORD",
+      "reason": "Password environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_PASSWORD",
+      "reason": "Password environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_CLIENT_ID",
+      "reason": "OAuth client ID - may be security sensitive",
+      "severity": "HIGH",
+      "recommendation": "Review context before replacing"
+    },
+    {
+      "pattern": "WEB_BUDDY_CLIENT_SECRET",
+      "reason": "OAuth client secret - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_AUTH_",
+      "reason": "Authentication related env vars",
+      "severity": "HIGH",
+      "recommendation": "Review all auth-related env vars"
+    },
+    {
+      "pattern": "BUDDY_KEY",
+      "reason": "Generic key pattern - may be sensitive",
+      "severity": "HIGH",
+      "recommendation": "Review context before replacing"
+    },
+    {
+      "pattern": "BUDDY_SECRET",
+      "reason": "Generic secret pattern - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    }
+  ],
+  "simple": [
+    {
+      "pattern": "WebBuddy",
+      "replacement": "Semantest",
+      "count": 124,
+      "caseInsensitive": false,
+      "description": "Class names and direct references"
+    },
+    {
+      "pattern": "webbuddy",
+      "replacement": "semantest",
+      "count": 516,
+      "caseInsensitive": false,
+      "description": "Lowercase references"
+    },
+    {
+      "pattern": "web-buddy",
+      "replacement": "semantest",
+      "count": 393,
+      "caseInsensitive": false,
+      "description": "Hyphenated references"
+    },
+    {
+      "pattern": "web_buddy",
+      "replacement": "semantest",
+      "count": 28,
+      "caseInsensitive": false,
+      "description": "Underscore references"
+    },
+    {
+      "pattern": "WEBBUDDY",
+      "replacement": "SEMANTEST",
+      "count": 15,
+      "caseInsensitive": false,
+      "description": "Uppercase constants"
+    },
+    {
+      "pattern": "WEB-BUDDY",
+      "replacement": "SEMANTEST",
+      "count": 8,
+      "caseInsensitive": false,
+      "description": "Uppercase hyphenated"
+    },
+    {
+      "pattern": "WEB_BUDDY",
+      "replacement": "SEMANTEST",
+      "count": 12,
+      "caseInsensitive": false,
+      "description": "Uppercase underscore"
+    },
+    {
+      "pattern": "chatgpt-buddy",
+      "replacement": "chatgpt-semantest",
+      "count": 312,
+      "caseInsensitive": false,
+      "description": "ChatGPT specific references"
+    },
+    {
+      "pattern": "chatgptbuddy",
+      "replacement": "chatgptsemantest",
+      "count": 118,
+      "caseInsensitive": false,
+      "description": "ChatGPT no separator"
+    },
+    {
+      "pattern": "google-buddy",
+      "replacement": "google-semantest",
+      "count": 29,
+      "caseInsensitive": false,
+      "description": "Google specific references"
+    },
+    {
+      "pattern": "googlebuddy",
+      "replacement": "googlesemantest",
+      "count": 58,
+      "caseInsensitive": false,
+      "description": "Google no separator"
+    }
+  ],
+  "contextAware": [
+    {
+      "pattern": "@web-buddy/",
+      "replacement": "@semantest/",
+      "count": 101,
+      "context": "imports",
+      "description": "NPM package imports"
+    },
+    {
+      "pattern": ".webbuddy",
+      "replacement": ".semantest",
+      "count": 57,
+      "context": "propertyAccess",
+      "description": "Property access patterns"
+    },
+    {
+      "pattern": "\"web-buddy",
+      "replacement": "\"semantest",
+      "count": 30,
+      "context": "strings",
+      "description": "String literals"
+    },
+    {
+      "pattern": "# webbuddy",
+      "replacement": "# semantest",
+      "count": 2,
+      "context": "markdown",
+      "description": "Markdown headers"
+    },
+    {
+      "pattern": "`buddy",
+      "replacement": "`semantest",
+      "count": 14,
+      "context": "template",
+      "description": "Template literals"
+    },
+    {
+      "pattern": "/buddy",
+      "replacement": "/semantest",
+      "count": 6,
+      "context": "path",
+      "description": "URL paths"
+    },
+    {
+      "pattern": "-buddy",
+      "replacement": "-semantest",
+      "count": 43,
+      "context": "compound",
+      "description": "Compound words"
+    }
+  ],
+  "manualReview": [
+    {
+      "pattern": "//github.com/rydnr/chatgpt-buddy",
+      "count": 42,
+      "reason": "External GitHub URL - needs decision on whether to update",
+      "recommendation": "Keep original or update to new repo URL"
+    },
+    {
+      "pattern": "//github.com/rydnr/web-buddy",
+      "count": 13,
+      "reason": "External GitHub URL - needs decision on whether to update",
+      "recommendation": "Keep original or update to new repo URL"
+    },
+    {
+      "pattern": "//localhost:*/buddy",
+      "count": 1,
+      "reason": "Development URL pattern",
+      "recommendation": "Update path segment to /semantest"
+    },
+    {
+      "pattern": "* @author web-buddy",
+      "count": 21,
+      "reason": "Author attribution in comments",
+      "recommendation": "May need to preserve for attribution"
+    },
+    {
+      "pattern": "* @fileoverview",
+      "count": 45,
+      "reason": "File documentation headers",
+      "recommendation": "Update buddy references in descriptions"
+    },
+    {
+      "pattern": "buddy feature enabled",
+      "count": 8,
+      "reason": "User-facing messages",
+      "recommendation": "Needs product decision on user messaging"
+    },
+    {
+      "pattern": "webbuddy.com",
+      "count": 5,
+      "reason": "External domain reference",
+      "recommendation": "Do not change - external domain"
+    },
+    {
+      "pattern": "process.env.WEB_BUDDY",
+      "count": 15,
+      "reason": "Environment variable access - SECURITY SENSITIVE",
+      "recommendation": "Check securityExclusions before replacing"
+    },
+    {
+      "pattern": "process.env.WEBBUDDY",
+      "count": 8,
+      "reason": "Environment variable access - SECURITY SENSITIVE",
+      "recommendation": "Check securityExclusions before replacing"
+    },
+    {
+      "pattern": ".env",
+      "count": 23,
+      "reason": "Environment file references - may contain secrets",
+      "recommendation": "Manual review of all .env file changes"
+    },
+    {
+      "pattern": "docker-compose",
+      "count": 5,
+      "reason": "Docker compose files may contain env vars",
+      "recommendation": "Review for environment variable definitions"
+    },
+    {
+      "pattern": "CI/CD",
+      "count": 3,
+      "reason": "CI/CD configurations may contain secrets",
+      "recommendation": "Review GitHub Actions, Jenkins, etc. for env vars"
+    }
+  ],
+  "statistics": {
+    "securityExclusions": {
+      "totalPatterns": 13,
+      "severity": {
+        "CRITICAL": 8,
+        "HIGH": 5
+      },
+      "note": "These patterns MUST NOT be replaced automatically"
+    },
+    "simple": {
+      "totalPatterns": 11,
+      "totalOccurrences": 1613,
+      "percentage": 67.8
+    },
+    "contextAware": {
+      "totalPatterns": 7,
+      "totalOccurrences": 254,
+      "percentage": 10.7
+    },
+    "manualReview": {
+      "totalPatterns": 12,
+      "totalOccurrences": 159,
+      "percentage": 6.7,
+      "securityRelated": 5
+    },
+    "unaccounted": {
+      "occurrences": 354,
+      "percentage": 14.9,
+      "note": "Remaining patterns in comments, complex strings, or edge cases"
+    }
+  }
+}

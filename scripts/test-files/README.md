@@ -1,22 +1,22 @@
-# WebBuddy Test Package
+# Semantest Test Package
 
-This is a test package for the WebBuddy → Semantest migration script.
+This is a test package for the Semantest → Semantest migration script.
 
 ## About Web-Buddy
 
 Web-Buddy is a comprehensive automation framework for web applications. It provides:
 
-- **webbuddy** core functionality
-- **@web-buddy/client** for API integration
-- **chatgpt-buddy** for AI interactions
-- **google-buddy** for search automation
+- **semantest** core functionality
+- **@semantest/client** for API integration
+- **chatgpt-semantest** for AI interactions
+- **google-semantest** for search automation
 
 ## Features
 
-### Core WebBuddy Features
-- Browser automation with webbuddy engine
-- Event-driven architecture via web-buddy framework
-- Plugin system for web-buddy extensions
+### Core Semantest Features
+- Browser automation with semantest engine
+- Event-driven architecture via semantest framework
+- Plugin system for semantest extensions
 
 ### Module-Specific Features
 - **ChatGPT-Buddy**: AI conversation automation
@@ -26,40 +26,40 @@ Web-Buddy is a comprehensive automation framework for web applications. It provi
 ## Installation
 
 ```bash
-npm install @web-buddy/client
-npm install webbuddy
+npm install @semantest/client
+npm install semantest
 ```
 
 ## Usage
 
 ```typescript
-import { WebBuddy } from '@web-buddy/client';
+import { Semantest } from '@semantest/client';
 
-const webBuddy = new WebBuddy({
-  // web-buddy configuration
+const webBuddy = new Semantest({
+  // semantest configuration
 });
 
-// Initialize chatgpt-buddy
-const chatgptBuddy = webBuddy.plugin('chatgpt-buddy');
+// Initialize chatgpt-semantest
+const chatgptBuddy = webBuddy.plugin('chatgpt-semantest');
 
-// Initialize google-buddy  
-const googleBuddy = webBuddy.plugin('google-buddy');
+// Initialize google-semantest  
+const googleBuddy = webBuddy.plugin('google-semantest');
 ```
 
 ## Configuration
 
-Create a `web-buddy.config.js` file:
+Create a `semantest.config.js` file:
 
 ```javascript
 module.exports = {
-  webbuddy: {
+  semantest: {
     port: 3000,
     host: 'localhost'
   },
-  'chatgpt-buddy': {
+  'chatgpt-semantest': {
     apiKey: process.env.CHATGPT_BUDDY_API_KEY
   },
-  'google-buddy': {
+  'google-semantest': {
     enabled: true
   }
 };
@@ -67,11 +67,11 @@ module.exports = {
 
 ## API Reference
 
-### WebBuddy Class
+### Semantest Class
 
-The main `WebBuddy` class provides:
+The main `Semantest` class provides:
 
-- `webBuddy.connect()` - Connect to web-buddy server
+- `webBuddy.connect()` - Connect to semantest server
 - `webBuddy.plugin(name)` - Load buddy plugin
 - `webBuddy.automation()` - Start automation
 
@@ -91,10 +91,10 @@ class ChatGPTBuddy extends Buddy {
 
 ## External Links
 
-- **GitHub**: https://github.com/rydnr/web-buddy
-- **Documentation**: https://docs.web-buddy.dev
-- **Discord**: https://discord.gg/web-buddy
-- **NPM**: https://www.npmjs.com/package/@web-buddy/client
+- **GitHub**: https://github.com/rydnr/semantest
+- **Documentation**: https://docs.semantest.dev
+- **Discord**: https://discord.gg/semantest
+- **NPM**: https://www.npmjs.com/package/@semantest/client
 
 ## Security
 
@@ -106,4 +106,4 @@ MIT - See LICENSE file for details.
 
 ---
 
-**Note**: This is a test file for migration script validation. It contains various buddy patterns that should be replaced during the WebBuddy → Semantest migration.
+**Note**: This is a test file for migration script validation. It contains various buddy patterns that should be replaced during the Semantest → Semantest migration.

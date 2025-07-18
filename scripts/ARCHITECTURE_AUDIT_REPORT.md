@@ -42,9 +42,9 @@
 
 #### Files in Wrong Locations:
 ```
-❌ typescript.client/src/chatgpt-buddy-client.ts
+❌ typescript.client/src/chatgpt-semantest-client.ts
 ❌ extension.chrome/src/chatgpt-background.ts
-❌ extension.chrome/src/plugins/chatgpt-buddy-plugin.ts
+❌ extension.chrome/src/plugins/chatgpt-semantest-plugin.ts
 ```
 
 #### Correct Target Location:
@@ -88,7 +88,7 @@ export class GoogleImageDownloadRequested extends BaseEvent {
 ```
 typescript.client → google-images-downloader → typescript.client
 browser → google-images-downloader → browser
-extension.chrome → chatgpt-buddy-plugin → extension.chrome
+extension.chrome → chatgpt-semantest-plugin → extension.chrome
 ```
 
 #### Import Violations:
@@ -159,9 +159,9 @@ chatgpt.com/         # ChatGPT domain
 
 ### Phase 3: Move ChatGPT Code (Day 3)
 1. **Move ChatGPT-specific code**
-   - `chatgpt-buddy-client.ts` → `chatgpt.com/application/`
+   - `chatgpt-semantest-client.ts` → `chatgpt.com/application/`
    - `chatgpt-background.ts` → `chatgpt.com/infrastructure/`
-   - `chatgpt-buddy-plugin.ts` → `chatgpt.com/infrastructure/`
+   - `chatgpt-semantest-plugin.ts` → `chatgpt.com/infrastructure/`
 
 ### Phase 4: Update Generic Modules (Day 4)
 1. **Clean up typescript.client**

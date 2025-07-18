@@ -1,8 +1,8 @@
-# WebBuddy → Semantest External References Update Log
+# Semantest → Semantest External References Update Log
 
 ## 🌐 Overview
 
-This document tracks all external references, integrations, and third-party service configurations updated for the WebBuddy → Semantest rebranding migration.
+This document tracks all external references, integrations, and third-party service configurations updated for the Semantest → Semantest rebranding migration.
 
 ### Migration Summary
 - **Date**: 2025-07-18 15:30 CEST
@@ -48,19 +48,19 @@ This document tracks all external references, integrations, and third-party serv
 ```markdown
 # GitHub URLs Updated
 https://github.com/rydnr/typescript-eda → https://github.com/typescript-eda/domain
-https://github.com/rydnr/chatgpt-buddy → https://github.com/semantest/semantest
-https://github.com/rydnr/web-buddy-nodejs-server → https://github.com/semantest/nodejs.server
+https://github.com/rydnr/chatgpt-semantest → https://github.com/semantest/semantest
+https://github.com/rydnr/semantest-nodejs-server → https://github.com/semantest/nodejs.server
 ```
 
 ### Package Registry Services
 ```markdown
 # NPM Registry (Already Updated)
-@web-buddy/core → @semantest/core
-@web-buddy/client → @semantest/client
-@web-buddy/browser → @semantest/browser
-@web-buddy/extension → @semantest/extension
-chatgpt-buddy → @semantest/chatgpt.com
-google-buddy → @semantest/google.com
+@semantest/core → @semantest/core
+@semantest/client → @semantest/client
+@semantest/browser → @semantest/browser
+@semantest/extension → @semantest/extension
+chatgpt-semantest → @semantest/chatgpt.com
+google-semantest → @semantest/google.com
 ```
 
 ### Documentation Services

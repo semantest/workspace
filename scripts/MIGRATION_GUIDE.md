@@ -1,11 +1,11 @@
-# WebBuddy → Semantest Migration Guide
+# Semantest → Semantest Migration Guide
 
 ## ⚡ Quick Examples (1 minute)
 
 ### Preview Changes (--dry-run)
 ```bash
 # See what will change WITHOUT modifying any files
-./migrate-buddy.sh --dry-run
+./migrate-semantest.sh --dry-run
 
 # Output shows:
 # - Files to be modified: 164
@@ -17,19 +17,19 @@
 ### Simple Pattern Only (--pattern simple)
 ```bash
 # Replace only safe, simple patterns
-./migrate-buddy.sh --pattern simple
+./migrate-semantest.sh --pattern simple
 
 # This handles:
-# ✅ Package imports: @web-buddy/* → @semantest/*
-# ✅ Config values: "web-buddy" → "semantest"
-# ✅ File paths: /web-buddy/ → /semantest/
+# ✅ Package imports: @semantest/* → @semantest/*
+# ✅ Config values: "semantest" → "semantest"
+# ✅ File paths: /semantest/ → /semantest/
 # ❌ Skips complex code changes
 ```
 
 ### Instant Rollback (--rollback)
 ```bash
 # Undo all changes immediately
-./migrate-buddy.sh --rollback
+./migrate-semantest.sh --rollback
 
 # Features:
 # - Restores from automatic backup
@@ -68,7 +68,7 @@ chmod +x scripts/*.sh
 ./scripts/backup-project.sh /path/to/your/project
 
 # Run migration
-./scripts/migrate-buddy-to-semantest.sh /path/to/your/project
+./scripts/migrate-semantest-to-semantest.sh /path/to/your/project
 
 # Verify results
 ./scripts/verify-migration.sh /path/to/your/project
@@ -77,20 +77,20 @@ chmod +x scripts/*.sh
 #### Selective Migration
 ```bash
 # Migrate only package.json files
-./scripts/migrate-buddy-to-semantest.sh /path/to/project --files "package.json"
+./scripts/migrate-semantest-to-semantest.sh /path/to/project --files "package.json"
 
 # Migrate only TypeScript files
-./scripts/migrate-buddy-to-semantest.sh /path/to/project --type "ts"
+./scripts/migrate-semantest-to-semantest.sh /path/to/project --type "ts"
 
 # Dry run (preview changes)
-./scripts/migrate-buddy-to-semantest.sh /path/to/project --dry-run
+./scripts/migrate-semantest-to-semantest.sh /path/to/project --dry-run
 ```
 
 ## 📋 Command Options
 
 ### Main Migration Script
 ```bash
-./scripts/migrate-buddy-to-semantest.sh [OPTIONS] <project-path>
+./scripts/migrate-semantest-to-semantest.sh [OPTIONS] <project-path>
 ```
 
 | Option | Description | Example |
@@ -107,13 +107,13 @@ chmod +x scripts/*.sh
 ### Examples
 ```bash
 # Conservative migration (config files only)
-./scripts/migrate-buddy-to-semantest.sh ./my-project --files "package.json,manifest.json" --backup
+./scripts/migrate-semantest-to-semantest.sh ./my-project --files "package.json,manifest.json" --backup
 
 # Full migration with verification
-./scripts/migrate-buddy-to-semantest.sh ./my-project --backup --verbose
+./scripts/migrate-semantest-to-semantest.sh ./my-project --backup --verbose
 
 # Preview TypeScript changes
-./scripts/migrate-buddy-to-semantest.sh ./my-project --type "ts" --dry-run
+./scripts/migrate-semantest-to-semantest.sh ./my-project --type "ts" --dry-run
 ```
 
 ## 🔄 Rollback Procedures
@@ -149,7 +149,7 @@ sudo systemctl stop semantest-service
 sudo cp -r /backup/project/* /production/path/
 
 # Restart with old names
-sudo systemctl start web-buddy-service  # Use old service name
+sudo systemctl start semantest-service  # Use old service name
 
 # Update DNS/load balancer back to old endpoints
 ```
@@ -158,7 +158,7 @@ sudo systemctl start web-buddy-service  # Use old service name
 
 ### Before Migration
 - [ ] **Backup everything** (code, database, configs)
-- [ ] **Stop all services** using WebBuddy
+- [ ] **Stop all services** using Semantest
 - [ ] **Test rollback procedure** in staging
 - [ ] **Check dependencies** for buddy references
 - [ ] **Notify team** of migration timeline
@@ -222,10 +222,10 @@ npm install -g @semantest/cli
 npx @semantest/cli --version
 ```
 
-**"Module not found: @web-buddy/core"**
+**"Module not found: @semantest/core"**
 ```bash
 # Install compatibility package
-npm install @web-buddy/core@latest  # Redirects to semantest
+npm install @semantest/core@latest  # Redirects to semantest
 
 # Or update imports
 ./scripts/fix-imports.sh /path/to/project

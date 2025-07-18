@@ -16,21 +16,21 @@
 
 | Variation | Test Cases | Mapping Status | Count |
 |-----------|------------|----------------|-------|
-| PascalCase: `WebBuddy` | TC-VAR-001 to 008 | ✅ Mapped | 15 |
+| PascalCase: `Semantest` | TC-VAR-001 to 008 | ✅ Mapped | 15 |
 | camelCase: `webBuddy` | TC-VAR-009 to 016 | ✅ Mapped | 8 |
-| kebab-case: `web-buddy` | TC-VAR-017 to 024 | ✅ Mapped | 393 |
-| SNAKE_CASE: `WEB_BUDDY` | TC-VAR-025 to 032 | ✅ Mapped | 3 |
-| npm scope: `@web-buddy/` | TC-VAR-033 to 040 | ✅ Mapped | 101 |
-| no separator: `webbuddy` | TC-VAR-041 to 048 | ✅ Mapped | 516 |
+| kebab-case: `semantest` | TC-VAR-017 to 024 | ✅ Mapped | 393 |
+| SNAKE_CASE: `SEMANTEST` | TC-VAR-025 to 032 | ✅ Mapped | 3 |
+| npm scope: `@semantest/` | TC-VAR-033 to 040 | ✅ Mapped | 101 |
+| no separator: `semantest` | TC-VAR-041 to 048 | ✅ Mapped | 516 |
 | Title-Case: `Web-Buddy` | TC-VAR-049 to 056 | ✅ Mapped | 12 |
-| snake_case: `web_buddy` | TC-VAR-057 to 064 | ✅ Mapped | 28 |
-| standalone: `buddy` | TC-VAR-065 to 072 | ✅ Mapped | 58 |
+| snake_case: `semantest` | TC-VAR-057 to 064 | ✅ Mapped | 28 |
+| standalone: `semantest` | TC-VAR-065 to 072 | ✅ Mapped | 58 |
 
 ### ✅ Context Patterns Coverage
 
 | Context | Test Coverage | Mapping Implementation |
 |---------|---------------|------------------------|
-| Imports | TC-CTX-001 to 008 | ✅ `@web-buddy/`, `@chatgpt-buddy/`, `@google-buddy/` |
+| Imports | TC-CTX-001 to 008 | ✅ `@semantest/`, `@chatgpt-semantest/`, `@google-semantest/` |
 | Variables | TC-CTX-009 to 016 | ⚠️ Partial - missing destructuring patterns |
 | Strings | TC-CTX-017 to 024 | ✅ Single/double quotes, templates covered |
 | Comments | TC-CTX-025 to 032 | ⚠️ Only basic comments, missing JSDoc patterns |
@@ -39,10 +39,10 @@
 ### ⚠️ Missing Patterns Detected
 
 1. **Class Context Patterns** (8 test cases uncovered):
-   - Class declarations: `class WebBuddyAdapter {}`
-   - Extended classes: `class MyBuddy extends WebBuddy {}`
-   - Generic classes: `class WebBuddyManager<T> {}`
-   - Abstract classes: `abstract class WebBuddyBase {}`
+   - Class declarations: `class SemantestAdapter {}`
+   - Extended classes: `class MyBuddy extends Semantest {}`
+   - Generic classes: `class SemantestManager<T> {}`
+   - Abstract classes: `abstract class SemantestBase {}`
 
 2. **Advanced Variable Patterns** (4 test cases):
    - Array destructuring: `const [webBuddy] = clients`
@@ -50,18 +50,18 @@
    - Default parameters: `function init(webBuddy = defaultClient)`
 
 3. **JSDoc Patterns** (3 test cases):
-   - `/** @param {WebBuddy} buddy */`
-   - `/** @returns {WebBuddy} */`
-   - `/** @type {WebBuddy} */`
+   - `/** @param {Semantest} buddy */`
+   - `/** @returns {Semantest} */`
+   - `/** @type {Semantest} */`
 
 4. **Edge Cases** (8 test cases):
-   - Mixed case in same line: `const webBuddy = new WebBuddy()`
+   - Mixed case in same line: `const webBuddy = new Semantest()`
    - Unicode variants: `ᴡᴇʙʙᴜᴅᴅʏ`
    - Case variations: `WeBbUdDy`
    - Special characters: `web.buddy`, `web$buddy`
 
 5. **False Positive Prevention** (3 test cases):
-   - Partial words: `webbuddying`, `buddyweb`
+   - Partial words: `semantesting`, `semantestweb`
    - Unrelated: `anybody`, `somebody`
 
 ## Critical Findings
@@ -71,7 +71,7 @@
 1. **Class Pattern Rules**:
    ```json
    {
-     "pattern": "class WebBuddy",
+     "pattern": "class Semantest",
      "replacement": "class Semantest",
      "context": "classDeclaration"
    }
@@ -80,21 +80,21 @@
 2. **JSDoc Pattern Rules**:
    ```json
    {
-     "pattern": "@param {WebBuddy}",
+     "pattern": "@param {Semantest}",
      "replacement": "@param {Semantest}",
      "context": "jsdoc"
    }
    ```
 
 3. **Whole Word Matching Enhancement**:
-   - Current: Only `buddy` has `wholeWord: true`
+   - Current: Only `semantest` has `wholeWord: true`
    - Needed: Apply to all standalone patterns to prevent false positives
 
 ## Validation Against Scan Report
 
 ### ✅ Strengths
 - Covers 95.6% of found occurrences (2,275/2,380)
-- Module-specific patterns well handled (chatgpt-buddy, google-buddy)
+- Module-specific patterns well handled (chatgpt-semantest, google-semantest)
 - Good manual review list (105 items)
 
 ### ⚠️ Improvements Needed

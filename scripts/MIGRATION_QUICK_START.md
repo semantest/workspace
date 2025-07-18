@@ -1,11 +1,11 @@
-# WebBuddy → Semantest Migration Quick Start
+# Semantest → Semantest Migration Quick Start
 
 ## 🚀 Essential Commands (2 minutes to learn)
 
 ### 1. Preview Changes (--dry-run)
 ```bash
 # See what will change WITHOUT modifying files
-./migrate-buddy.sh --dry-run
+./migrate-semantest.sh --dry-run
 
 # Example output:
 # [DRY RUN] Would replace 892 simple occurrences
@@ -17,12 +17,12 @@
 ### 2. Simple Pattern Migration (--pattern simple)
 ```bash
 # Replace only simple, safe patterns first
-./migrate-buddy.sh --pattern simple
+./migrate-semantest.sh --pattern simple
 
 # This ONLY replaces:
-# - @web-buddy/* → @semantest/*
-# - "web-buddy" → "semantest" (in quotes)
-# - /web-buddy/ → /semantest/ (in paths)
+# - @semantest/* → @semantest/*
+# - "semantest" → "semantest" (in quotes)
+# - /semantest/ → /semantest/ (in paths)
 
 # Safe for immediate use - no breaking changes!
 ```
@@ -30,7 +30,7 @@
 ### 3. Rollback Changes (--rollback)
 ```bash
 # Instant rollback to previous state
-./migrate-buddy.sh --rollback
+./migrate-semantest.sh --rollback
 
 # Restores from automatic backup
 # Takes < 30 seconds
@@ -41,53 +41,53 @@
 
 ```bash
 # STEP 1: Preview what will change
-./migrate-buddy.sh --dry-run > migration-preview.txt
+./migrate-semantest.sh --dry-run > migration-preview.txt
 
 # STEP 2: Migrate simple patterns only
-./migrate-buddy.sh --pattern simple
+./migrate-semantest.sh --pattern simple
 
 # STEP 3: Test your application
 npm test
 
 # STEP 4: If tests pass, do full migration
-./migrate-buddy.sh --pattern all
+./migrate-semantest.sh --pattern all
 
 # STEP 5: If issues, rollback immediately
-./migrate-buddy.sh --rollback
+./migrate-semantest.sh --rollback
 ```
 
 ## ⚡ One-Liner Examples
 
 ```bash
 # Conservative approach (config files only)
-./migrate-buddy.sh --pattern simple --files "*.json"
+./migrate-semantest.sh --pattern simple --files "*.json"
 
 # Preview TypeScript changes
-./migrate-buddy.sh --dry-run --files "*.ts"
+./migrate-semantest.sh --dry-run --files "*.ts"
 
 # Full migration with backup
-./migrate-buddy.sh --backup --pattern all
+./migrate-semantest.sh --backup --pattern all
 
 # Emergency rollback
-./migrate-buddy.sh --rollback --force
+./migrate-semantest.sh --rollback --force
 ```
 
 ## 🆘 Quick Troubleshooting
 
 **Tests failing?**
 ```bash
-./migrate-buddy.sh --rollback
-./migrate-buddy.sh --pattern simple --exclude test/
+./migrate-semantest.sh --rollback
+./migrate-semantest.sh --pattern simple --exclude test/
 ```
 
 **Need specific files only?**
 ```bash
-./migrate-buddy.sh --files "package.json,manifest.json"
+./migrate-semantest.sh --files "package.json,manifest.json"
 ```
 
 **Want to see verbose output?**
 ```bash
-./migrate-buddy.sh --dry-run --verbose
+./migrate-semantest.sh --dry-run --verbose
 ```
 
 ---

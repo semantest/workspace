@@ -36,29 +36,29 @@ interface ScanReport {
 const BUDDY_PATTERNS = [
   // Basic variations
   'buddy',
-  'webbuddy',
-  'web-buddy',
-  'web_buddy',
+  'semantest',
+  'semantest',
+  'semantest',
   
   // Case variations
   'Buddy',
-  'WebBuddy',
+  'Semantest',
   'Web-Buddy',
   'Web_Buddy',
   'BUDDY',
-  'WEBBUDDY',
-  'WEB-BUDDY',
-  'WEB_BUDDY',
+  'SEMANTEST',
+  'SEMANTEST',
+  'SEMANTEST',
   
   // Camel case variations
   'webBuddy',
-  'WebBuddy',
+  'Semantest',
   
   // Package/import variations
-  '@web-buddy',
-  '@webbuddy',
-  'web-buddy/',
-  'webbuddy/',
+  '@semantest',
+  '@semantest',
+  'semantest/',
+  'semantest/',
   '@buddy',
   'buddy/',
   
@@ -69,8 +69,8 @@ const BUDDY_PATTERNS = [
   'BuddyAdapter',
   'BuddyEvent',
   'BuddyMessage',
-  'WebBuddyClient',
-  'WebBuddyServer',
+  'SemantestClient',
+  'SemantestServer',
   'BuddyStorage',
   'BuddyPattern',
   'BuddyContract',
@@ -81,7 +81,7 @@ const BUDDY_PATTERNS = [
   
   // File name patterns
   'buddy-',
-  '-buddy',
+  '-semantest',
   '_buddy',
   'buddy_',
   'buddy\\.',
@@ -90,8 +90,8 @@ const BUDDY_PATTERNS = [
   // Config/constant patterns
   'BUDDY_',
   '_BUDDY',
-  'WEB_BUDDY_',
-  '_WEB_BUDDY',
+  'SEMANTEST_',
+  '_SEMANTEST',
   'BUDDY:',
   ':BUDDY',
   
@@ -99,7 +99,7 @@ const BUDDY_PATTERNS = [
   'buddy\\(',
   'Buddy\\(',
   'webBuddy\\(',
-  'WebBuddy\\(',
+  'Semantest\\(',
   'getBuddy',
   'setBuddy',
   'createBuddy',
@@ -109,7 +109,7 @@ const BUDDY_PATTERNS = [
   // Property patterns
   '\\.buddy',
   '\\.webBuddy',
-  '\\.WebBuddy',
+  '\\.Semantest',
   '\\.Buddy',
   '\\[buddy',
   'buddy\\]',
@@ -119,9 +119,9 @@ const BUDDY_PATTERNS = [
   'buddy"',
   "'buddy",
   "buddy'",
-  '"web-buddy',
-  'web-buddy"',
-  '`buddy',
+  '"semantest',
+  'semantest"',
+  '`semantest',
   'buddy`',
   
   // Comment patterns
@@ -131,7 +131,7 @@ const BUDDY_PATTERNS = [
   '<!--.*buddy',
   
   // ChatGPT variations
-  'chatgpt-buddy',
+  'chatgpt-semantest',
   'chatgptBuddy',
   'ChatGPTBuddy',
   'CHATGPT_BUDDY',
@@ -140,7 +140,7 @@ const BUDDY_PATTERNS = [
   'ChatGPT-Buddy',
   
   // Google variations  
-  'google-buddy',
+  'google-semantest',
   'googleBuddy',
   'GoogleBuddy',
   'GOOGLE_BUDDY',
@@ -149,11 +149,11 @@ const BUDDY_PATTERNS = [
   'Google-Buddy',
   
   // URL/path patterns
-  '/buddy',
+  '/semantest',
   'buddy/',
-  '/web-buddy',
-  'web-buddy/',
-  '-buddy-',
+  '/semantest',
+  'semantest/',
+  '-semantest-',
   '_buddy_',
   
   // Domain/namespace patterns
@@ -175,12 +175,12 @@ const BUDDY_PATTERNS = [
   'buddy-event',
   'buddy:',
   ':buddy',
-  'on-buddy',
-  'emit-buddy',
+  'on-semantest',
+  'emit-semantest',
   
   // Package.json patterns
-  'semantest-buddy',
-  '@semantest/buddy',
+  'semantest-semantest',
+  '@semantest/semantest',
   'buddy-core',
   'buddy-extension',
   'buddy-client',
@@ -237,7 +237,7 @@ const EXCLUDE_DIRS = [
 // Files to exclude
 const EXCLUDE_FILES = [
   'buddy-scan-report.json',
-  'scan-buddy-references.ts'
+  'scan-semantest-references.ts'
 ];
 
 /**

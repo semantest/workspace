@@ -1,0 +1,21 @@
+{
+  "name": "@semantest/migration-scripts",
+  "version": "1.0.0",
+  "description": "Migration scripts for WebBuddy to Semantest rebranding",
+  "scripts": {
+    "migrate": "ts-node migrate-buddy-to-semantest.ts",
+    "migrate:dry": "ts-node migrate-buddy-to-semantest.ts --dry-run",
+    "migrate:simple": "ts-node migrate-buddy-to-semantest.ts --pattern simple --dry-run",
+    "migrate:rollback": "ts-node migrate-buddy-to-semantest.ts --rollback",
+    "backup": "ts-node backup-repos.ts"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/node": "^20.0.0",
+    "@types/yargs": "^17.0.24",
+    "glob": "^10.3.10",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3",
+    "yargs": "^17.7.2"
+  }
+}

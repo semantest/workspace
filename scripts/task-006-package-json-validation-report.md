@@ -65,7 +65,7 @@
 ## Package Name Analysis
 
 ### ✅ Successfully Migrated
-- `@chatgpt-buddy/client` → `@semantest/client`
+- `@chatgpt-semantest/client` → `@semantest/client`
 - Package scope correctly updated
 - Keywords updated to include "semantest"
 - Author updated to "Semantest Team"
@@ -206,10 +206,10 @@
 ```json
 // test-files/package.json - NOT migrated (contains old buddy references)
 {
-  "name": "@web-buddy/test-package",
+  "name": "@semantest/test-package",
   "dependencies": {
-    "@web-buddy/client": "^1.0.0",
-    "@web-buddy/core": "^2.0.0"
+    "@semantest/client": "^1.0.0",
+    "@semantest/core": "^2.0.0"
   }
 }
 ```

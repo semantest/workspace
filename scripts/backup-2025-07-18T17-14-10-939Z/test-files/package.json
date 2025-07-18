@@ -1,0 +1,35 @@
+{
+  "name": "@semantest/test-package",
+  "version": "2.0.0",
+  "description": "Test package for Semantest migration",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest",
+    "build": "tsc",
+    "semantest": "semantest --config ./semantest.config.js"
+  },
+  "dependencies": {
+    "@semantest/client": "^2.0.0",
+    "@semantest/browser": "^2.0.0",
+    "@semantest/chatgpt.com": "^2.0.0",
+    "@semantest/google.com": "^2.0.0",
+    "semantest-utils": "^2.0.0",
+    "semantest": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/semantest": "^2.0.0",
+    "semantest-dev-tools": "^2.0.0"
+  },
+  "keywords": ["semantest", "automation", "ai", "intelligent-automation"],
+  "author": "Semantest Team <team@semantest.com>",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/semantest.git"
+  },
+  "bugs": {
+    "url": "https://github.com/semantest/semantest/issues"
+  },
+  "homepage": "https://semantest.com"
+}

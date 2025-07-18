@@ -13,20 +13,20 @@
 #### ✅ SIMPLE REGEX (109 occurrences)
 ```javascript
 // Pattern: import statements
-import { WebBuddyClient } from '@web-buddy/core';  // 36 occurrences
-import { Client } from '@web-buddy/client';         // 71 occurrences
-const webBuddy = require('web-buddy');             // 2 occurrences
+import { SemantestClient } from '@semantest/core';  // 36 occurrences
+import { Client } from '@semantest/client';         // 71 occurrences
+const webBuddy = require('semantest');             // 2 occurrences
 
 // Replacement Strategy:
-// Find: import\s+.*from\s+['"`]@?web-buddy([^'"`]*)['"`]
+// Find: import\s+.*from\s+['"`]@?semantest([^'"`]*)['"`]
 // Replace: import $1 from '@semantest$2'
 ```
 
 #### 🌳 AST REQUIRED (4 occurrences)
 ```javascript
 // Dynamic imports need AST to preserve async context
-const client = await import('@chatgpt-buddy/client');
-const { webBuddy } = await import('./web-buddy');
+const client = await import('@chatgpt-semantest/client');
+const { webBuddy } = await import('./semantest');
 
 // Tool: TypeScript AST or jscodeshift
 // Strategy: Transform ImportExpression nodes
@@ -37,8 +37,8 @@ const { webBuddy } = await import('./web-buddy');
 #### ✅ SIMPLE REGEX (125 occurrences)
 ```javascript
 // Pattern: Direct class/variable references
-const client = new WebBuddyClient();     // 124 occurrences
-const adapter = new WebBuddyAdapter();   // 1 occurrence
+const client = new SemantestClient();     // 124 occurrences
+const adapter = new SemantestAdapter();   // 1 occurrence
 
 // Replacement:
 // Find: \b(web|Web)BuddyClient\b
@@ -61,20 +61,20 @@ const webBuddy = new Client()     // 16 occurrences - variable declarations
 #### 🌳 ALL REQUIRE AST
 ```typescript
 // Class definitions (63 occurrences)
-class WebBuddy {}
-export class ChatGPTBuddy extends WebBuddy {}
+class Semantest {}
+export class ChatGPTBuddy extends Semantest {}
 
 // Interface definitions (21 occurrences)
-interface WebBuddyConfig {}
-interface IWebBuddyPlugin {}
+interface SemantestConfig {}
+interface ISemantestPlugin {}
 
 // Type definitions (7 occurrences)
-type WebBuddyOptions = {}
-export type WebBuddyClientConfig = {}
+type SemantestOptions = {}
+export type SemantestClientConfig = {}
 
 // Generic parameters (4 occurrences)
-Promise<WebBuddyPlugin>
-Array<WebBuddyMessage>
+Promise<SemantestPlugin>
+Array<SemantestMessage>
 
 // AST Strategy:
 // - ClassDeclaration nodes
@@ -88,7 +88,7 @@ Array<WebBuddyMessage>
 #### ✅ SIMPLE REGEX (19 occurrences)
 ```javascript
 // Factory functions
-const client = await createWebBuddyClient({...});
+const client = await createSemantestClient({...});
 const instance = createBuddyConnection();
 
 // Pattern: \bcreate\w*Buddy\w*\s*\(
@@ -98,7 +98,7 @@ const instance = createBuddyConnection();
 #### 🌳 AST REQUIRED (11 occurrences)
 ```javascript
 // Function declarations and methods
-function initWebBuddy() {}        // 8 occurrences
+function initSemantest() {}        // 8 occurrences
 client.webBuddy()                // 3 occurrences
 
 // Need AST for:
@@ -111,12 +111,12 @@ client.webBuddy()                // 3 occurrences
 #### ✅ SIMPLE REGEX (140 occurrences)
 ```javascript
 // Comments (131 occurrences)
-// Initialize web-buddy client
+// Initialize semantest client
 /* Web-Buddy configuration */
 
 // Package.json (9 occurrences)
-"@web-buddy/core": "^2.0.0"
-"web-buddy": "workspace:*"
+"@semantest/core": "^2.0.0"
+"semantest": "workspace:*"
 
 // Safe to replace with regex
 ```
@@ -124,15 +124,15 @@ client.webBuddy()                // 3 occurrences
 #### 🤚 MANUAL REVIEW (472 occurrences)
 ```javascript
 // String literals (410 occurrences)
-console.log("Connected to web-buddy");
-const message = `WebBuddy version ${version}`;
+console.log("Connected to semantest");
+const message = `Semantest version ${version}`;
 
 // URLs (60 occurrences)  
-"https://github.com/rydnr/web-buddy"
-"https://docs.web-buddy.com/api"
+"https://github.com/rydnr/semantest"
+"https://docs.semantest.com/api"
 
 // File paths (2 occurrences)
-import config from "./buddy-settings.json"
+import config from "./semantest-settings.json"
 
 // Require manual review for:
 // - User-facing strings
@@ -146,10 +146,10 @@ import config from "./buddy-settings.json"
 ### Phase 1: Simple Regex (395 occurrences)
 ```bash
 # Example sed script for imports
-find . -name "*.ts" -o -name "*.js" | xargs sed -i 's/@web-buddy/@semantest/g'
+find . -name "*.ts" -o -name "*.js" | xargs sed -i 's/@semantest/@semantest/g'
 
 # Example for class names
-find . -name "*.ts" | xargs sed -i 's/WebBuddyClient/SemantestClient/g'
+find . -name "*.ts" | xargs sed -i 's/SemantestClient/SemantestClient/g'
 ```
 
 ### Phase 2: AST Transformation (182 occurrences)
@@ -177,8 +177,8 @@ module.exports = function(fileInfo, api) {
 ## High-Priority Targets
 
 ### Quick Wins (Top 5 by occurrence count)
-1. `WebBuddyClient` class references - 124 occurrences
-2. Import statements from `@web-buddy/*` - 107 occurrences  
+1. `SemantestClient` class references - 124 occurrences
+2. Import statements from `@semantest/*` - 107 occurrences  
 3. Class definitions with Buddy - 63 occurrences
 4. Property access `.webBuddy` - 56 occurrences
 5. Interface definitions - 21 occurrences

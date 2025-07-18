@@ -1,8 +1,8 @@
-# WebBuddy → Semantest Package Update Log
+# Semantest → Semantest Package Update Log
 
 ## 📦 Overview
 
-This document tracks all package updates, dependency changes, and NPM migration steps for the WebBuddy → Semantest rebranding migration.
+This document tracks all package updates, dependency changes, and NPM migration steps for the Semantest → Semantest rebranding migration.
 
 ### Migration Summary
 - **Date**: 2025-07-18 15:00 CEST
@@ -16,36 +16,36 @@ This document tracks all package updates, dependency changes, and NPM migration 
 ### Core Packages
 | Old Package | New Package | Version | Status |
 |-------------|-------------|---------|---------|
-| `@web-buddy/core` | `@semantest/core` | 1.4.2 | ✅ Updated |
-| `@web-buddy/cli` | `@semantest/cli` | 1.3.1 | ✅ Updated |
-| `@web-buddy/types` | `@semantest/types` | 1.2.0 | ✅ Updated |
-| `@web-buddy/utils` | `@semantest/utils` | 1.1.8 | ✅ Updated |
-| `@web-buddy/config` | `@semantest/config` | 1.0.5 | ✅ Updated |
+| `@semantest/core` | `@semantest/core` | 1.4.2 | ✅ Updated |
+| `@semantest/cli` | `@semantest/cli` | 1.3.1 | ✅ Updated |
+| `@semantest/types` | `@semantest/types` | 1.2.0 | ✅ Updated |
+| `@semantest/utils` | `@semantest/utils` | 1.1.8 | ✅ Updated |
+| `@semantest/config` | `@semantest/config` | 1.0.5 | ✅ Updated |
 
 ### Domain-Specific Packages
 | Old Package | New Package | Version | Status |
 |-------------|-------------|---------|---------|
-| `@web-buddy/google` | `@semantest/google` | 2.1.0 | ✅ Updated |
-| `@web-buddy/browser` | `@semantest/browser` | 1.5.3 | ✅ Updated |
-| `@web-buddy/extension` | `@semantest/extension` | 1.4.0 | ✅ Updated |
-| `@web-buddy/nodejs` | `@semantest/nodejs` | 1.3.2 | ✅ Updated |
-| `@web-buddy/typescript` | `@semantest/typescript` | 1.2.1 | ✅ Updated |
+| `@semantest/google` | `@semantest/google` | 2.1.0 | ✅ Updated |
+| `@semantest/browser` | `@semantest/browser` | 1.5.3 | ✅ Updated |
+| `@semantest/extension` | `@semantest/extension` | 1.4.0 | ✅ Updated |
+| `@semantest/nodejs` | `@semantest/nodejs` | 1.3.2 | ✅ Updated |
+| `@semantest/typescript` | `@semantest/typescript` | 1.2.1 | ✅ Updated |
 
 ### Specialized Packages
 | Old Package | New Package | Version | Status |
 |-------------|-------------|---------|---------|
-| `chatgpt-buddy` | `chatgpt-semantest` | 3.2.1 | ✅ Updated |
-| `google-buddy` | `google-semantest` | 2.0.8 | ✅ Updated |
-| `buddy-devtools` | `semantest-devtools` | 1.1.0 | ✅ Updated |
-| `buddy-scripts` | `semantest-scripts` | 1.0.9 | ✅ Updated |
+| `chatgpt-semantest` | `chatgpt-semantest` | 3.2.1 | ✅ Updated |
+| `google-semantest` | `google-semantest` | 2.0.8 | ✅ Updated |
+| `semantest-devtools` | `semantest-devtools` | 1.1.0 | ✅ Updated |
+| `semantest-scripts` | `semantest-scripts` | 1.0.9 | ✅ Updated |
 
 ### Internal/Development Packages
 | Old Package | New Package | Version | Status |
 |-------------|-------------|---------|---------|
-| `@web-buddy/test-utils` | `@semantest/test-utils` | 1.0.4 | ✅ Updated |
-| `@web-buddy/build-tools` | `@semantest/build-tools` | 1.2.0 | ✅ Updated |
-| `@web-buddy/docs` | `@semantest/docs` | 1.1.1 | ✅ Updated |
-| `@web-buddy/migration` | `@semantest/migration` | 1.0.0 | 🆕 New |
+| `@semantest/test-utils` | `@semantest/test-utils` | 1.0.4 | ✅ Updated |
+| `@semantest/build-tools` | `@semantest/build-tools` | 1.2.0 | ✅ Updated |
+| `@semantest/docs` | `@semantest/docs` | 1.1.1 | ✅ Updated |
+| `@semantest/migration` | `@semantest/migration` | 1.0.0 | 🆕 New |
 
 ## 📋 Dependency Updates
 
@@ -59,7 +59,7 @@ This document tracks all package updates, dependency changes, and NPM migration 
   "description": "Semantest automation framework workspace",
   "main": "index.js",
   "scripts": {
-    "migrate": "ts-node scripts/migrate-buddy-to-semantest.ts",
+    "migrate": "ts-node scripts/migrate-semantest-to-semantest.ts",
     "migrate:dry-run": "npm run migrate -- --dry-run",
     "migrate:simple": "npm run migrate -- --pattern simple",
     "migrate:rollback": "npm run migrate -- --rollback",
@@ -210,7 +210,7 @@ npm owner add semantest-team @semantest/cli
 ### Phase 2: Dependency Updates
 ```bash
 # 1. Update all package.json files
-./scripts/migrate-buddy-to-semantest.ts --pattern simple --files "package.json"
+./scripts/migrate-semantest-to-semantest.ts --pattern simple --files "package.json"
 
 # 2. Clear node_modules and reinstall
 rm -rf node_modules package-lock.json
@@ -253,10 +253,10 @@ git push origin v1.4.2
 ### Dependency Tree Changes
 ```
 Before Migration:
-@web-buddy/core (1.4.2)
-├── @web-buddy/types (1.2.0)
-├── @web-buddy/utils (1.1.8)
-└── @web-buddy/config (1.0.5)
+@semantest/core (1.4.2)
+├── @semantest/types (1.2.0)
+├── @semantest/utils (1.1.8)
+└── @semantest/config (1.0.5)
 
 After Migration:
 @semantest/core (1.4.2)

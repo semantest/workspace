@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Automated migration script for WebBuddy to Semantest rebranding
+ * Automated migration script for Semantest to Semantest rebranding
  * 
  * Features:
  * - Dry run mode to preview changes

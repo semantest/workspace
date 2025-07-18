@@ -1,8 +1,8 @@
-# WebBuddy → Semantest Documentation Update Log
+# Semantest → Semantest Documentation Update Log
 
 ## 📚 Overview
 
-This document tracks all documentation updates, content migration, and URL changes for the WebBuddy → Semantest rebranding migration.
+This document tracks all documentation updates, content migration, and URL changes for the Semantest → Semantest rebranding migration.
 
 ### Migration Summary
 - **Date**: 2025-07-18 15:20 CEST
@@ -47,39 +47,39 @@ This document tracks all documentation updates, content migration, and URL chang
 ```markdown
 # Old References → New References
 Web-Buddy → Semantest
-WebBuddy → Semantest
-web-buddy → semantest
-@web-buddy → @semantest
-chatgpt-buddy → chatgpt-semantest
-google-buddy → google-semantest
+Semantest → Semantest
+semantest → semantest
+@semantest → @semantest
+chatgpt-semantest → chatgpt-semantest
+google-semantest → google-semantest
 ```
 
 ### URL Updates
 ```markdown
 # Repository URLs
-https://github.com/rydnr/chatgpt-buddy → https://github.com/semantest/semantest
-https://github.com/rydnr/web-buddy-nodejs-server → https://github.com/semantest/nodejs.server
+https://github.com/rydnr/chatgpt-semantest → https://github.com/semantest/semantest
+https://github.com/rydnr/semantest-nodejs-server → https://github.com/semantest/nodejs.server
 
 # Community URLs
-https://github.com/rydnr/chatgpt-buddy/discussions → https://github.com/semantest/semantest/discussions
-https://github.com/rydnr/chatgpt-buddy/issues → https://github.com/semantest/semantest/issues
-https://github.com/rydnr/chatgpt-buddy/releases → https://github.com/semantest/semantest/releases
+https://github.com/rydnr/chatgpt-semantest/discussions → https://github.com/semantest/semantest/discussions
+https://github.com/rydnr/chatgpt-semantest/issues → https://github.com/semantest/semantest/issues
+https://github.com/rydnr/chatgpt-semantest/releases → https://github.com/semantest/semantest/releases
 ```
 
 ### Environment Variables
 ```bash
 # Old Variables → New Variables
-WEBBUDDY_SERVER_URL → SEMANTEST_SERVER_URL
-WEBBUDDY_EXTENSION_PATH → SEMANTEST_EXTENSION_PATH
-WEBBUDDY_EXTENSION_ID → SEMANTEST_EXTENSION_ID
+SEMANTEST_SERVER_URL → SEMANTEST_SERVER_URL
+SEMANTEST_EXTENSION_PATH → SEMANTEST_EXTENSION_PATH
+SEMANTEST_EXTENSION_ID → SEMANTEST_EXTENSION_ID
 ```
 
 ### API Client Names
 ```typescript
 // Old Classes → New Classes
-EventDrivenWebBuddyClient → EventDrivenSemantestClient
+EventDrivenSemantestClient → EventDrivenSemantestClient
 GoogleBuddyClient → GoogleSemantestClient
-WebBuddyApplication → SemantestApplication
+SemantestApplication → SemantestApplication
 ```
 
 ## 📄 Detailed File Changes

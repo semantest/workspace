@@ -19,14 +19,14 @@
 ## Issues Found
 
 ### chatgpt.com/package.json
-- Contains: "from": "@web-buddy/implementations/chatgpt-buddy"
-- Contains: "Package name change: chatgpt-buddy → @semantest/chatgpt.com"
+- Contains: "from": "@semantest/implementations/chatgpt-semantest"
+- Contains: "Package name change: chatgpt-semantest → @semantest/chatgpt.com"
 
 ### extension.chrome/package.json
-- Name: "@chatgpt-buddy/extension" (should be @semantest/extension.chrome)
-- Description: mentions "ChatGPT-buddy" and "Web-Buddy framework"
-- Keywords: contains "web-buddy"
-- Repository: points to https://github.com/rydnr/chatgpt-buddy.git
+- Name: "@chatgpt-semantest/extension" (should be @semantest/extension.chrome)
+- Description: mentions "ChatGPT-semantest" and "Web-Buddy framework"
+- Keywords: contains "semantest"
+- Repository: points to https://github.com/rydnr/chatgpt-semantest.git
 
 ## Required Updates
 

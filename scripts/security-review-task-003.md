@@ -1,7 +1,7 @@
 # 🔐 Security Review: Task 003 Migration Script
 **Review Time**: 12:15 CEST  
 **Reviewer**: Security Agent  
-**File**: `migrate-buddy-to-semantest.ts`  
+**File**: `migrate-semantest-to-semantest.ts`  
 **Priority**: URGENT  
 
 ## 🚨 CRITICAL SECURITY VULNERABILITIES FOUND
