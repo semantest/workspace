@@ -1,6 +1,8 @@
 import { SemantestError } from './base.error';
 import { ValidationError } from './validation.error';
 import { SecurityError } from './security.error';
+import { Logger } from '../logging';
+import { MonitoringService } from '../monitoring';
 
 /**
  * Error handler configuration
@@ -28,18 +30,33 @@ const defaultConfig: ErrorHandlerConfig = {
  */
 export class ErrorHandler {
   private config: ErrorHandlerConfig;
+  private logger: Logger;
+  private monitoring: MonitoringService;
 
-  constructor(config?: Partial<ErrorHandlerConfig>) {
+  constructor(
+    config?: Partial<ErrorHandlerConfig>,
+    logger?: Logger,
+    monitoring?: MonitoringService
+  ) {
     this.config = { ...defaultConfig, ...config };
+    this.logger = logger || new Logger('ErrorHandler');
+    this.monitoring = monitoring || MonitoringService.getInstance();
   }
 
   /**
    * Handle error and return appropriate response
    */
   handle(error: Error | SemantestError): ErrorResponse {
+    // Set correlation ID if not present
+    if (error instanceof SemantestError && !error.correlationId) {
+      error.setCorrelationId(this.generateCorrelationId());
+    }
+
     // Log security incidents
     if (error instanceof SecurityError) {
       error.logSecurityIncident();
+      // Record security metrics
+      this.monitoring.recordGauge('security.incidents', 1);
     }
 
     // Log error if configured
@@ -47,13 +64,35 @@ export class ErrorHandler {
       this.logError(error);
     }
 
+    // Track error response time
+    const timer = this.monitoring.startTimer('error.handling.duration');
+
     // Call custom error handler if provided
     if (this.config.onError) {
-      this.config.onError(error);
+      try {
+        this.config.onError(error);
+      } catch (handlerError) {
+        this.logger.error('Error in custom error handler', {
+          originalError: error.message,
+          handlerError: (handlerError as Error).message
+        });
+      }
     }
 
     // Convert to response
-    return this.toErrorResponse(error);
+    const response = this.toErrorResponse(error);
+    
+    // Stop timer
+    timer.stop({ statusCode: response.error.statusCode.toString() });
+
+    return response;
+  }
+
+  /**
+   * Generate correlation ID
+   */
+  private generateCorrelationId(): string {
+    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   }
 
   /**
@@ -104,21 +143,51 @@ export class ErrorHandler {
     const logData = {
       timestamp: new Date().toISOString(),
       error: error.message,
+      stack: error.stack,
       ...(error instanceof SemantestError && {
         code: error.code,
         context: error.context,
-        correlationId: error.correlationId
+        correlationId: error.correlationId,
+        recoverable: error.recoverable,
+        statusCode: error.statusCode
       })
     };
 
+    // Log with appropriate level
     if (error instanceof ValidationError) {
-      console.warn('[VALIDATION ERROR]', logData);
+      this.logger.warn('Validation error occurred', logData);
+      this.monitoring.incrementCounter('errors.validation', { code: error.code });
     } else if (error instanceof SecurityError) {
-      console.error('[SECURITY ERROR]', logData);
+      this.logger.error('Security error occurred', logData);
+      this.monitoring.incrementCounter('errors.security', { code: error.code });
+      // Trigger security alert
+      this.monitoring.sendAlert({
+        level: 'critical',
+        title: 'Security Error Detected',
+        message: error.message,
+        metadata: logData
+      });
     } else if (error instanceof SemantestError && error.statusCode < 500) {
-      console.warn('[CLIENT ERROR]', logData);
+      this.logger.warn('Client error occurred', logData);
+      this.monitoring.incrementCounter('errors.client', { 
+        code: error.code,
+        statusCode: error.statusCode.toString()
+      });
     } else {
-      console.error('[SERVER ERROR]', logData);
+      this.logger.error('Server error occurred', logData);
+      this.monitoring.incrementCounter('errors.server', { 
+        code: error instanceof SemantestError ? error.code : 'UNKNOWN'
+      });
+      
+      // Record error rate for monitoring
+      this.monitoring.recordGauge('error_rate', 1);
+    }
+
+    // Track error by domain if available
+    if (error instanceof SemantestError && error.context?.domain) {
+      this.monitoring.incrementCounter(`errors.domain.${error.context.domain}`, {
+        code: error.code
+      });
     }
   }
 

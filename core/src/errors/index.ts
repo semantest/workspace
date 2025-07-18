@@ -15,6 +15,9 @@ export * from './base.error';
 // Domain errors
 export * from './domain.error';
 
+// Domain-specific errors
+export * from './google-images.error';
+
 // Validation errors
 export * from './validation.error';
 
@@ -26,6 +29,9 @@ export * from './browser.error';
 
 // Security errors
 export * from './security.error';
+
+// Recovery strategies
+export * from './recovery-strategies';
 
 // Error handler utilities
 export * from './error-handler';
