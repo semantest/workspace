@@ -1,6 +1,4 @@
-// Domain Value Objects - Placeholder
-// These will be populated when migrating from existing modules
-
-export * from './image-url.vo';
-export * from './image-metadata.vo';
-export * from './search-query.vo';
+// Domain Value Objects - Google Images Domain
+export { ImageUrl } from './image-url.value-object';
+export { SearchQuery } from './search-query.value-object';
+export { ImageMetadata } from './image-metadata.value-object';

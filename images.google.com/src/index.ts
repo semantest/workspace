@@ -2,17 +2,17 @@
 // Google Images Domain Module - Main Entry Point
 
 // Domain Layer Exports
-export * from './domain/entities';
-export * from './domain/events';
-export * from './domain/value-objects';
-export * from './domain/repositories';
+export * from '../domain/entities';
+export * from '../domain/events';
+export * from '../domain/value-objects';
+export * from '../domain/repositories';
+export * from '../domain/services';
 
 // Application Layer Exports
-export * from './application';
+export * from '../application/services';
 
 // Infrastructure Layer Exports (Interfaces only)
-export * from './infrastructure/adapters/interfaces';
-export * from './infrastructure/repositories/interfaces';
+export * from '../infrastructure/adapters/interfaces';
 
 // Module Information
 export const MODULE_INFO = {
