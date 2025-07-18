@@ -1,0 +1,55 @@
+{
+  "name": "@semantest/performance",
+  "version": "0.1.0",
+  "description": "Performance monitoring and optimization for Semantest",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "perf:check": "node dist/tools/performance-check.js",
+    "perf:analyze": "node dist/tools/performance-analyzer.js",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@semantest/core": "workspace:*",
+    "web-vitals": "^3.5.0",
+    "lighthouse": "^11.4.0",
+    "compression": "^1.7.4",
+    "terser": "^5.26.0",
+    "workbox-core": "^7.0.0",
+    "workbox-precaching": "^7.0.0",
+    "workbox-strategies": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "@types/compression": "^1.7.5",
+    "typescript": "^5.3.3",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.10"
+  },
+  "optionalDependencies": {
+    "redis": "^4.6.12",
+    "msgpack-lite": "^0.1.26",
+    "lz4": "^0.6.5"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/workspace.git",
+    "directory": "performance"
+  },
+  "keywords": [
+    "performance",
+    "monitoring",
+    "optimization",
+    "caching",
+    "web-vitals",
+    "semantest"
+  ],
+  "author": "Semantest Team",
+  "license": "MIT"
+}
