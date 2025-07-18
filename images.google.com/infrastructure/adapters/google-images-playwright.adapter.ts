@@ -10,6 +10,7 @@
     (at your option) any later version.
 */
 
+import { PlaywrightBrowserAdapter, BrowserConfig } from '@semantest/core';
 import { GoogleImageElement } from '../../domain/events/download-requested.event';
 import { SearchFilters } from '../../domain/entities/google-image-search-session.entity';
 

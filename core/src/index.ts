@@ -24,3 +24,6 @@ export * from './security';
 export * from './errors';
 export * from './patterns';
 export * from './constants';
+
+// Export browser automation module
+export * from './browser-automation';
