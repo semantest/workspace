@@ -1,0 +1,719 @@
+{
+  "timestamp": "2025-07-18T06:39:35.743Z",
+  "totalOccurrences": 2380,
+  "categories": {
+    "imports": [
+      {
+        "name": "importBuddy",
+        "description": "Generic buddy import statements",
+        "examples": [
+          "- TC-VAR-033: Package imports: `import { Client } from '@web-buddy/client'`",
+          "- TC-VAR-037: Type imports: `import type { Config } from '@web-buddy/types'`",
+          "- TC-CTX-001: ES6 imports: `import { WebBuddy } from '@web-buddy/client'`",
+          "- TC-CTX-004: Type imports: `import type { WebBuddyConfig } from '@web-buddy/types'`",
+          "- TC-CTX-005: Namespace imports: `import * as WebBuddy from 'web-buddy'`"
+        ],
+        "occurrences": 71,
+        "complexity": "simple",
+        "regex": "import\\s+.*\\s+from\\s+['\"`].*buddy[^'\"`]*['\"`]",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/ecosystem-overview.org",
+          "/home/chous/work/semantest/docs/migration-guide/README.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/docs/GETTING_STARTED.md",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.org",
+          "/home/chous/work/semantest/nodejs.server/README.md",
+          "/home/chous/work/semantest/google.com/MIGRATION.org",
+          "/home/chous/work/semantest/google.com/tests/google-images-download.e2e.test.ts",
+          "/home/chous/work/semantest/typescript.client/src/index.ts",
+          "/home/chous/work/semantest/extension.chrome/src/chatgpt-background.ts",
+          "/home/chous/work/semantest/docs/getting-started/README.org",
+          "/home/chous/work/semantest/extension.chrome/build/chatgpt-background.js"
+        ]
+      },
+      {
+        "name": "importWebBuddy",
+        "description": "ES6 import statements for web-buddy",
+        "examples": [
+          "- TC-VAR-033: Package imports: `import { Client } from '@web-buddy/client'`",
+          "- TC-VAR-037: Type imports: `import type { Config } from '@web-buddy/types'`",
+          "- TC-CTX-001: ES6 imports: `import { WebBuddy } from '@web-buddy/client'`",
+          "- TC-CTX-004: Type imports: `import type { WebBuddyConfig } from '@web-buddy/types'`",
+          "- TC-CTX-005: Namespace imports: `import * as WebBuddy from 'web-buddy'`"
+        ],
+        "occurrences": 36,
+        "complexity": "simple",
+        "regex": "import\\s+.*\\s+from\\s+['\"`]@?web-buddy[^'\"`]*['\"`]",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/ecosystem-overview.org",
+          "/home/chous/work/semantest/docs/migration-guide/README.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/docs/GETTING_STARTED.md",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/nodejs.server/README.md",
+          "/home/chous/work/semantest/google.com/MIGRATION.org",
+          "/home/chous/work/semantest/extension.chrome/src/chatgpt-background.ts",
+          "/home/chous/work/semantest/extension.chrome/build/chatgpt-background.js"
+        ]
+      },
+      {
+        "name": "dynamicImport",
+        "description": "Dynamic import() for buddy modules",
+        "examples": [
+          "- TC-VAR-036: Dynamic imports: `await import('@web-buddy/plugin')`",
+          "- TC-CTX-003: Dynamic imports: `const { webBuddy } = await import('./web-buddy')`",
+          "const client = await import('@chatgpt-buddy/client');",
+          "const webBuddy = await import('@web-buddy/browser-extension');"
+        ],
+        "occurrences": 4,
+        "complexity": "ast",
+        "regex": "import\\s*\\(\\s*['\"`].*buddy[^'\"`]*['\"`]\\s*\\)",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/migration-guides.org"
+        ]
+      },
+      {
+        "name": "requireWebBuddy",
+        "description": "require() statements for web-buddy packages",
+        "examples": [
+          "- TC-VAR-035: Require statements: `require('@web-buddy/utils')`",
+          "- TC-CTX-002: CommonJS: `const webBuddy = require('web-buddy')`"
+        ],
+        "occurrences": 2,
+        "complexity": "simple",
+        "regex": "require\\s*\\(\\s*['\"`]@?web-buddy[^'\"`]*['\"`]\\s*\\)",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md"
+        ]
+      }
+    ],
+    "variables": [
+      {
+        "name": "webBuddyClient",
+        "description": "WebBuddyClient variable/class references",
+        "examples": [
+          "- TC-CTX-009: Const declarations: `const webBuddyClient = new Client()`",
+          "import { WebBuddyClient } from '@web-buddy/core';",
+          "export class WebBuddyClient {",
+          "import { WebBuddyClient } from &#39;../../core/web-buddy-client&#39;;",
+          "constructor(private webBuddyClient: WebBuddyClient) {}"
+        ],
+        "occurrences": 124,
+        "complexity": "simple",
+        "regex": "\\b(web|Web)BuddyClient\\b",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/migration-guide/README.org",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.org",
+          "/home/chous/work/semantest/docs/web-buddy/story.html",
+          "/home/chous/work/semantest/docs/web-buddy/story.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/browser/src/index.ts",
+          "/home/chous/work/semantest/browser/dist/index.js",
+          "/home/chous/work/semantest/browser/dist/index.d.ts",
+          "/home/chous/work/semantest/google.com/MIGRATION.org",
+          "/home/chous/work/semantest/browser/src/client.ts",
+          "/home/chous/work/semantest/google.com/src/google-buddy-client.ts",
+          "/home/chous/work/semantest/browser/dist/client.d.ts",
+          "/home/chous/work/semantest/browser/dist/client.js",
+          "/home/chous/work/semantest/browser/src/client.test.ts"
+        ]
+      },
+      {
+        "name": "buddyProperty",
+        "description": "Property access with buddy names",
+        "examples": [
+          "- TC-VAR-011: Object properties: `config.webBuddy.enabled`",
+          "- TC-VAR-013: Instance variables: `this.webBuddy = instance`",
+          "- TC-VAR-066: Property names: `client.buddy.connect()`",
+          "- TC-EDGE-007: With special chars: `web.buddy`, `web$buddy`, `web#buddy`",
+          "const correlationId = this.webBuddyClient.generateCorrelationId();"
+        ],
+        "occurrences": 56,
+        "complexity": "ast",
+        "regex": "\\.(web|Web)?[Bb]uddy\\w*",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.org",
+          "/home/chous/work/semantest/scripts/security-audit-checklist.md",
+          "/home/chous/work/semantest/docs/web-buddy/story.html",
+          "/home/chous/work/semantest/docs/web-buddy/story.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.org",
+          "/home/chous/work/semantest/browser/dist/index.js",
+          "/home/chous/work/semantest/google.com/tests/google-images-download.e2e.test.ts",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/research.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/research.org",
+          "/home/chous/work/semantest/browser/dist/extension.js",
+          "/home/chous/work/semantest/browser/dist/client.js",
+          "/home/chous/work/semantest/browser/dist/server.js"
+        ]
+      },
+      {
+        "name": "buddyInstance",
+        "description": "Variable declarations with buddy in name",
+        "examples": [
+          "- TC-VAR-009: Variable declarations: `const webBuddy = new Client()`",
+          "- TC-VAR-065: Variable names: `const buddy = getInstance()`",
+          "- TC-CTX-002: CommonJS: `const webBuddy = require('web-buddy')`",
+          "- TC-CTX-009: Const declarations: `const webBuddyClient = new Client()`",
+          "- TC-CTX-034: Class expressions: `const WebBuddy = class {}`"
+        ],
+        "occurrences": 16,
+        "complexity": "ast",
+        "regex": "\\b(const|let|var)\\s+\\w*[Bb]uddy\\w*\\s*=",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/migration-guides.html",
+          "/home/chous/work/semantest/google.com/MIGRATION.org",
+          "/home/chous/work/semantest/browser/dist/extension.js",
+          "/home/chous/work/semantest/extension.chrome/build/training/application/training-application.js",
+          "/home/chous/work/semantest/extension.chrome/src/storage.ts",
+          "/home/chous/work/semantest/extension.chrome/build/storage.js"
+        ]
+      },
+      {
+        "name": "buddyAdapter",
+        "description": "BuddyAdapter pattern variables",
+        "examples": [
+          "- TC-CTX-033: Class declarations: `class WebBuddyAdapter {}`"
+        ],
+        "occurrences": 1,
+        "complexity": "simple",
+        "regex": "\\b\\w*BuddyAdapter\\b",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md"
+        ]
+      }
+    ],
+    "classesInterfaces": [
+      {
+        "name": "classBuddy",
+        "description": "Class definitions with Buddy in name",
+        "examples": [
+          "- TC-VAR-001: Class declarations: `class WebBuddy {}`",
+          "- TC-VAR-006: Export statements: `export class WebBuddy`",
+          "- TC-VAR-072: Class suffix: `class ClientBuddy {}`",
+          "- TC-CTX-033: Class declarations: `class WebBuddyAdapter {}`",
+          "- TC-CTX-035: Extended classes: `class MyBuddy extends WebBuddy {}`"
+        ],
+        "occurrences": 63,
+        "complexity": "ast",
+        "regex": "\\bclass\\s+\\w*Buddy\\w*",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/ecosystem-overview.html",
+          "/home/chous/work/semantest/docs/ecosystem-overview.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/migration-guides.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.org",
+          "/home/chous/work/semantest/docs/web-buddy/story.html",
+          "/home/chous/work/semantest/journal.org",
+          "/home/chous/work/semantest/docs/web-buddy/story.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/docs/plugin-architecture-design.org",
+          "/home/chous/work/semantest/browser/src/extension.ts",
+          "/home/chous/work/semantest/docs/contract-protocol-research.html",
+          "/home/chous/work/semantest/docs/contract-protocol-research.org",
+          "/home/chous/work/semantest/extension.chrome/src/plugins/chatgpt-buddy-plugin.ts",
+          "/home/chous/work/semantest/typescript.client/src/chatgpt-buddy-client.ts",
+          "/home/chous/work/semantest/browser/src/server.ts",
+          "/home/chous/work/semantest/browser/dist/extension.js",
+          "/home/chous/work/semantest/browser/src/client.ts",
+          "/home/chous/work/semantest/browser/dist/server.d.ts",
+          "/home/chous/work/semantest/extension.chrome/build/plugins/chatgpt-buddy-plugin.js",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/story.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/story.org",
+          "/home/chous/work/semantest/typescript.client/python/src/event_driven_client.py",
+          "/home/chous/work/semantest/google.com/src/google-buddy-client.ts",
+          "/home/chous/work/semantest/browser/dist/extension.d.ts",
+          "/home/chous/work/semantest/typescript.client/typescript/src/event-driven-client.ts",
+          "/home/chous/work/semantest/browser/dist/client.d.ts",
+          "/home/chous/work/semantest/browser/dist/client.js",
+          "/home/chous/work/semantest/browser/dist/server.js",
+          "/home/chous/work/semantest/docs/api-reference/README.org",
+          "/home/chous/work/semantest/extension.chrome/src/storage.ts",
+          "/home/chous/work/semantest/extension.chrome/src/training/application/training-application.ts",
+          "/home/chous/work/semantest/chatgpt.com/src/compatibility/chatgpt-buddy-compat.ts",
+          "/home/chous/work/semantest/extension.chrome/build/storage.js",
+          "/home/chous/work/semantest/docs/architecture/README.org"
+        ]
+      },
+      {
+        "name": "interfaceWebBuddy",
+        "description": "Interface definitions with WebBuddy",
+        "examples": [
+          "- TC-VAR-002: Interface names: `interface WebBuddyConfig {}`",
+          "interface WebBuddyContract {",
+          "interface WebBuddyPlugin {",
+          "export interface WebBuddyExtensionConfig {",
+          "<pre class=\"typescript\"><code>interface WebBuddyIntrospectionQuery {"
+        ],
+        "occurrences": 21,
+        "complexity": "ast",
+        "regex": "\\binterface\\s+I?WebBuddy\\w*",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/extension.chrome/src/contracts/contract-discovery-adapter.ts",
+          "/home/chous/work/semantest/docs/plugin-architecture-design.org",
+          "/home/chous/work/semantest/browser/src/extension.ts",
+          "/home/chous/work/semantest/docs/contract-protocol-research.html",
+          "/home/chous/work/semantest/docs/contract-protocol-research.org",
+          "/home/chous/work/semantest/extension.chrome/src/plugins/plugin-interface.ts",
+          "/home/chous/work/semantest/browser/src/server.ts",
+          "/home/chous/work/semantest/browser/src/events/base.ts",
+          "/home/chous/work/semantest/browser/src/client.ts",
+          "/home/chous/work/semantest/browser/dist/server.d.ts",
+          "/home/chous/work/semantest/browser/dist/events/base.d.ts",
+          "/home/chous/work/semantest/browser/src/messages/base.ts",
+          "/home/chous/work/semantest/browser/dist/extension.d.ts",
+          "/home/chous/work/semantest/browser/dist/messages/base.d.ts",
+          "/home/chous/work/semantest/browser/dist/client.d.ts"
+        ]
+      },
+      {
+        "name": "typeWebBuddy",
+        "description": "Type definitions with WebBuddy",
+        "examples": [
+          "- TC-VAR-003: Type definitions: `type WebBuddyOptions = {}`",
+          "export { WebBuddyClient, type WebBuddyClientConfig } from './client';",
+          "export { WebBuddyExtension, type WebBuddyExtensionConfig, ContentScriptIntegration } from './extension';",
+          "type WebBuddyEvent,",
+          "export { type WebBuddyEvent, type AutomationEvent, BaseEvent, type EventHandler, type EventResponse, createSuccessResponse, createErrorResponse, EventPriority, type EventMetadata, type MetadataEvent } from './events/base';"
+        ],
+        "occurrences": 7,
+        "complexity": "ast",
+        "regex": "\\btype\\s+\\w*WebBuddy\\w*",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/browser/src/index.ts",
+          "/home/chous/work/semantest/browser/dist/index.d.ts"
+        ]
+      },
+      {
+        "name": "genericBuddy",
+        "description": "Generic type parameters with Buddy",
+        "examples": [
+          "async loadPlugin(manifest: PluginManifest): Promise<WebBuddyPlugin> {",
+          "export async function createChatGPTBuddyClient(config: ChatGPTBuddyClientConfig): Promise<ChatGPTBuddyClient> {",
+          "private async createPluginInstance(manifest: PluginManifest, options: PluginLoadOptions): Promise<WebBuddyPlugin> {"
+        ],
+        "occurrences": 4,
+        "complexity": "ast",
+        "regex": "<\\w*Buddy\\w*>",
+        "files": [
+          "/home/chous/work/semantest/docs/plugin-architecture-design.org",
+          "/home/chous/work/semantest/typescript.client/src/chatgpt-buddy-client.ts",
+          "/home/chous/work/semantest/extension.chrome/src/plugins/plugin-loader.ts"
+        ]
+      },
+      {
+        "name": "buddyConfig",
+        "description": "Configuration type/interface references",
+        "examples": [
+          "- TC-VAR-002: Interface names: `interface WebBuddyConfig {}`",
+          "- TC-CTX-004: Type imports: `import type { WebBuddyConfig } from '@web-buddy/types'`"
+        ],
+        "occurrences": 2,
+        "complexity": "simple",
+        "regex": "\\b(Web)?BuddyConfig\\b",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md"
+        ]
+      }
+    ],
+    "functions": [
+      {
+        "name": "createBuddy",
+        "description": "Factory functions creating buddy instances",
+        "examples": [
+          "const client = await createChatGPTBuddyClient({",
+          "this.client = createWebBuddyClient({ serverUrl });",
+          "const webClient = createWebBuddyClient({",
+          "export function createWebBuddyClient(config: {",
+          "return createWebBuddyClient({"
+        ],
+        "occurrences": 19,
+        "complexity": "simple",
+        "regex": "\\bcreate\\w*Buddy\\w*\\s*\\(",
+        "files": [
+          "/home/chous/work/semantest/docs/ecosystem-overview.html",
+          "/home/chous/work/semantest/docs/ecosystem-overview.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/migration-guides.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.html",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/browser/src/index.ts",
+          "/home/chous/work/semantest/browser/dist/index.js",
+          "/home/chous/work/semantest/typescript.client/src/chatgpt-buddy-client.ts",
+          "/home/chous/work/semantest/browser/dist/index.d.ts",
+          "/home/chous/work/semantest/typescript.client/src/index.ts"
+        ]
+      },
+      {
+        "name": "functionDecl",
+        "description": "Function declarations with buddy",
+        "examples": [
+          "export function createWebBuddyClient(config: {",
+          "export function createWebBuddyExtension(config: {",
+          "function createWebBuddyClient(config) {",
+          "function createWebBuddyExtension(config) {",
+          "export async function createChatGPTBuddyClient(config: ChatGPTBuddyClientConfig): Promise<ChatGPTBuddyClient> {"
+        ],
+        "occurrences": 8,
+        "complexity": "ast",
+        "regex": "\\bfunction\\s+\\w*[Bb]uddy\\w*",
+        "files": [
+          "/home/chous/work/semantest/browser/src/index.ts",
+          "/home/chous/work/semantest/browser/dist/index.js",
+          "/home/chous/work/semantest/typescript.client/src/chatgpt-buddy-client.ts",
+          "/home/chous/work/semantest/browser/dist/index.d.ts"
+        ]
+      },
+      {
+        "name": "buddyMethod",
+        "description": "Method calls with buddy in name",
+        "examples": [
+          "- TC-VAR-012: Method names: `client.webBuddy()`",
+          "return new client_2.WebBuddyClient({",
+          "return new extension_2.WebBuddyExtension({"
+        ],
+        "occurrences": 3,
+        "complexity": "ast",
+        "regex": "\\.\\w*[Bb]uddy\\w*\\s*\\(",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/browser/dist/index.js"
+        ]
+      }
+    ],
+    "other": [
+      {
+        "name": "strings",
+        "description": "String literals containing buddy",
+        "examples": [
+          "This document defines comprehensive test cases to verify that the buddy variations detection script correctly identifies all possible variations of \"buddy\" naming conventions throughout the codebase.",
+          "### 1. PascalCase: `WebBuddy`",
+          "- TC-VAR-001: Class declarations: `class WebBuddy {}`",
+          "- TC-VAR-003: Type definitions: `type WebBuddyOptions = {}`",
+          "- TC-VAR-005: Import statements: `import { WebBuddy } from './lib'`"
+        ],
+        "occurrences": 410,
+        "complexity": "manual",
+        "regex": "[\"'`].*buddy.*[\"'`]",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/ecosystem-overview.html",
+          "/home/chous/work/semantest/docs/ecosystem-overview.org",
+          "/home/chous/work/semantest/docs/migration-guide/README.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/getting-started.org",
+          "/home/chous/work/semantest/scripts/security-audit-checklist.md",
+          "/home/chous/work/semantest/docs/web-buddy/story.html",
+          "/home/chous/work/semantest/journal.org",
+          "/home/chous/work/semantest/docs/web-buddy/story.org",
+          "/home/chous/work/semantest/docs/web-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/extension.chrome/src/contracts/contract-discovery-adapter.ts",
+          "/home/chous/work/semantest/docs/GETTING_STARTED.md",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/docs/plugin-architecture-design.org",
+          "/home/chous/work/semantest/docs/ecosystem-landing.html",
+          "/home/chous/work/semantest/browser/src/extension.ts",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.html",
+          "/home/chous/work/semantest/browser/src/index.ts",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.org",
+          "/home/chous/work/semantest/browser/dist/index.js",
+          "/home/chous/work/semantest/docs/contract-protocol-research.html",
+          "/home/chous/work/semantest/docs/contract-protocol-research.org",
+          "/home/chous/work/semantest/extension.chrome/src/plugins/plugin-ui.ts",
+          "/home/chous/work/semantest/extension.chrome/src/plugins/chatgpt-buddy-plugin.ts",
+          "/home/chous/work/semantest/typescript.client/src/chatgpt-buddy-client.ts",
+          "/home/chous/work/semantest/browser/dist/index.d.ts",
+          "/home/chous/work/semantest/extension.chrome/build/plugins/plugin-ui.js",
+          "/home/chous/work/semantest/docs/_config.yml",
+          "/home/chous/work/semantest/nodejs.server/README.md",
+          "/home/chous/work/semantest/google.com/MIGRATION.org",
+          "/home/chous/work/semantest/google.com/tests/google-images-download.e2e.test.ts",
+          "/home/chous/work/semantest/roadmap/01-cleanup-phase/01-rebranding/README.md",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/research.html",
+          "/home/chous/work/semantest/typescript.client/src/google-images-playwright.ts",
+          "/home/chous/work/semantest/browser/src/events/base.ts",
+          "/home/chous/work/semantest/browser/dist/extension.js",
+          "/home/chous/work/semantest/docs/index.html",
+          "/home/chous/work/semantest/browser/src/client.ts",
+          "/home/chous/work/semantest/extension.chrome/build/plugins/chatgpt-buddy-plugin.js",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/story.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/story.org",
+          "/home/chous/work/semantest/typescript.client/python/src/event_driven_client.py",
+          "/home/chous/work/semantest/extension.chrome/build/contracts/contract-discovery-adapter.js",
+          "/home/chous/work/semantest/docs/GOOGLE_IMAGES_GETTING_STARTED.md",
+          "/home/chous/work/semantest/typescript.client/src/index.ts",
+          "/home/chous/work/semantest/google.com/src/google-buddy-client.ts",
+          "/home/chous/work/semantest/extension.chrome/src/chatgpt-background.ts",
+          "/home/chous/work/semantest/browser/src/messages/base.ts",
+          "/home/chous/work/semantest/extension.chrome/build/training/application/training-application.js",
+          "/home/chous/work/semantest/docs/getting-started/README.org",
+          "/home/chous/work/semantest/extension.chrome/src/content_script.ts",
+          "/home/chous/work/semantest/extension.chrome/build/content_script_old.js",
+          "/home/chous/work/semantest/extension.chrome/build/content_script.js",
+          "/home/chous/work/semantest/extension.chrome/build/chatgpt-background.js",
+          "/home/chous/work/semantest/typescript.client/typescript/src/event-driven-client.ts",
+          "/home/chous/work/semantest/typescript.client/src/google-images-downloader.ts",
+          "/home/chous/work/semantest/extension.chrome/src/downloads/infrastructure/adapters/google-images-content-adapter.ts",
+          "/home/chous/work/semantest/extension.chrome/build/downloads/infrastructure/adapters/google-images-content-adapter.js",
+          "/home/chous/work/semantest/browser/dist/client.js",
+          "/home/chous/work/semantest/nodejs.server/src/server/server-application.ts",
+          "/home/chous/work/semantest/nodejs.server/dist/server/server-application.js",
+          "/home/chous/work/semantest/extension.chrome/src/storage.ts",
+          "/home/chous/work/semantest/extension.chrome/src/background.ts",
+          "/home/chous/work/semantest/extension.chrome/src/training/application/training-application.ts",
+          "/home/chous/work/semantest/chatgpt.com/src/compatibility/chatgpt-buddy-compat.ts",
+          "/home/chous/work/semantest/browser/src/client.test.ts",
+          "/home/chous/work/semantest/extension.chrome/tests/contract-integration.test.js",
+          "/home/chous/work/semantest/extension.chrome/build/storage.js",
+          "/home/chous/work/semantest/extension.chrome/build/background_complex.js",
+          "/home/chous/work/semantest/extension.chrome/build/background_broken.js",
+          "/home/chous/work/semantest/extension.chrome/build/background.js",
+          "/home/chous/work/semantest/nodejs.server/package.json",
+          "/home/chous/work/semantest/extension.chrome/package.json",
+          "/home/chous/work/semantest/roadmap/01-cleanup-phase/README.md",
+          "/home/chous/work/semantest/google.com/src/index.ts",
+          "/home/chous/work/semantest/chatgpt.com/src/index.ts",
+          "/home/chous/work/semantest/typescript.client/package.json",
+          "/home/chous/work/semantest/chatgpt.com/package.json",
+          "/home/chous/work/semantest/typescript.client/src/test-google-images.ts",
+          "/home/chous/work/semantest/extension.chrome/src/pattern-manager.ts",
+          "/home/chous/work/semantest/extension.chrome/build/pattern-manager.js",
+          "/home/chous/work/semantest/browser/dist/messages/base.js",
+          "/home/chous/work/semantest/browser/dist/events/base.js",
+          "/home/chous/work/semantest/extension.chrome/manifest.json",
+          "/home/chous/work/semantest/extension.chrome/build/manifest.json",
+          "/home/chous/work/semantest/scripts/buddy-scan-findings.md",
+          "/home/chous/work/semantest/google.com/TEST_PLAN_GOOGLE_IMAGES.md",
+          "/home/chous/work/semantest/nodejs.server/src/coordination/coordination-application.ts",
+          "/home/chous/work/semantest/browser/src/storage/automation-storage.ts",
+          "/home/chous/work/semantest/nodejs.server/dist/coordination/coordination-application.js",
+          "/home/chous/work/semantest/browser/dist/storage/automation-storage.js",
+          "/home/chous/work/semantest/typescript.client/package-lock.json",
+          "/home/chous/work/semantest/extension.chrome/package-lock.json",
+          "/home/chous/work/semantest/docs/_layouts/project.html",
+          "/home/chous/work/semantest/extension.chrome/src/time-travel-ui.ts",
+          "/home/chous/work/semantest/extension.chrome/src/message-store.ts",
+          "/home/chous/work/semantest/extension.chrome/build/time-travel-ui.js",
+          "/home/chous/work/semantest/extension.chrome/build/message-store.js",
+          "/home/chous/work/semantest/browser/package.json"
+        ]
+      },
+      {
+        "name": "comments",
+        "description": "Comments mentioning buddy",
+        "examples": [
+          "- TC-VAR-068: Comments: `// buddy feature enabled`",
+          "- TC-CTX-024: Comments in strings: `\"// WebBuddy configuration\"`",
+          "- TC-CTX-026: Multi-line comments: `/* Web-Buddy module */`",
+          "- TC-CTX-028: TODO comments: `// TODO: Update webBuddy config`",
+          "- TC-CTX-030: Block comments: `/* WebBuddy\\n * Configuration\\n */`"
+        ],
+        "occurrences": 131,
+        "complexity": "simple",
+        "regex": "\\/\\/.*buddy|\\/\\*.*buddy.*\\*\\/",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/ecosystem-overview.html",
+          "/home/chous/work/semantest/docs/ecosystem-overview.org",
+          "/home/chous/work/semantest/docs/migration-guide/README.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/migration-guides.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.html",
+          "/home/chous/work/semantest/docs/web-buddy/getting-started.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/atdd-guide.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/getting-started.org",
+          "/home/chous/work/semantest/scripts/security-audit-checklist.md",
+          "/home/chous/work/semantest/docs/web-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/docs/GETTING_STARTED.md",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/docs/plugin-architecture-design.org",
+          "/home/chous/work/semantest/docs/ecosystem-landing.html",
+          "/home/chous/work/semantest/browser/src/extension.ts",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.html",
+          "/home/chous/work/semantest/browser/src/index.ts",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.org",
+          "/home/chous/work/semantest/browser/dist/index.js",
+          "/home/chous/work/semantest/extension.chrome/src/plugins/chatgpt-buddy-plugin.ts",
+          "/home/chous/work/semantest/docs/_config.yml",
+          "/home/chous/work/semantest/nodejs.server/README.md",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/research.html",
+          "/home/chous/work/semantest/typescript.client/src/google-images-playwright.ts",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/research.org",
+          "/home/chous/work/semantest/browser/dist/extension.js",
+          "/home/chous/work/semantest/extension.chrome/build/plugins/chatgpt-buddy-plugin.js",
+          "/home/chous/work/semantest/docs/GOOGLE_IMAGES_GETTING_STARTED.md",
+          "/home/chous/work/semantest/extension.chrome/src/chatgpt-background.ts",
+          "/home/chous/work/semantest/docs/getting-started/README.org",
+          "/home/chous/work/semantest/extension.chrome/build/content_script_old.js",
+          "/home/chous/work/semantest/extension.chrome/build/content_script.js",
+          "/home/chous/work/semantest/extension.chrome/build/chatgpt-background.js",
+          "/home/chous/work/semantest/docs/README.org",
+          "/home/chous/work/semantest/typescript.client/typescript/src/event-driven-client.ts",
+          "/home/chous/work/semantest/docs/api-reference/README.org",
+          "/home/chous/work/semantest/extension.chrome/src/storage.ts",
+          "/home/chous/work/semantest/extension.chrome/src/background.ts",
+          "/home/chous/work/semantest/extension.chrome/build/storage.js",
+          "/home/chous/work/semantest/extension.chrome/build/background_complex.js",
+          "/home/chous/work/semantest/extension.chrome/build/background_broken.js",
+          "/home/chous/work/semantest/extension.chrome/build/background.js",
+          "/home/chous/work/semantest/nodejs.server/package.json",
+          "/home/chous/work/semantest/extension.chrome/package.json",
+          "/home/chous/work/semantest/docs/community/README.org",
+          "/home/chous/work/semantest/typescript.client/package.json",
+          "/home/chous/work/semantest/docs/examples/README.org",
+          "/home/chous/work/semantest/extension.chrome/src/popup.ts",
+          "/home/chous/work/semantest/extension.chrome/src/popup.js",
+          "/home/chous/work/semantest/extension.chrome/build/popup.js",
+          "/home/chous/work/semantest/docs/robots.txt"
+        ]
+      },
+      {
+        "name": "urls",
+        "description": "URLs containing buddy",
+        "examples": [
+          "class=\"verbatim\">https://github.com/rydnr/web-buddy-nodejs-server</code></li>",
+          "class=\"verbatim\">https://github.com/rydnr/web-buddy-browser-extension</code></li>",
+          "class=\"verbatim\">https://github.com/rydnr/chatgpt-buddy</code> (server",
+          "class=\"verbatim\">https://github.com/rydnr/chatgpt-buddy</code>",
+          "class=\"verbatim\">https://github.com/rydnr/chatgpt-buddy</code> (client"
+        ],
+        "occurrences": 60,
+        "complexity": "manual",
+        "regex": "https?:\\/\\/.*buddy",
+        "files": [
+          "/home/chous/work/semantest/docs/ecosystem-overview.html",
+          "/home/chous/work/semantest/docs/ecosystem-overview.org",
+          "/home/chous/work/semantest/docs/migration-guide/README.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/migration-guides.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/getting-started.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/getting-started.org",
+          "/home/chous/work/semantest/scripts/security-audit-checklist.md",
+          "/home/chous/work/semantest/docs/web-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/docs/GETTING_STARTED.md",
+          "/home/chous/work/semantest/docs/web-buddy/index.org",
+          "/home/chous/work/semantest/docs/ecosystem-landing.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/index.org",
+          "/home/chous/work/semantest/extension.chrome/src/plugins/chatgpt-buddy-plugin.ts",
+          "/home/chous/work/semantest/docs/_config.yml",
+          "/home/chous/work/semantest/nodejs.server/README.md",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/research.html",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/research.org",
+          "/home/chous/work/semantest/extension.chrome/build/plugins/chatgpt-buddy-plugin.js",
+          "/home/chous/work/semantest/docs/GOOGLE_IMAGES_GETTING_STARTED.md",
+          "/home/chous/work/semantest/docs/getting-started/README.org",
+          "/home/chous/work/semantest/docs/README.org",
+          "/home/chous/work/semantest/nodejs.server/package.json",
+          "/home/chous/work/semantest/extension.chrome/package.json",
+          "/home/chous/work/semantest/docs/community/README.org",
+          "/home/chous/work/semantest/typescript.client/package.json",
+          "/home/chous/work/semantest/docs/examples/README.org",
+          "/home/chous/work/semantest/docs/robots.txt"
+        ]
+      },
+      {
+        "name": "packageJson",
+        "description": "package.json dependency entries",
+        "examples": [
+          "- TC-VAR-021: Package names: `\"web-buddy\": \"^1.0.0\"`",
+          "- TC-VAR-034: Package.json deps: `\"@web-buddy/core\": \"^2.0.0\"`",
+          "- TC-VAR-038: Workspace refs: `\"@web-buddy/*\": [\"packages/*\"]`",
+          "- TC-VAR-040: Peer dependencies: `\"peerDependencies\": { \"@web-buddy/core\": \"*\" }`",
+          "\"@web-buddy/core\": \"^0.9.0\","
+        ],
+        "occurrences": 9,
+        "complexity": "simple",
+        "regex": "\"@?web-buddy[^\"]*\"\\s*:",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/docs/migration-guide/README.org",
+          "/home/chous/work/semantest/docs/migration-guides.org",
+          "/home/chous/work/semantest/docs/chatgpt-buddy/development.org",
+          "/home/chous/work/semantest/google.com/MIGRATION.org"
+        ]
+      },
+      {
+        "name": "filePaths",
+        "description": "File path references with buddy",
+        "examples": [
+          "- TC-VAR-019: File names: `web-buddy-config.ts`",
+          "- [ ] `buddy-settings.json`"
+        ],
+        "occurrences": 2,
+        "complexity": "manual",
+        "regex": "['\"`][^'\"`]*buddy[^'\"`]*\\.(ts|js|json)['\"`]",
+        "files": [
+          "/home/chous/work/semantest/scripts/buddy-variations-test-cases.md",
+          "/home/chous/work/semantest/scripts/security-audit-checklist.md"
+        ]
+      }
+    ]
+  },
+  "replacementStrategy": {
+    "simple": {
+      "count": 395,
+      "percentage": 38
+    },
+    "ast": {
+      "count": 182,
+      "percentage": 17
+    },
+    "manual": {
+      "count": 472,
+      "percentage": 45
+    }
+  }
+}

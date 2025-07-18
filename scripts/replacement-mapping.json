@@ -1,0 +1,389 @@
+{
+  "summary": {
+    "totalOccurrences": 2380,
+    "mappedForReplacement": 2275,
+    "requiresManualReview": 105,
+    "scanDate": "2025-07-18T06:20:23.953Z"
+  },
+  "simple": [
+    {
+      "pattern": "webbuddy",
+      "replacement": "semantest",
+      "count": 516,
+      "caseSensitive": true,
+      "description": "No separator lowercase variant"
+    },
+    {
+      "pattern": "web-buddy",
+      "replacement": "semantest",
+      "count": 393,
+      "caseSensitive": true,
+      "description": "Kebab-case variant"
+    },
+    {
+      "pattern": "WebBuddy",
+      "replacement": "Semantest",
+      "count": 15,
+      "caseSensitive": true,
+      "description": "PascalCase variant"
+    },
+    {
+      "pattern": "webBuddy",
+      "replacement": "semantest",
+      "count": 8,
+      "caseSensitive": true,
+      "description": "camelCase variant"
+    },
+    {
+      "pattern": "WEB_BUDDY",
+      "replacement": "SEMANTEST",
+      "count": 3,
+      "caseSensitive": true,
+      "description": "UPPER_SNAKE_CASE variant"
+    },
+    {
+      "pattern": "web_buddy",
+      "replacement": "semantest",
+      "count": 28,
+      "caseSensitive": true,
+      "description": "snake_case variant"
+    },
+    {
+      "pattern": "Web-Buddy",
+      "replacement": "Semantest",
+      "count": 12,
+      "caseSensitive": true,
+      "description": "Title-Case variant"
+    },
+    {
+      "pattern": "chatgpt-buddy",
+      "replacement": "chatgpt-semantest",
+      "count": 312,
+      "caseSensitive": true,
+      "description": "ChatGPT specific buddy variant"
+    },
+    {
+      "pattern": "chatgptbuddy",
+      "replacement": "chatgptsemantest",
+      "count": 118,
+      "caseSensitive": true,
+      "description": "ChatGPT buddy no separator"
+    },
+    {
+      "pattern": "google-buddy",
+      "replacement": "google-semantest",
+      "count": 29,
+      "caseSensitive": true,
+      "description": "Google specific buddy variant"
+    },
+    {
+      "pattern": "googlebuddy",
+      "replacement": "googlesemantest",
+      "count": 58,
+      "caseSensitive": true,
+      "description": "Google buddy no separator"
+    },
+    {
+      "pattern": "chatgpt_buddy",
+      "replacement": "chatgpt_semantest",
+      "count": 14,
+      "caseSensitive": true,
+      "description": "ChatGPT snake_case variant"
+    },
+    {
+      "pattern": "GoogleBuddy",
+      "replacement": "GoogleSemantest",
+      "count": 1,
+      "caseSensitive": true,
+      "description": "Google PascalCase variant"
+    },
+    {
+      "pattern": "buddy",
+      "replacement": "semantest",
+      "count": 58,
+      "caseSensitive": true,
+      "wholeWord": true,
+      "description": "Standalone buddy - requires whole word match"
+    }
+  ],
+  "contextAware": [
+    {
+      "pattern": "@web-buddy/",
+      "replacement": "@semantest/",
+      "count": 101,
+      "context": "imports",
+      "description": "NPM scoped package imports"
+    },
+    {
+      "pattern": "@web-buddy",
+      "replacement": "@semantest",
+      "count": 101,
+      "context": "packageReferences",
+      "description": "NPM scope references without trailing slash"
+    },
+    {
+      "pattern": "@chatgpt-buddy/",
+      "replacement": "@chatgpt-semantest/",
+      "count": 20,
+      "context": "imports",
+      "description": "ChatGPT scoped package imports"
+    },
+    {
+      "pattern": "@google-buddy/",
+      "replacement": "@google-semantest/",
+      "count": 3,
+      "context": "imports",
+      "description": "Google scoped package imports"
+    },
+    {
+      "pattern": ".webbuddy",
+      "replacement": ".semantest",
+      "count": 57,
+      "context": "propertyAccess",
+      "description": "Object property access"
+    },
+    {
+      "pattern": ".buddy",
+      "replacement": ".semantest",
+      "count": 20,
+      "context": "propertyAccess",
+      "description": "Object property access for standalone buddy"
+    },
+    {
+      "pattern": "/web-buddy",
+      "replacement": "/semantest",
+      "count": 22,
+      "context": "urlPath",
+      "description": "URL paths and routes"
+    },
+    {
+      "pattern": "/buddy",
+      "replacement": "/semantest",
+      "count": 6,
+      "context": "urlPath",
+      "description": "URL paths for standalone buddy"
+    },
+    {
+      "pattern": "-buddy",
+      "replacement": "-semantest",
+      "count": 43,
+      "context": "suffix",
+      "description": "Hyphenated suffix pattern"
+    },
+    {
+      "pattern": "_buddy",
+      "replacement": "_semantest",
+      "count": 2,
+      "context": "suffix",
+      "description": "Underscore suffix pattern"
+    },
+    {
+      "pattern": "#webbuddy",
+      "replacement": "#semantest",
+      "count": 1,
+      "context": "hashtag",
+      "description": "Hashtag reference"
+    },
+    {
+      "pattern": "#buddy",
+      "replacement": "#semantest",
+      "count": 1,
+      "context": "hashtag",
+      "description": "Standalone hashtag"
+    },
+    {
+      "pattern": "\"web-buddy",
+      "replacement": "\"semantest",
+      "count": 30,
+      "context": "stringLiteral",
+      "description": "String literal with quotes"
+    },
+    {
+      "pattern": "'web-buddy",
+      "replacement": "'semantest",
+      "count": 21,
+      "context": "stringLiteral",
+      "description": "Single quoted string literal"
+    },
+    {
+      "pattern": "`web-buddy",
+      "replacement": "`semantest",
+      "count": 14,
+      "context": "templateLiteral",
+      "description": "Template literal"
+    },
+    {
+      "pattern": "'buddy",
+      "replacement": "'semantest",
+      "count": 3,
+      "context": "stringLiteral",
+      "description": "Single quoted buddy"
+    },
+    {
+      "pattern": "\"buddy",
+      "replacement": "\"semantest",
+      "count": 5,
+      "context": "stringLiteral",
+      "description": "Double quoted buddy"
+    }
+  ],
+  "manualReview": [
+    {
+      "pattern": "//github.com/rydnr/chatgpt-buddy",
+      "count": 42,
+      "reason": "External GitHub URL - may need to preserve for historical reference"
+    },
+    {
+      "pattern": "//github.com/rydnr/web-buddy",
+      "count": 13,
+      "reason": "External GitHub URL - may need to preserve for historical reference"
+    },
+    {
+      "pattern": "//github.com/web-buddy",
+      "count": 1,
+      "reason": "External GitHub organization URL"
+    },
+    {
+      "pattern": "https://discord.gg/web-buddy",
+      "count": 4,
+      "reason": "External Discord invite link"
+    },
+    {
+      "pattern": "https://docs.web-buddy.dev",
+      "count": 3,
+      "reason": "External documentation website"
+    },
+    {
+      "pattern": "https://api.webbuddy",
+      "count": 1,
+      "reason": "External API endpoint"
+    },
+    {
+      "pattern": "//www.npmjs.com/package/@web-buddy",
+      "count": 2,
+      "reason": "NPM registry URL"
+    },
+    {
+      "pattern": "//www.npmjs.com/package/@chatgpt-buddy",
+      "count": 2,
+      "reason": "NPM registry URL"
+    },
+    {
+      "pattern": "//rydnr.github.io/chatgpt-buddy",
+      "count": 2,
+      "reason": "GitHub Pages documentation site"
+    },
+    {
+      "pattern": "//localhost:*/buddy",
+      "count": 1,
+      "reason": "Localhost URL pattern - may be configuration"
+    },
+    {
+      "pattern": "//*.webbuddy",
+      "count": 1,
+      "reason": "Wildcard domain pattern"
+    },
+    {
+      "pattern": "twitter-buddy",
+      "count": 4,
+      "reason": "Third-party integration name"
+    },
+    {
+      "pattern": "github-buddy",
+      "count": 2,
+      "reason": "Third-party integration name"
+    },
+    {
+      "pattern": "BuddyBuild",
+      "count": 0,
+      "reason": "Different product name (if found)"
+    },
+    {
+      "pattern": "GitBuddy", 
+      "count": 0,
+      "reason": "Different product name (if found)"
+    },
+    {
+      "pattern": "studybuddy",
+      "count": 0,
+      "reason": "Unrelated term (if found)"
+    },
+    {
+      "pattern": "buddypress",
+      "count": 0,
+      "reason": "WordPress plugin name (if found)"
+    },
+    {
+      "pattern": "* @author web-buddy",
+      "count": 21,
+      "reason": "Author attribution - may need to preserve"
+    },
+    {
+      "pattern": "chatgpt buddy",
+      "count": 20,
+      "reason": "Space-separated variant in comments/strings - context needed"
+    }
+  ],
+  "replacementRules": {
+    "preserveCase": true,
+    "wholeWordOnly": ["buddy"],
+    "skipInComments": false,
+    "skipInStrings": false,
+    "fileExtensions": [".ts", ".js", ".json", ".md", ".org", ".yml", ".yaml", ".html", ".txt", ".py"],
+    "excludePaths": [
+      "node_modules/",
+      ".git/",
+      "dist/",
+      "build/",
+      "coverage/",
+      ".next/",
+      "out/"
+    ]
+  },
+  "specialCases": {
+    "compoundWords": {
+      "webbuddy": "semantest",
+      "WebBuddy": "Semantest", 
+      "web-buddy": "semantest",
+      "Web-Buddy": "Semantest"
+    },
+    "moduleSpecific": {
+      "chatgpt-buddy": "chatgpt-semantest",
+      "ChatGPTBuddy": "ChatGPTSemantest",
+      "google-buddy": "google-semantest",
+      "GoogleBuddy": "GoogleSemantest"
+    },
+    "comments": {
+      "// WebBuddy": "// Semantest",
+      "/* Web-Buddy": "/* Semantest",
+      "/** @param {WebBuddy}": "/** @param {Semantest}",
+      "<!-- Web-Buddy": "<!-- Semantest"
+    }
+  },
+  "statistics": {
+    "byVariationType": {
+      "noSeparator": 574,
+      "kebabCase": 393,
+      "pascalCase": 16,
+      "camelCase": 8,
+      "snakeCase": 42,
+      "upperSnakeCase": 3,
+      "titleCase": 12,
+      "npmScope": 124,
+      "standalone": 58,
+      "moduleSpecific": 519,
+      "other": 631
+    },
+    "byFileType": {
+      ".ts": 68,
+      ".js": 47,
+      ".json": 9,
+      ".md": 16,
+      ".yml": 1,
+      ".html": 17,
+      ".org": 23,
+      ".txt": 2,
+      ".py": 1
+    }
+  }
+}
