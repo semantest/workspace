@@ -10,52 +10,17 @@
     (at your option) any later version.
 */
 
-/**
- * Base Entity class
- */
-export abstract class Entity {
-    constructor(
-        public readonly id: string,
-        public readonly timestamp: Date = new Date()
-    ) {}
-
-    /**
-     * Check if two entities are equal
-     */
-    equals(other: Entity): boolean {
-        return this.id === other.id;
-    }
-
-    /**
-     * Convert entity to JSON
-     */
-    toJSON(): any {
-        return {
-            id: this.id,
-            timestamp: this.timestamp
-        };
-    }
-}
-
-/**
- * Base Domain Event class
- */
-export abstract class DomainEvent {
-    public readonly timestamp: Date = new Date();
-    public abstract readonly eventType: string;
-
-    constructor(
-        public readonly correlationId: string
-    ) {}
-
-    /**
-     * Convert event to JSON
-     */
-    toJSON(): any {
-        return {
-            eventType: this.eventType,
-            correlationId: this.correlationId,
-            timestamp: this.timestamp
-        };
-    }
-}
+// Export all core components
+export * from './entities';
+export * from './events';
+export * from './value-objects';
+export * from './adapters';
+export * from './types';
+export * from './utils';
+export * from './browser';
+export * from './validation';
+export * from './storage';
+export * from './security';
+export * from './errors';
+export * from './patterns';
+export * from './constants';
