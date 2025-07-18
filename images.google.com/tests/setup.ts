@@ -1,7 +1,8 @@
 // Jest Test Setup
 // Global test configuration and utilities
 
-import 'reflect-metadata';
+// Remove reflect-metadata dependency for now
+// import 'reflect-metadata';
 
 // Mock global objects for testing
 global.console = {

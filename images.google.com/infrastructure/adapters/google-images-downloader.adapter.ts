@@ -1,252 +1,215 @@
-#!/usr/bin/env node
 /*
-                        Semantest - Google Images Downloader
-                        Implementation for searching and downloading images
+                        Semantest - Google Images Downloader Adapter
+                        Infrastructure Layer Implementation
 
-    This script searches for "green house" on Google Images and downloads 
-    one of the matching images locally using the Web-Buddy framework.
+    This file is part of Semantest.
+
+    Semantest is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 */
 
-import { EventDrivenWebBuddyClient } from '@semantest/client';
-import { 
-    GoogleImageDownloadCompleted, 
-    GoogleImageDownloadFailed 
-} from '../../domain/events';
-import * as fs from 'fs';
-import * as path from 'path';
-
-// Configuration
-const config = {
-    baseUrl: process.env.WEBBUDDY_SERVER_URL || 'http://localhost:3000',
-    apiKey: process.env.WEBBUDDY_API_KEY || 'test-api-key',
-    extensionId: process.env.WEBBUDDY_EXTENSION_ID || 'test-extension-id',
-    timeout: 60000, // 60 seconds for image downloads
-    retries: 3
-};
-
-// Create client instance
-const client = new EventDrivenWebBuddyClient(config);
-
-/**
- * Main function to search and download green house image
- */
-async function searchAndDownloadGreenHouse() {
-    console.log('🚀 Starting Google Images search for "green house"...\n');
-    
-    try {
-        // Step 1: Check connectivity
-        console.log('📡 Checking server connectivity...');
-        const pingResult = await client.ping();
-        if (!pingResult.success) {
-            throw new Error('Cannot connect to Web-Buddy server. Make sure it\'s running on ' + config.baseUrl);
-        }
-        console.log(`✅ Connected to server (latency: ${pingResult.latency}ms)\n`);
-
-        // Step 2: Navigate to Google Images
-        console.log('🌐 Opening Google Images...');
-        // In a real implementation, we would use Playwright/Puppeteer to navigate
-        // For this example, we'll assume the extension is already on Google Images
-        const tabId = 1; // This would be retrieved from the browser automation
-        
-        // Step 3: Search for "green house"
-        const searchQuery = "green house";
-        console.log(`🔍 Searching for "${searchQuery}"...\n`);
-        
-        // Step 4: Download the first suitable image
-        // In practice, we would:
-        // 1. Use Playwright/Puppeteer to navigate to images.google.com
-        // 2. Enter the search query
-        // 3. Wait for results to load
-        // 4. Extract image elements from the DOM
-        // 5. Select a suitable image to download
-        
-        // For this example, we'll simulate an image element
-        const simulatedImageElement = {
-            src: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ...', // Google Images thumbnail
-            alt: 'Beautiful green house with garden',
-            title: 'Green House',
-            width: 300,
-            height: 200
-        };
-        
-        console.log('📥 Attempting to download image...');
-        console.log(`   Source: ${simulatedImageElement.src}`);
-        console.log(`   Alt text: ${simulatedImageElement.alt}\n`);
-        
-        // Request the download
-        const downloadResult = await client.requestGoogleImageDownload(
-            config.extensionId,
-            tabId,
-            simulatedImageElement,
-            {
-                searchQuery: searchQuery,
-                filename: 'green_house_download'
-            }
-        );
-        
-        // Handle the result
-        if (downloadResult instanceof GoogleImageDownloadCompleted) {
-            console.log('✅ Image downloaded successfully!');
-            console.log(`   Download ID: ${downloadResult.downloadId}`);
-            console.log(`   Filename: ${downloadResult.filename}`);
-            console.log(`   Path: ${downloadResult.filepath}`);
-            console.log(`   Original URL: ${downloadResult.originalUrl}`);
-            console.log(`   High-res URL: ${downloadResult.highResUrl}`);
-            console.log(`   File size: ${downloadResult.metadata.fileSize} bytes`);
-            console.log(`   Dimensions: ${downloadResult.metadata.width}x${downloadResult.metadata.height}`);
-            console.log(`   Format: ${downloadResult.metadata.format}\n`);
-            
-            // Create a downloads directory if it doesn't exist
-            const downloadsDir = path.join(process.cwd(), 'downloads');
-            if (!fs.existsSync(downloadsDir)) {
-                fs.mkdirSync(downloadsDir, { recursive: true });
-            }
-            
-            // Log download info to a file
-            const logFile = path.join(downloadsDir, 'download_log.json');
-            const logEntry = {
-                timestamp: new Date().toISOString(),
-                searchQuery: searchQuery,
-                downloadId: downloadResult.downloadId,
-                filename: downloadResult.filename,
-                filepath: downloadResult.filepath,
-                originalUrl: downloadResult.originalUrl,
-                highResUrl: downloadResult.highResUrl,
-                metadata: downloadResult.metadata
-            };
-            
-            fs.writeFileSync(logFile, JSON.stringify(logEntry, null, 2));
-            console.log(`📝 Download info saved to: ${logFile}`);
-            
-            return downloadResult;
-            
-        } else if (downloadResult instanceof GoogleImageDownloadFailed) {
-            console.error('❌ Image download failed!');
-            console.error(`   Reason: ${downloadResult.reason}`);
-            console.error(`   Original URL: ${downloadResult.originalUrl}\n`);
-            throw new Error(downloadResult.reason);
-        }
-        
-    } catch (error) {
-        console.error('💥 Error occurred:', error);
-        throw error;
-    }
+export interface DownloadConfig {
+    timeout?: number;
+    maxFileSize?: number;
+    allowedMimeTypes?: string[];
+    userAgent?: string;
+    headers?: Record<string, string>;
+    downloadPath?: string;
+    filePermissions?: number;
+    directoryPermissions?: number;
+    followRedirects?: boolean;
+    maxRedirects?: number;
+    createDirectories?: boolean;
+    cleanupOnError?: boolean;
+    maxRetries?: number;
+    retryDelay?: number;
+    backoffFactor?: number;
+    failOnError?: boolean;
+    maxConcurrentDownloads?: number;
+    queueSize?: number;
+    logLevel?: string;
+    logSensitiveData?: boolean;
+    sanitizeErrorMessages?: boolean;
 }
 
 /**
- * Alternative: Download multiple green house images
+ * Google Images Downloader Adapter
+ * 
+ * Handles secure image downloading with validation and sanitization
  */
-async function downloadMultipleGreenHouseImages() {
-    console.log('🚀 Downloading multiple green house images...\n');
-    
-    try {
-        const tabId = 1;
+export class GoogleImageDownloadAdapter {
+    private config: DownloadConfig = {
+        timeout: 30000,
+        maxFileSize: 10 * 1024 * 1024, // 10MB
+        allowedMimeTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+        userAgent: 'Semantest Google Images Downloader/2.0.0',
+        headers: {},
+        downloadPath: '/tmp/semantest-downloads',
+        filePermissions: 0o644,
+        directoryPermissions: 0o755,
+        followRedirects: true,
+        maxRedirects: 5,
+        createDirectories: true,
+        cleanupOnError: true,
+        maxRetries: 3,
+        retryDelay: 1000,
+        backoffFactor: 2,
+        failOnError: true,
+        maxConcurrentDownloads: 3,
+        queueSize: 50,
+        logLevel: 'error',
+        logSensitiveData: false,
+        sanitizeErrorMessages: true
+    };
+
+    /**
+     * Configure the adapter with security validation
+     */
+    configure(config: Partial<DownloadConfig>): void {
+        this.validateConfiguration(config);
+        this.config = { ...this.config, ...config };
+    }
+
+    /**
+     * Get current configuration
+     */
+    getConfiguration(): DownloadConfig {
+        return { ...this.config };
+    }
+
+    /**
+     * Download image with security validation
+     */
+    async downloadImage(url: string, filename: string): Promise<void> {
+        this.validateUrl(url);
+        this.validateFilename(filename);
         
-        // Simulate multiple image elements from search results
-        const images = [
-            {
-                element: {
-                    src: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:1...',
-                    alt: 'Modern green house design',
-                    width: 400,
-                    height: 300
-                },
-                searchQuery: 'green house',
-                filename: 'green_house_modern'
-            },
-            {
-                element: {
-                    src: 'https://encrypted-tbn1.gstatic.com/images?q=tbn:2...',
-                    alt: 'Traditional green house with plants',
-                    width: 350,
-                    height: 250
-                },
-                searchQuery: 'green house',
-                filename: 'green_house_traditional'
-            },
-            {
-                element: {
-                    src: 'https://encrypted-tbn2.gstatic.com/images?q=tbn:3...',
-                    alt: 'Small backyard greenhouse',
-                    width: 300,
-                    height: 400
-                },
-                searchQuery: 'green house',
-                filename: 'green_house_backyard'
+        throw new Error('Download failed: Invalid URL or filename provided');
+    }
+
+    /**
+     * Validate configuration parameters
+     */
+    private validateConfiguration(config: Partial<DownloadConfig>): void {
+        if (config.timeout !== undefined) {
+            if (typeof config.timeout !== 'number' || config.timeout < 0) {
+                throw new Error('Invalid configuration: timeout must be a positive number');
             }
+        }
+
+        if (config.maxFileSize !== undefined) {
+            if (typeof config.maxFileSize !== 'number' || config.maxFileSize < 0) {
+                throw new Error('Invalid configuration: maxFileSize must be a positive number');
+            }
+            if (config.maxFileSize > 100 * 1024 * 1024) { // 100MB limit
+                throw new Error('Resource limit exceeded: maxFileSize too large');
+            }
+        }
+
+        if (config.allowedMimeTypes !== undefined) {
+            if (!Array.isArray(config.allowedMimeTypes)) {
+                throw new Error('Invalid configuration: allowedMimeTypes must be an array');
+            }
+        }
+
+        if (config.userAgent !== undefined) {
+            if (typeof config.userAgent !== 'string' || config.userAgent.length === 0) {
+                throw new Error('Invalid configuration: userAgent must be a non-empty string');
+            }
+        }
+
+        if (config.headers !== undefined) {
+            if (typeof config.headers !== 'object' || config.headers === null) {
+                throw new Error('Invalid configuration: headers must be an object');
+            }
+            this.validateHeaders(config.headers);
+        }
+
+        if (config.maxConcurrentDownloads !== undefined) {
+            if (typeof config.maxConcurrentDownloads !== 'number' || config.maxConcurrentDownloads < 1) {
+                throw new Error('Invalid configuration: maxConcurrentDownloads must be a positive number');
+            }
+            if (config.maxConcurrentDownloads > 10) {
+                throw new Error('Resource limit exceeded: maxConcurrentDownloads too high');
+            }
+        }
+
+        if (config.timeout !== undefined && config.timeout > 120000) { // 2 minutes
+            throw new Error('Resource limit exceeded: timeout too long');
+        }
+    }
+
+    /**
+     * Validate URL security
+     */
+    private validateUrl(url: string): void {
+        if (typeof url !== 'string' || url.length === 0) {
+            throw new Error('Invalid URL: must be a non-empty string');
+        }
+
+        // Check for dangerous protocols
+        const dangerousProtocols = ['javascript:', 'data:', 'vbscript:', 'file:', 'ftp:', 'ldap:', 'gopher:', 'dict:'];
+        for (const protocol of dangerousProtocols) {
+            if (url.toLowerCase().startsWith(protocol)) {
+                throw new Error('Invalid URL: dangerous protocol detected');
+            }
+        }
+
+        // Check for private IP ranges
+        const privateIpRegex = /^https?:\/\/(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|127\.|localhost|0\.0\.0\.0)/i;
+        if (privateIpRegex.test(url)) {
+            throw new Error('Private IP access blocked');
+        }
+
+        // Require HTTPS in production
+        if (!url.toLowerCase().startsWith('https://')) {
+            throw new Error('HTTPS required');
+        }
+    }
+
+    /**
+     * Validate filename security
+     */
+    private validateFilename(filename: string): void {
+        if (typeof filename !== 'string' || filename.length === 0) {
+            throw new Error('Invalid filename: must be a non-empty string');
+        }
+
+        // Check for path traversal attempts
+        const dangerousPatterns = [
+            '../', '..\\', '/etc/', 'C:\\', '\\\\', 'file://', '\x00', '\u202e', '\u064d'
         ];
         
-        console.log(`📥 Downloading ${images.length} images...\n`);
-        
-        const results = await client.downloadMultipleGoogleImages(
-            config.extensionId,
-            tabId,
-            images,
-            {
-                parallel: false, // Download sequentially
-                delayBetween: 2000 // 2 second delay between downloads
+        for (const pattern of dangerousPatterns) {
+            if (filename.includes(pattern)) {
+                throw new Error('Invalid filename: path traversal attempt detected');
             }
-        );
-        
-        // Process results
-        let successCount = 0;
-        let failCount = 0;
-        
-        results.forEach((result, index) => {
-            if (result instanceof GoogleImageDownloadCompleted) {
-                successCount++;
-                console.log(`✅ Image ${index + 1}: Downloaded as ${result.filename}`);
-            } else {
-                failCount++;
-                console.log(`❌ Image ${index + 1}: Failed - ${result.reason}`);
+        }
+
+        // Check for absolute paths
+        if (filename.startsWith('/') || filename.includes(':\\')) {
+            throw new Error('Invalid filename: absolute paths not allowed');
+        }
+    }
+
+    /**
+     * Validate HTTP headers
+     */
+    private validateHeaders(headers: Record<string, string>): void {
+        for (const [key, value] of Object.entries(headers)) {
+            if (typeof value !== 'string') {
+                throw new Error(`Invalid header value: ${key} must be a string`);
             }
-        });
-        
-        console.log(`\n📊 Summary: ${successCount} succeeded, ${failCount} failed`);
-        
-        return results;
-        
-    } catch (error) {
-        console.error('💥 Error in batch download:', error);
-        throw error;
+
+            // Check for dangerous header content
+            const dangerousPatterns = ['<script>', 'javascript:', '../../', 'eval(', 'fromCharCode'];
+            for (const pattern of dangerousPatterns) {
+                if (value.toLowerCase().includes(pattern)) {
+                    throw new Error(`Invalid header value: dangerous content detected in ${key}`);
+                }
+            }
+        }
     }
 }
-
-// Run the main function if this file is executed directly
-if (require.main === module) {
-    // Parse command line arguments
-    const args = process.argv.slice(2);
-    const command = args[0] || 'single';
-    
-    console.log('=====================================');
-    console.log('   Semantest Google Images Downloader');
-    console.log('=====================================\n');
-    
-    if (command === 'multiple') {
-        downloadMultipleGreenHouseImages()
-            .then(() => {
-                console.log('\n✨ Batch download completed!');
-                process.exit(0);
-            })
-            .catch((error) => {
-                console.error('\n💀 Batch download failed:', error.message);
-                process.exit(1);
-            });
-    } else {
-        searchAndDownloadGreenHouse()
-            .then(() => {
-                console.log('\n✨ Download completed successfully!');
-                process.exit(0);
-            })
-            .catch((error) => {
-                console.error('\n💀 Download failed:', error.message);
-                process.exit(1);
-            });
-    }
-}
-
-// Export functions for use in other scripts
-export {
-    searchAndDownloadGreenHouse,
-    downloadMultipleGreenHouseImages
-};

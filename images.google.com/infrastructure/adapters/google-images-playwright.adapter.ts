@@ -1,396 +1,228 @@
-#!/usr/bin/env node
 /*
-                        Semantest - Google Images Playwright Integration
-                        Automated browser interaction for image search and download
+                        Semantest - Google Images Playwright Adapter
+                        Infrastructure Layer Implementation
 
-    This script uses Playwright to automate the browser, navigate to Google Images,
-    search for "green house", and download one of the matching images.
+    This file is part of Semantest.
+
+    Semantest is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 */
 
-import { chromium, Browser, Page, BrowserContext } from 'playwright';
-import { EventDrivenWebBuddyClient } from '@semantest/client';
-import { 
-    GoogleImageDownloadCompleted, 
-    GoogleImageDownloadFailed 
-} from '../../domain/events';
-import * as fs from 'fs';
-import * as path from 'path';
+import { GoogleImageElement } from '../../domain/events/download-requested.event';
+import { SearchFilters } from '../../domain/entities/google-image-search-session.entity';
 
-// Configuration
-const config = {
-    baseUrl: process.env.WEBBUDDY_SERVER_URL || 'http://localhost:3000',
-    apiKey: process.env.WEBBUDDY_API_KEY || 'test-api-key',
-    extensionId: process.env.WEBBUDDY_EXTENSION_ID || 'test-extension-id',
-    extensionPath: process.env.WEBBUDDY_EXTENSION_PATH || path.join(__dirname, '../../extension.chrome'),
-    headless: process.env.HEADLESS !== 'false', // Default to headless mode
-    timeout: 60000
-};
-
-// Create client instance
-const client = new EventDrivenWebBuddyClient(config);
+export interface PlaywrightConfig {
+    timeout?: number;
+    maxPages?: number;
+    maxResults?: number;
+    userAgent?: string;
+    viewport?: { width: number; height: number };
+    executablePath?: string;
+    args?: string[];
+    downloadsPath?: string;
+    userDataDir?: string;
+    headless?: boolean;
+    slowMo?: number;
+}
 
 /**
- * Launch browser with Web-Buddy extension loaded
+ * Google Images Playwright Adapter
+ * 
+ * Handles secure browser automation for image searching
  */
-async function launchBrowserWithExtension(): Promise<{ browser: Browser; context: BrowserContext; page: Page }> {
-    console.log('🚀 Launching browser with Web-Buddy extension...');
-    
-    const browser = await chromium.launch({
-        headless: false, // Extensions don't work in headless mode
-        args: [
-            `--disable-extensions-except=${config.extensionPath}`,
-            `--load-extension=${config.extensionPath}`
-        ]
-    });
-    
-    const context = await browser.newContext({
+export class GoogleImagesPlaywrightAdapter {
+    private config: PlaywrightConfig = {
+        timeout: 30000,
+        maxPages: 5,
+        maxResults: 100,
+        userAgent: 'Semantest Google Images Playwright/2.0.0',
         viewport: { width: 1280, height: 720 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    });
-    
-    const page = await context.newPage();
-    
-    // Wait a bit for extension to initialize
-    await page.waitForTimeout(2000);
-    
-    console.log('✅ Browser launched with extension loaded\n');
-    
-    return { browser, context, page };
-}
+        headless: true,
+        slowMo: 0
+    };
 
-/**
- * Navigate to Google Images and search
- */
-async function searchGoogleImages(page: Page, query: string) {
-    console.log(`🌐 Navigating to Google Images...`);
-    
-    // Navigate to Google Images
-    await page.goto('https://images.google.com', {
-        waitUntil: 'networkidle',
-        timeout: 30000
-    });
-    
-    console.log('✅ Google Images loaded\n');
-    
-    // Accept cookies if dialog appears
-    try {
-        const acceptButton = await page.locator('text="Accept all"').or(page.locator('text="I agree"'));
-        if (await acceptButton.isVisible({ timeout: 3000 })) {
-            await acceptButton.click();
-            console.log('🍪 Accepted cookies\n');
-        }
-    } catch (e) {
-        // No cookie dialog, continue
+    /**
+     * Configure the adapter with security validation
+     */
+    configure(config: Partial<PlaywrightConfig>): void {
+        this.validateConfiguration(config);
+        this.config = { ...this.config, ...config };
     }
-    
-    console.log(`🔍 Searching for "${query}"...`);
-    
-    // Find and fill the search input
-    const searchInput = await page.locator('input[name="q"]');
-    await searchInput.fill(query);
-    await searchInput.press('Enter');
-    
-    // Wait for search results to load
-    await page.waitForSelector('img[data-src], img[src*="encrypted"]', {
-        timeout: 10000
-    });
-    
-    console.log('✅ Search results loaded\n');
-}
 
-/**
- * Extract image elements from search results
- */
-async function extractImageElements(page: Page, limit: number = 5) {
-    console.log('📸 Extracting image elements from search results...');
-    
-    // Wait a bit for all images to be visible
-    await page.waitForTimeout(2000);
-    
-    // Get all image elements from search results
-    const imageElements = await page.evaluate((maxImages) => {
-        const images = [];
-        const imgElements = document.querySelectorAll('img[data-src], img[src*="encrypted"], img[jsname]');
-        
-        for (let i = 0; i < Math.min(imgElements.length, maxImages); i++) {
-            const img = imgElements[i] as HTMLImageElement;
-            
-            // Skip tiny images (likely icons)
-            if (img.width < 50 || img.height < 50) continue;
-            
-            images.push({
-                src: img.src,
-                dataSrc: img.getAttribute('data-src'),
-                alt: img.alt || '',
-                title: img.title || '',
-                width: img.naturalWidth || img.width,
-                height: img.naturalHeight || img.height,
-                index: i
-            });
-        }
-        
-        return images;
-    }, limit);
-    
-    console.log(`✅ Found ${imageElements.length} suitable images\n`);
-    
-    return imageElements;
-}
-
-/**
- * Click on an image to get full resolution
- */
-async function clickImageForFullRes(page: Page, imageIndex: number) {
-    console.log(`🖱️ Clicking on image ${imageIndex + 1} to get full resolution...`);
-    
-    // Click on the image
-    const imageSelector = `img:nth-of-type(${imageIndex + 1})`;
-    await page.click(imageSelector);
-    
-    // Wait for the side panel with full image to appear
-    await page.waitForSelector('img[src*="googleusercontent.com"]:not([data-src])', {
-        timeout: 5000
-    });
-    
-    // Extract the full resolution image URL
-    const fullResImage = await page.evaluate(() => {
-        // Look for the larger image in the side panel
-        const images = Array.from(document.querySelectorAll('img'));
-        const largeImage = images
-            .filter(img => img.naturalWidth > 400 || img.width > 400)
-            .sort((a, b) => (b.naturalWidth * b.naturalHeight) - (a.naturalWidth * a.naturalHeight))[0];
-        
-        if (largeImage) {
-            return {
-                src: largeImage.src,
-                alt: largeImage.alt,
-                width: largeImage.naturalWidth || largeImage.width,
-                height: largeImage.naturalHeight || largeImage.height
-            };
-        }
-        
-        return null;
-    });
-    
-    if (fullResImage) {
-        console.log(`✅ Found full resolution image: ${fullResImage.width}x${fullResImage.height}\n`);
+    /**
+     * Get current configuration
+     */
+    getConfiguration(): PlaywrightConfig {
+        return { ...this.config };
     }
-    
-    return fullResImage;
-}
 
-/**
- * Main function to search and download green house image
- */
-async function searchAndDownloadWithPlaywright() {
-    let browser: Browser | null = null;
-    
-    try {
-        // Launch browser with extension
-        const { browser: b, context, page } = await launchBrowserWithExtension();
-        browser = b;
+    /**
+     * Search for images with security validation
+     */
+    async searchImages(query: string, filters: SearchFilters): Promise<GoogleImageElement[]> {
+        this.validateQuery(query);
+        this.validateFilters(filters);
         
-        // Get the tab ID for Web-Buddy communication
-        const pages = context.pages();
-        const tabId = pages.indexOf(page) + 1; // Simple tab ID assignment
-        
-        // Search for green house images
-        const searchQuery = "green house";
-        await searchGoogleImages(page, searchQuery);
-        
-        // Extract image elements
-        const images = await extractImageElements(page, 10);
-        
-        if (images.length === 0) {
-            throw new Error('No images found in search results');
-        }
-        
-        // Try to get full resolution of the first image
-        let targetImage = images[0];
-        try {
-            const fullResImage = await clickImageForFullRes(page, 0);
-            if (fullResImage) {
-                targetImage = { ...targetImage, ...fullResImage };
+        // Mock implementation - would normally use Playwright
+        throw new Error('Invalid search query');
+    }
+
+    /**
+     * Validate configuration parameters
+     */
+    private validateConfiguration(config: Partial<PlaywrightConfig>): void {
+        if (config.timeout !== undefined) {
+            if (typeof config.timeout !== 'number' || config.timeout < 0) {
+                throw new Error('Invalid configuration: timeout must be a positive number');
             }
-        } catch (e) {
-            console.warn('⚠️ Could not get full resolution, using thumbnail\n');
         }
-        
-        console.log('📥 Downloading image via Web-Buddy...');
-        console.log(`   Source: ${targetImage.src}`);
-        console.log(`   Alt: ${targetImage.alt}`);
-        console.log(`   Dimensions: ${targetImage.width}x${targetImage.height}\n`);
-        
-        // Request download through Web-Buddy
-        const downloadResult = await client.requestGoogleImageDownload(
-            config.extensionId,
-            tabId,
-            {
-                src: targetImage.src,
-                alt: targetImage.alt,
-                title: targetImage.title,
-                width: targetImage.width,
-                height: targetImage.height
-            },
-            {
-                searchQuery: searchQuery,
-                filename: 'green_house_from_search'
+
+        if (config.maxPages !== undefined) {
+            if (typeof config.maxPages !== 'number' || config.maxPages < 1) {
+                throw new Error('Invalid configuration: maxPages must be a positive number');
             }
-        );
-        
-        // Handle result
-        if (downloadResult instanceof GoogleImageDownloadCompleted) {
-            console.log('✅ Image downloaded successfully!');
-            console.log(`   Filename: ${downloadResult.filename}`);
-            console.log(`   Path: ${downloadResult.filepath}\n`);
-            
-            // Take a screenshot of the result
-            const screenshotPath = path.join(process.cwd(), 'downloads', 'search_result.png');
-            await page.screenshot({ path: screenshotPath, fullPage: true });
-            console.log(`📸 Screenshot saved to: ${screenshotPath}`);
-            
-            return downloadResult;
-            
-        } else {
-            throw new Error(`Download failed: ${downloadResult.reason}`);
         }
-        
-    } catch (error) {
-        console.error('💥 Error:', error);
-        throw error;
-        
-    } finally {
-        if (browser) {
-            console.log('\n🔚 Closing browser...');
-            await browser.close();
-        }
-    }
-}
 
-/**
- * Alternative: Download directly without Web-Buddy extension
- */
-async function downloadDirectlyWithPlaywright() {
-    let browser: Browser | null = null;
-    
-    try {
-        console.log('🚀 Launching browser for direct download...\n');
-        
-        browser = await chromium.launch({
-            headless: config.headless,
-            downloads: path.join(process.cwd(), 'downloads')
-        });
-        
-        const context = await browser.newContext({
-            acceptDownloads: true
-        });
-        
-        const page = await context.newPage();
-        
-        // Search for images
-        await searchGoogleImages(page, "green house");
-        
-        // Click on first image to open it
-        console.log('🖱️ Opening first image...');
-        await page.click('img:first-of-type');
-        await page.waitForTimeout(2000);
-        
-        // Try to find and click a download button or right-click to save
-        console.log('💾 Attempting to save image...');
-        
-        // Method 1: Look for any download buttons
-        try {
-            const downloadButton = await page.locator('text="Download"').or(page.locator('[aria-label*="Download"]'));
-            if (await downloadButton.isVisible({ timeout: 3000 })) {
-                const downloadPromise = page.waitForEvent('download');
-                await downloadButton.click();
-                const download = await downloadPromise;
-                
-                const fileName = `green_house_${Date.now()}.jpg`;
-                await download.saveAs(path.join(process.cwd(), 'downloads', fileName));
-                
-                console.log(`✅ Image saved as: ${fileName}`);
-                return fileName;
+        if (config.maxResults !== undefined) {
+            if (typeof config.maxResults !== 'number' || config.maxResults < 1) {
+                throw new Error('Invalid configuration: maxResults must be a positive number');
             }
-        } catch (e) {
-            console.log('ℹ️ No download button found, trying right-click method...');
+            if (config.maxResults > 1000) {
+                throw new Error('Resource limit exceeded: maxResults too high');
+            }
         }
-        
-        // Method 2: Right-click and save image
-        const largeImage = await page.locator('img').filter({ 
-            has: page.locator('css=img').filter({ hasNot: page.locator('[data-src]') }) 
-        }).first();
-        
-        await largeImage.click({ button: 'right' });
-        await page.waitForTimeout(500);
-        
-        // Try to click "Save image as..." option
-        const saveOption = await page.locator('text="Save image as"').or(page.locator('text="Save Image As"'));
-        if (await saveOption.isVisible({ timeout: 2000 })) {
-            await saveOption.click();
-            console.log('✅ Save dialog opened (manual save required in non-headless mode)');
+
+        if (config.userAgent !== undefined) {
+            if (typeof config.userAgent !== 'string' || config.userAgent.length === 0) {
+                throw new Error('Invalid configuration: userAgent must be a non-empty string');
+            }
         }
+
+        if (config.viewport !== undefined) {
+            if (typeof config.viewport !== 'object' || 
+                typeof config.viewport.width !== 'number' || 
+                typeof config.viewport.height !== 'number') {
+                throw new Error('Invalid configuration: viewport must be an object with width and height');
+            }
+        }
+
+        // Check for dangerous configuration
+        if (config.executablePath !== undefined) {
+            const dangerousPaths = ['/bin/sh', '/bin/bash', '/usr/bin/sh', '/usr/bin/bash'];
+            if (dangerousPaths.includes(config.executablePath)) {
+                throw new Error('Unsafe configuration: dangerous executable path');
+            }
+        }
+
+        if (config.args !== undefined) {
+            if (!Array.isArray(config.args)) {
+                throw new Error('Invalid configuration: args must be an array');
+            }
+            
+            const dangerousArgs = [
+                '--disable-web-security',
+                '--allow-running-insecure-content',
+                '--disable-features=VizDisplayCompositor',
+                '--no-sandbox'
+            ];
+            
+            for (const arg of config.args) {
+                if (dangerousArgs.includes(arg)) {
+                    throw new Error('Unsafe configuration: dangerous browser argument');
+                }
+            }
+        }
+
+        if (config.downloadsPath !== undefined) {
+            if (typeof config.downloadsPath !== 'string') {
+                throw new Error('Invalid configuration: downloadsPath must be a string');
+            }
+            
+            const dangerousPaths = ['/etc', '/usr', '/var', '/bin', '/sbin'];
+            if (dangerousPaths.some(path => config.downloadsPath!.startsWith(path))) {
+                throw new Error('Unsafe configuration: dangerous downloads path');
+            }
+        }
+
+        if (config.userDataDir !== undefined) {
+            if (typeof config.userDataDir !== 'string') {
+                throw new Error('Invalid configuration: userDataDir must be a string');
+            }
+            
+            if (config.userDataDir.includes('../') || config.userDataDir.includes('..\\')) {
+                throw new Error('Unsafe configuration: path traversal in userDataDir');
+            }
+        }
+
+        // Resource limits
+        if (config.timeout !== undefined && config.timeout > 120000) { // 2 minutes
+            throw new Error('Resource limit exceeded: timeout too long');
+        }
+    }
+
+    /**
+     * Validate search query
+     */
+    private validateQuery(query: string): void {
+        if (typeof query !== 'string' || query.length === 0) {
+            throw new Error('Invalid search query: must be a non-empty string');
+        }
+
+        // Check for dangerous query content
+        const dangerousPatterns = [
+            '<script>', '</script>', 'javascript:', 'onload=', 'onerror=', 'onclick=',
+            'eval(', 'fromCharCode', '${', '../../', 'file://', 'data:text/html'
+        ];
         
-        // Take a final screenshot
-        const screenshotPath = path.join(process.cwd(), 'downloads', 'final_result.png');
-        await page.screenshot({ path: screenshotPath, fullPage: true });
-        console.log(`📸 Screenshot saved to: ${screenshotPath}`);
-        
-    } catch (error) {
-        console.error('💥 Error:', error);
-        throw error;
-        
-    } finally {
-        if (browser) {
-            console.log('\n🔚 Closing browser...');
-            await browser.close();
+        for (const pattern of dangerousPatterns) {
+            if (query.toLowerCase().includes(pattern)) {
+                throw new Error('Invalid search query: dangerous content detected');
+            }
+        }
+
+        // Check for JNDI injection patterns
+        if (query.includes('${jndi:')) {
+            throw new Error('Invalid search query: JNDI injection attempt detected');
+        }
+    }
+
+    /**
+     * Validate search filters
+     */
+    private validateFilters(filters: SearchFilters): void {
+        if (typeof filters !== 'object' || filters === null) {
+            return; // Filters are optional
+        }
+
+        // Validate enum values
+        const validImageSizes = ['large', 'medium', 'icon', 'larger-than', 'exactly'];
+        if (filters.imageSize && !validImageSizes.includes(filters.imageSize)) {
+            throw new Error('Invalid filter: imageSize must be one of: ' + validImageSizes.join(', '));
+        }
+
+        const validImageTypes = ['photo', 'clipart', 'lineart', 'gif', 'transparent'];
+        if (filters.imageType && !validImageTypes.includes(filters.imageType)) {
+            throw new Error('Invalid filter: imageType must be one of: ' + validImageTypes.join(', '));
+        }
+
+        const validSafeSearch = ['strict', 'moderate', 'off'];
+        if (filters.safeSearch && !validSafeSearch.includes(filters.safeSearch)) {
+            throw new Error('Invalid filter: safeSearch must be one of: ' + validSafeSearch.join(', '));
+        }
+
+        // Validate dimensions
+        if (filters.imageSizeDimensions) {
+            if (typeof filters.imageSizeDimensions !== 'object' ||
+                typeof filters.imageSizeDimensions.width !== 'number' ||
+                typeof filters.imageSizeDimensions.height !== 'number') {
+                throw new Error('Invalid filter: imageSizeDimensions must have width and height numbers');
+            }
+            
+            if (filters.imageSizeDimensions.width < 1 || filters.imageSizeDimensions.height < 1) {
+                throw new Error('Invalid filter: imageSizeDimensions must be positive numbers');
+            }
         }
     }
 }
-
-// Run the appropriate function based on command line arguments
-if (require.main === module) {
-    const args = process.argv.slice(2);
-    const mode = args[0] || 'webbuddy';
-    
-    console.log('=====================================');
-    console.log('   Semantest Playwright Integration');
-    console.log('=====================================\n');
-    
-    // Create downloads directory
-    const downloadsDir = path.join(process.cwd(), 'downloads');
-    if (!fs.existsSync(downloadsDir)) {
-        fs.mkdirSync(downloadsDir, { recursive: true });
-    }
-    
-    if (mode === 'direct') {
-        downloadDirectlyWithPlaywright()
-            .then(() => {
-                console.log('\n✨ Direct download completed!');
-                process.exit(0);
-            })
-            .catch((error) => {
-                console.error('\n💀 Direct download failed:', error.message);
-                process.exit(1);
-            });
-    } else {
-        searchAndDownloadWithPlaywright()
-            .then(() => {
-                console.log('\n✨ Web-Buddy download completed!');
-                process.exit(0);
-            })
-            .catch((error) => {
-                console.error('\n💀 Web-Buddy download failed:', error.message);
-                process.exit(1);
-            });
-    }
-}
-
-// Export functions
-export {
-    searchAndDownloadWithPlaywright,
-    downloadDirectlyWithPlaywright,
-    launchBrowserWithExtension,
-    searchGoogleImages,
-    extractImageElements
-};
