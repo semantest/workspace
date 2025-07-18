@@ -1,0 +1,2 @@
+// Domain Value Objects - {{DOMAIN_NAME}}
+export * from './{{MAIN_VALUE_OBJECT_FILENAME}}.value-object';

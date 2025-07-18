@@ -1,0 +1,2 @@
+// Domain Services - {{DOMAIN_NAME}}
+export * from './{{MAIN_SERVICE_FILENAME}}.service';

@@ -1,0 +1,143 @@
+# {{DOMAIN_NAME}} Domain Module
+
+{{DOMAIN_DESCRIPTION}} domain module for Semantest following Domain-Driven Design principles.
+
+## 🏗️ Architecture
+
+This module follows a clean Domain-Driven Design (DDD) architecture with strict separation of concerns:
+
+### 📁 Directory Structure
+
+```
+{{DOMAIN_NAME}}/
+├── domain/                     # 🧠 Pure Business Logic
+│   ├── entities/              # Domain entities
+│   ├── events/                # Domain events
+│   ├── value-objects/         # Domain value objects
+│   ├── repositories/          # Repository interfaces
+│   └── services/              # Domain services
+├── application/               # 🎯 Use Cases & Application Services
+│   ├── services/              # Application services
+│   └── handlers/              # Event handlers
+├── infrastructure/            # 🔌 External Adapters
+│   ├── adapters/              # Infrastructure adapters
+│   └── repositories/          # Repository implementations
+├── tests/                     # 🧪 Module Tests
+│   ├── unit/                  # Unit tests
+│   ├── integration/           # Integration tests
+│   └── e2e/                   # End-to-end tests
+└── src/                       # 📦 Module Entry Point
+    └── index.ts               # Public API exports
+```
+
+### 🔄 Dependency Rules
+
+```
+✅ ALLOWED:
+- Domain → Core (Base classes, utilities)
+- Application → Domain (Use domain entities)
+- Infrastructure → Application (Implement application interfaces)
+- Infrastructure → Domain (Implement domain interfaces)
+
+❌ FORBIDDEN:
+- Core → Domain (Core must be generic)
+- Domain → Application (Domain is pure business logic)
+- Domain → Infrastructure (Domain must be infrastructure-agnostic)
+```
+
+## 🚀 Getting Started
+
+### Installation
+
+```bash
+npm install @semantest/{{DOMAIN_NAME}}
+```
+
+### Basic Usage
+
+```typescript
+import { 
+  {{MAIN_ENTITY_CLASS}},
+  {{MAIN_SERVICE_CLASS}},
+  {{MAIN_VALUE_OBJECT_CLASS}}
+} from '@semantest/{{DOMAIN_NAME}}';
+
+// Example usage
+const {{EXAMPLE_USAGE}}
+```
+
+## 📋 API Reference
+
+### Domain Layer
+
+#### Entities
+- `{{MAIN_ENTITY_CLASS}}` - {{ENTITY_DESCRIPTION}}
+
+#### Value Objects
+- `{{MAIN_VALUE_OBJECT_CLASS}}` - {{VALUE_OBJECT_DESCRIPTION}}
+
+#### Events
+- `{{MAIN_EVENT_CLASS}}` - {{EVENT_DESCRIPTION}}
+
+### Application Layer
+
+#### Services
+- `{{MAIN_SERVICE_CLASS}}` - {{SERVICE_DESCRIPTION}}
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+npm test                  # Run all tests
+npm run test:watch        # Watch mode
+npm run test:coverage     # Coverage report
+```
+
+### Test Structure
+
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions
+- **E2E Tests**: Test complete workflows
+
+## 🔧 Development
+
+### Build
+
+```bash
+npm run build            # Build for production
+npm run build:watch      # Build in watch mode
+```
+
+### Linting
+
+```bash
+npm run lint             # Check code style
+npm run lint:fix         # Fix code style issues
+```
+
+### Type Checking
+
+```bash
+npm run typecheck        # Type checking without build
+```
+
+## 📊 Module Information
+
+- **Domain**: {{DOMAIN_NAME}}
+- **Version**: {{VERSION}}
+- **License**: GPL-3.0
+- **Architecture**: Domain-Driven Design
+- **Language**: TypeScript
+
+## 🤝 Contributing
+
+1. Follow the established DDD patterns
+2. Write comprehensive tests
+3. Update documentation
+4. Ensure type safety
+5. Maintain clean dependencies
+
+## 📜 License
+
+This project is licensed under the GPL-3.0 License - see the [LICENSE](LICENSE) file for details.

@@ -1,0 +1,2 @@
+// Domain Repository Interfaces - {{DOMAIN_NAME}}
+export * from './{{MAIN_REPOSITORY_FILENAME}}.repository';

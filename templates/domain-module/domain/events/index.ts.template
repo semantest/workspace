@@ -1,0 +1,2 @@
+// Domain Events - {{DOMAIN_NAME}}
+export * from './{{MAIN_EVENT_FILENAME}}.event';

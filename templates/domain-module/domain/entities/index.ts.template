@@ -1,0 +1,2 @@
+// Domain Entities - {{DOMAIN_NAME}}
+export * from './{{MAIN_ENTITY_FILENAME}}.entity';

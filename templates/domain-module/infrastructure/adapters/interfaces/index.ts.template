@@ -1,0 +1,2 @@
+// Infrastructure Adapter Interfaces - {{DOMAIN_NAME}}
+export * from './{{MAIN_ADAPTER_FILENAME}}.adapter';

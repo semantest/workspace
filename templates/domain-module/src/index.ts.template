@@ -1,0 +1,28 @@
+// {{DOMAIN_NAME}}/src/index.ts
+// {{DOMAIN_DESCRIPTION}} Domain Module - Main Entry Point
+
+// Domain Layer Exports
+export * from '../domain/entities';
+export * from '../domain/events';
+export * from '../domain/value-objects';
+export * from '../domain/repositories';
+export * from '../domain/services';
+
+// Application Layer Exports
+export * from '../application/services';
+
+// Infrastructure Layer Exports (Interfaces only)
+export * from '../infrastructure/adapters/interfaces';
+
+// Module Information
+export const MODULE_INFO = {
+  name: '@semantest/{{DOMAIN_NAME}}',
+  version: '{{VERSION}}',
+  description: '{{DOMAIN_DESCRIPTION}}',
+  domain: '{{DOMAIN_NAME}}',
+  capabilities: [
+    {{CAPABILITIES_LIST}}
+  ]
+} as const;
+
+export type ModuleCapabilities = typeof MODULE_INFO.capabilities[number];
