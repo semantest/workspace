@@ -17,7 +17,6 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { promisify } from 'util';
 import * as glob from 'glob';
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
@@ -140,7 +139,6 @@ function getPatterns(patternType: string): ReplacementPattern[] {
 }
 
 async function getFilesToProcess(): Promise<string[]> {
-  const globAsync = promisify(glob.glob);
   const patterns = [
     '**/*.ts',
     '**/*.js',
@@ -164,7 +162,7 @@ async function getFilesToProcess(): Promise<string[]> {
   
   const files: string[] = [];
   for (const pattern of patterns) {
-    const matches = await globAsync(pattern, { ignore: ignorePatterns }) as string[];
+    const matches = glob.sync(pattern, { ignore: ignorePatterns });
     files.push(...matches);
   }
   
@@ -249,7 +247,7 @@ async function performRollback(): Promise<void> {
   console.log(`  Using backup: ${latestBackup}`);
   
   // Restore files from backup
-  const backupFiles = await promisify(glob.glob)(`${latestBackup}/**/*`, { nodir: true }) as string[];
+  const backupFiles = glob.sync(`${latestBackup}/**/*`, { nodir: true });
   for (const backupFile of backupFiles) {
     const originalPath = backupFile.replace(`${latestBackup}/`, '');
     fs.copyFileSync(backupFile, originalPath);
