@@ -1,5 +1,43 @@
 # WebBuddy → Semantest Migration Guide
 
+## ⚡ Quick Examples (1 minute)
+
+### Preview Changes (--dry-run)
+```bash
+# See what will change WITHOUT modifying any files
+./migrate-buddy.sh --dry-run
+
+# Output shows:
+# - Files to be modified: 164
+# - Simple replacements: 892
+# - Context-aware changes: 1,143
+# - Manual review needed: 345
+```
+
+### Simple Pattern Only (--pattern simple)
+```bash
+# Replace only safe, simple patterns
+./migrate-buddy.sh --pattern simple
+
+# This handles:
+# ✅ Package imports: @web-buddy/* → @semantest/*
+# ✅ Config values: "web-buddy" → "semantest"
+# ✅ File paths: /web-buddy/ → /semantest/
+# ❌ Skips complex code changes
+```
+
+### Instant Rollback (--rollback)
+```bash
+# Undo all changes immediately
+./migrate-buddy.sh --rollback
+
+# Features:
+# - Restores from automatic backup
+# - Takes < 30 seconds
+# - Preserves all original code
+# - No data loss
+```
+
 ## 🚀 Quick Start (5 minutes)
 
 ### Prerequisites
