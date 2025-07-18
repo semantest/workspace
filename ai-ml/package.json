@@ -1,0 +1,79 @@
+{
+  "name": "@semantest/ai-ml",
+  "version": "2.0.0",
+  "description": "AI/ML capabilities for Semantest - intelligent test generation, pattern recognition, and predictive analytics",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "train": "ts-node scripts/train-models.ts",
+    "inference": "ts-node scripts/run-inference.ts",
+    "evaluate": "ts-node scripts/evaluate-models.ts",
+    "lint": "eslint src --ext ts --fix",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@semantest/core": "workspace:*",
+    "@tensorflow/tfjs": "^4.15.0",
+    "@tensorflow/tfjs-node": "^4.15.0",
+    "brain.js": "^2.0.0-beta.23",
+    "ml-kmeans": "^6.0.0",
+    "ml-cart": "^2.1.1",
+    "ml-random-forest": "^2.1.0",
+    "ml-knn": "^3.0.0",
+    "ml-naivebayes": "^4.0.0",
+    "simple-statistics": "^7.8.3",
+    "natural": "^6.10.0",
+    "compromise": "^14.10.0",
+    "franc": "^6.1.0",
+    "leven": "^4.0.0",
+    "fuse.js": "^7.0.0",
+    "date-fns": "^2.30.0",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@types/natural": "^5.1.4",
+    "@types/lodash": "^4.14.202",
+    "@types/jest": "^29.5.11",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.3",
+    "ts-node": "^10.9.2",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "eslint": "^8.55.0",
+    "prettier": "^3.1.1"
+  },
+  "peerDependencies": {
+    "@semantest/core": "workspace:*"
+  },
+  "files": [
+    "dist",
+    "src",
+    "models",
+    "README.md"
+  ],
+  "keywords": [
+    "semantest",
+    "ai",
+    "ml",
+    "machine-learning",
+    "test-generation",
+    "pattern-recognition",
+    "predictive-analytics",
+    "self-healing",
+    "intelligent-automation"
+  ],
+  "author": "Semantest Team <team@semantest.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/semantest.git",
+    "directory": "ai-ml"
+  },
+  "bugs": {
+    "url": "https://github.com/semantest/semantest/issues"
+  },
+  "homepage": "https://github.com/semantest/semantest/tree/main/ai-ml"
+}
