@@ -1,9 +1,91 @@
 {
   "metadata": {
     "generated": "2025-07-18T08:56:00Z",
+    "updated": "2025-07-18T09:10:00Z",
     "totalOccurrences": 2380,
-    "sourceFile": "buddy-scan-report.json"
+    "sourceFile": "buddy-scan-report.json",
+    "securityReview": "UPDATED - Added env vars and API key patterns"
   },
+  "securityExclusions": [
+    {
+      "pattern": "WEB_BUDDY_API_KEY",
+      "reason": "API key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_API_KEY",
+      "reason": "API key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_SECRET",
+      "reason": "Secret key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_SECRET",
+      "reason": "Secret key environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_TOKEN",
+      "reason": "Auth token environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_TOKEN",
+      "reason": "Auth token environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_PASSWORD",
+      "reason": "Password environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_PASSWORD",
+      "reason": "Password environment variable - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEB_BUDDY_CLIENT_ID",
+      "reason": "OAuth client ID - may be security sensitive",
+      "severity": "HIGH",
+      "recommendation": "Review context before replacing"
+    },
+    {
+      "pattern": "WEB_BUDDY_CLIENT_SECRET",
+      "reason": "OAuth client secret - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    },
+    {
+      "pattern": "WEBBUDDY_AUTH_",
+      "reason": "Authentication related env vars",
+      "severity": "HIGH",
+      "recommendation": "Review all auth-related env vars"
+    },
+    {
+      "pattern": "BUDDY_KEY",
+      "reason": "Generic key pattern - may be sensitive",
+      "severity": "HIGH",
+      "recommendation": "Review context before replacing"
+    },
+    {
+      "pattern": "BUDDY_SECRET",
+      "reason": "Generic secret pattern - NEVER replace",
+      "severity": "CRITICAL",
+      "recommendation": "Keep original - security sensitive"
+    }
+  ],
   "simple": [
     {
       "pattern": "WebBuddy",
@@ -176,9 +258,47 @@
       "count": 5,
       "reason": "External domain reference",
       "recommendation": "Do not change - external domain"
+    },
+    {
+      "pattern": "process.env.WEB_BUDDY",
+      "count": 15,
+      "reason": "Environment variable access - SECURITY SENSITIVE",
+      "recommendation": "Check securityExclusions before replacing"
+    },
+    {
+      "pattern": "process.env.WEBBUDDY",
+      "count": 8,
+      "reason": "Environment variable access - SECURITY SENSITIVE",
+      "recommendation": "Check securityExclusions before replacing"
+    },
+    {
+      "pattern": ".env",
+      "count": 23,
+      "reason": "Environment file references - may contain secrets",
+      "recommendation": "Manual review of all .env file changes"
+    },
+    {
+      "pattern": "docker-compose",
+      "count": 5,
+      "reason": "Docker compose files may contain env vars",
+      "recommendation": "Review for environment variable definitions"
+    },
+    {
+      "pattern": "CI/CD",
+      "count": 3,
+      "reason": "CI/CD configurations may contain secrets",
+      "recommendation": "Review GitHub Actions, Jenkins, etc. for env vars"
     }
   ],
   "statistics": {
+    "securityExclusions": {
+      "totalPatterns": 13,
+      "severity": {
+        "CRITICAL": 8,
+        "HIGH": 5
+      },
+      "note": "These patterns MUST NOT be replaced automatically"
+    },
     "simple": {
       "totalPatterns": 11,
       "totalOccurrences": 1613,
@@ -190,13 +310,14 @@
       "percentage": 10.7
     },
     "manualReview": {
-      "totalPatterns": 7,
-      "totalOccurrences": 105,
-      "percentage": 4.4
+      "totalPatterns": 12,
+      "totalOccurrences": 159,
+      "percentage": 6.7,
+      "securityRelated": 5
     },
     "unaccounted": {
-      "occurrences": 408,
-      "percentage": 17.1,
+      "occurrences": 354,
+      "percentage": 14.9,
       "note": "Remaining patterns in comments, complex strings, or edge cases"
     }
   }
