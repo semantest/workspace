@@ -1,6 +1,6 @@
 # Documentation Status - 10-Minute Checkpoint
 
-## Timestamp: 08:54 CEST (2025-01-18)
+## Timestamp: 09:04 CEST (2025-01-18)
 
 ### Completed Documentation
 
@@ -15,13 +15,20 @@
 2. **WebBuddy → Semantest Migration** ✅
    - scripts/buddy-scan-findings.md - 2,380 occurrence analysis
    - scripts/replacement-rules.md - Migration guidelines
+   - scripts/mapping-categories-analysis.md - Category breakdown (NEW)
+   - scripts/edge-cases-handling.md - Special cases guide (NEW)
+
+### Task 002 Progress (Engineer Assignment)
+- ✅ Mapping categories documented (6 major categories)
+- ✅ Complexity breakdown completed (37.5% simple, 48% context-aware, 14.5% manual)
+- ✅ Edge cases identified (10 critical cases with risk matrix)
 
 ### Current Work Status
-- All documentation tasks completed
-- Files exist in filesystem but in untracked directories
-- Next 10-minute checkpoint: 09:04 CEST
+- Task 002 documentation complete
+- Ready for engineer review and implementation
+- Next 10-minute checkpoint: 09:14 CEST
 
 ### Notes
 - Following 10-minute commit rule for documentation
 - GitHub Issues #1 and #2 addressed
-- Ready for next documentation tasks from PM
+- Edge cases include backwards compatibility, URL patterns, database keys
