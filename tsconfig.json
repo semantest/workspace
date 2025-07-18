@@ -1,0 +1,19 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./core" },
+    { "path": "./browser" },
+    { "path": "./chatgpt.com" },
+    { "path": "./extension.chrome" },
+    { "path": "./google.com" },
+    { "path": "./images.google.com" },
+    { "path": "./nodejs.server" },
+    { "path": "./typescript.client" }
+  ],
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "incremental": true
+  }
+}
