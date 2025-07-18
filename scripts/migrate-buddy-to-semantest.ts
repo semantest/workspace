@@ -19,7 +19,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
 import * as glob from 'glob';
-import * as yargs from 'yargs';
+import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 
 // Load replacement mapping
@@ -86,7 +86,7 @@ async function main() {
     await createBackup();
   }
 
-  const patterns = getPatterns(argv.pattern);
+  const patterns = getPatterns(argv.pattern || 'all');
   const securityExclusions = mapping.securityExclusions || [];
 
   console.log(`📋 Migration Configuration:`);
@@ -140,7 +140,7 @@ function getPatterns(patternType: string): ReplacementPattern[] {
 }
 
 async function getFilesToProcess(): Promise<string[]> {
-  const globAsync = promisify(glob);
+  const globAsync = promisify(glob.glob);
   const patterns = [
     '**/*.ts',
     '**/*.js',
@@ -177,6 +177,12 @@ async function processFile(
   securityExclusions: ReplacementPattern[],
   dryRun: boolean
 ): Promise<number> {
+  // Validate path to prevent traversal
+  const normalizedPath = path.normalize(filePath);
+  if (normalizedPath.includes('..') || path.isAbsolute(normalizedPath)) {
+    throw new Error(`Invalid file path: ${filePath}`);
+  }
+  
   const content = fs.readFileSync(filePath, 'utf-8');
   let newContent = content;
   let replacementCount = 0;
@@ -185,7 +191,7 @@ async function processFile(
   for (const exclusion of securityExclusions) {
     if (content.includes(exclusion.pattern)) {
       if (argv.verbose) {
-        console.log(`  ⚠️  Skipping ${filePath}: Contains security pattern ${exclusion.pattern}`);
+        console.log(`  ⚠️  Skipping ${filePath}: Contains security pattern [REDACTED]`);
       }
       return 0;
     }
@@ -243,7 +249,7 @@ async function performRollback(): Promise<void> {
   console.log(`  Using backup: ${latestBackup}`);
   
   // Restore files from backup
-  const backupFiles = await promisify(glob)(`${latestBackup}/**/*`, { nodir: true });
+  const backupFiles = await promisify(glob.glob)(`${latestBackup}/**/*`, { nodir: true });
   for (const backupFile of backupFiles) {
     const originalPath = backupFile.replace(`${latestBackup}/`, '');
     fs.copyFileSync(backupFile, originalPath);
