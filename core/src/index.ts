@@ -27,3 +27,9 @@ export * from './constants';
 
 // Export browser automation module
 export * from './browser-automation';
+
+// Export logging system
+export * from './logging';
+
+// Export monitoring system
+export * from './monitoring';
