@@ -1,0 +1,51 @@
+{
+  "name": "@semantest/blockchain",
+  "version": "0.1.0",
+  "description": "Blockchain integration for test certification and verification",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy.ts",
+    "verify": "hardhat verify",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@semantest/core": "workspace:*",
+    "ethers": "^6.9.0",
+    "@openzeppelin/contracts": "^5.0.1",
+    "ipfs-http-client": "^60.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.4",
+    "typescript": "^5.3.3",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.10",
+    "hardhat": "^2.19.2",
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.3",
+    "solidity-coverage": "^0.8.5"
+  },
+  "files": [
+    "dist",
+    "contracts",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/workspace.git",
+    "directory": "blockchain"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "smart-contracts",
+    "test-certification",
+    "verification",
+    "semantest"
+  ],
+  "author": "Semantest Team",
+  "license": "MIT"
+}
