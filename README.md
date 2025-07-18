@@ -25,6 +25,34 @@ This directory contains all Semantest repositories for local development.
 
 ## Quick Start
 
+### Repository URLs
+
+**Main Workspace**
+- 🏠 **Workspace**: https://github.com/semantest/workspace
+
+**Core Components**
+- 🌐 **Browser Framework**: https://github.com/semantest/browser
+- 🖥️ **Node.js Server**: https://github.com/semantest/nodejs.server
+- 🧩 **Chrome Extension**: https://github.com/semantest/extension.chrome
+
+**Website Implementations**
+- 🔍 **Google Automation**: https://github.com/semantest/google.com
+- 💬 **ChatGPT Automation**: https://github.com/semantest/chatgpt.com
+
+**Client SDKs**
+- 📦 **TypeScript Client**: https://github.com/semantest/typescript.client
+
+**Documentation & Deployment**
+- 📚 **Documentation**: https://github.com/semantest/docs
+- 🚀 **Deployment Configs**: https://github.com/semantest/deploy
+
+**TypeScript-EDA Framework** (separate organization)
+- 🏗️ **Domain**: https://github.com/typescript-eda/domain
+- 🔧 **Infrastructure**: https://github.com/typescript-eda/infrastructure
+- 📱 **Application**: https://github.com/typescript-eda/application
+
+### Installation
+
 ```bash
 # Install dependencies in all repositories
 for repo in */; do
