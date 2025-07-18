@@ -14,49 +14,65 @@ import { PlaywrightBrowserAdapter, BrowserConfig } from '@semantest/core';
 import { GoogleImageElement } from '../../domain/events/download-requested.event';
 import { SearchFilters } from '../../domain/entities/google-image-search-session.entity';
 
-export interface PlaywrightConfig {
-    timeout?: number;
+export interface GoogleImagesPlaywrightConfig {
     maxPages?: number;
     maxResults?: number;
-    userAgent?: string;
-    viewport?: { width: number; height: number };
-    executablePath?: string;
-    args?: string[];
-    downloadsPath?: string;
-    userDataDir?: string;
-    headless?: boolean;
-    slowMo?: number;
+    baseUrl?: string;
+    searchDelay?: number;
+    resultSelector?: string;
+    imageSelector?: string;
 }
 
 /**
  * Google Images Playwright Adapter
  * 
- * Handles secure browser automation for image searching
+ * Extends the core Playwright adapter with Google Images specific functionality
  */
-export class GoogleImagesPlaywrightAdapter {
-    private config: PlaywrightConfig = {
-        timeout: 30000,
+export class GoogleImagesPlaywrightAdapter extends PlaywrightBrowserAdapter {
+    private googleConfig: GoogleImagesPlaywrightConfig = {
         maxPages: 5,
         maxResults: 100,
-        userAgent: 'Semantest Google Images Playwright/2.0.0',
-        viewport: { width: 1280, height: 720 },
-        headless: true,
-        slowMo: 0
+        baseUrl: 'https://images.google.com',
+        searchDelay: 1000,
+        resultSelector: '[data-ri]',
+        imageSelector: 'img'
     };
 
     /**
      * Configure the adapter with security validation
      */
-    configure(config: Partial<PlaywrightConfig>): void {
-        this.validateConfiguration(config);
-        this.config = { ...this.config, ...config };
+    configure(config: Partial<BrowserConfig>, googleConfig?: Partial<GoogleImagesPlaywrightConfig>): void {
+        // Use parent class configuration validation
+        if (config) {
+            this.validateGoogleConfig(config);
+        }
+        
+        if (googleConfig) {
+            this.validateGoogleSpecificConfig(googleConfig);
+            this.googleConfig = { ...this.googleConfig, ...googleConfig };
+        }
+        
+        // Set default config for Google Images
+        const defaultConfig: BrowserConfig = {
+            timeout: 30000,
+            userAgent: 'Semantest Google Images Playwright/2.0.0',
+            viewport: { width: 1280, height: 720 },
+            headless: true,
+            slowMo: 0,
+            ...config
+        };
+        
+        super.initialize(defaultConfig);
     }
 
     /**
      * Get current configuration
      */
-    getConfiguration(): PlaywrightConfig {
-        return { ...this.config };
+    getConfiguration(): { browser: BrowserConfig; google: GoogleImagesPlaywrightConfig } {
+        return {
+            browser: { ...this.config },
+            google: { ...this.googleConfig }
+        };
     }
 
     /**
@@ -66,20 +82,83 @@ export class GoogleImagesPlaywrightAdapter {
         this.validateQuery(query);
         this.validateFilters(filters);
         
-        // Mock implementation - would normally use Playwright
-        throw new Error('Invalid search query');
+        try {
+            // Navigate to Google Images
+            await this.navigate(`${this.googleConfig.baseUrl}/search?q=${encodeURIComponent(query)}`);
+            
+            // Wait for images to load
+            await this.waitForElement({ selector: this.googleConfig.resultSelector! });
+            
+            // Extract image elements
+            const elements = await this.extractImageElements();
+            
+            // Apply filters and limit results
+            return this.filterResults(elements, filters);
+        } catch (error) {
+            throw new Error(`Search failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
 
     /**
-     * Validate configuration parameters
+     * Extract image elements from the page
      */
-    private validateConfiguration(config: Partial<PlaywrightConfig>): void {
-        if (config.timeout !== undefined) {
-            if (typeof config.timeout !== 'number' || config.timeout < 0) {
-                throw new Error('Invalid configuration: timeout must be a positive number');
-            }
-        }
+    private async extractImageElements(): Promise<GoogleImageElement[]> {
+        // Implementation will extract actual image data
+        // For now, return empty array as placeholder
+        return [];
+    }
 
+    /**
+     * Filter and limit search results
+     */
+    private filterResults(elements: GoogleImageElement[], filters: SearchFilters): GoogleImageElement[] {
+        let filtered = elements;
+        
+        // Apply size filter
+        if (filters.imageSize && filters.imageSize !== 'any') {
+            filtered = this.filterBySize(filtered, filters.imageSize);
+        }
+        
+        // Apply type filter
+        if (filters.imageType && filters.imageType !== 'any') {
+            filtered = this.filterByType(filtered, filters.imageType);
+        }
+        
+        // Limit results
+        return filtered.slice(0, this.googleConfig.maxResults);
+    }
+
+    /**
+     * Filter images by size
+     */
+    private filterBySize(elements: GoogleImageElement[], size: string): GoogleImageElement[] {
+        // Implementation depends on available metadata
+        return elements;
+    }
+
+    /**
+     * Filter images by type
+     */
+    private filterByType(elements: GoogleImageElement[], type: string): GoogleImageElement[] {
+        // Implementation depends on available metadata
+        return elements;
+    }
+
+    /**
+     * Validate Google-specific configuration parameters
+     */
+    private validateGoogleConfig(config: Partial<BrowserConfig>): void {
+        // Base validation is handled by parent class
+        // Additional Google Images specific validation
+        if (config.userAgent && !config.userAgent.includes('Semantest')) {
+            console.warn('User agent should identify as Semantest for proper attribution');
+        }
+    }
+
+    /**
+     * Validate Google-specific configuration
+     */
+    private validateGoogleSpecificConfig(config: Partial<GoogleImagesPlaywrightConfig>): void {
         if (config.maxPages !== undefined) {
             if (typeof config.maxPages !== 'number' || config.maxPages < 1) {
                 throw new Error('Invalid configuration: maxPages must be a positive number');
@@ -95,71 +174,16 @@ export class GoogleImagesPlaywrightAdapter {
             }
         }
 
-        if (config.userAgent !== undefined) {
-            if (typeof config.userAgent !== 'string' || config.userAgent.length === 0) {
-                throw new Error('Invalid configuration: userAgent must be a non-empty string');
+        if (config.baseUrl !== undefined) {
+            if (typeof config.baseUrl !== 'string' || !config.baseUrl.startsWith('https://')) {
+                throw new Error('Invalid configuration: baseUrl must be a valid HTTPS URL');
             }
         }
 
-        if (config.viewport !== undefined) {
-            if (typeof config.viewport !== 'object' || 
-                typeof config.viewport.width !== 'number' || 
-                typeof config.viewport.height !== 'number') {
-                throw new Error('Invalid configuration: viewport must be an object with width and height');
+        if (config.searchDelay !== undefined) {
+            if (typeof config.searchDelay !== 'number' || config.searchDelay < 0) {
+                throw new Error('Invalid configuration: searchDelay must be a non-negative number');
             }
-        }
-
-        // Check for dangerous configuration
-        if (config.executablePath !== undefined) {
-            const dangerousPaths = ['/bin/sh', '/bin/bash', '/usr/bin/sh', '/usr/bin/bash'];
-            if (dangerousPaths.includes(config.executablePath)) {
-                throw new Error('Unsafe configuration: dangerous executable path');
-            }
-        }
-
-        if (config.args !== undefined) {
-            if (!Array.isArray(config.args)) {
-                throw new Error('Invalid configuration: args must be an array');
-            }
-            
-            const dangerousArgs = [
-                '--disable-web-security',
-                '--allow-running-insecure-content',
-                '--disable-features=VizDisplayCompositor',
-                '--no-sandbox'
-            ];
-            
-            for (const arg of config.args) {
-                if (dangerousArgs.includes(arg)) {
-                    throw new Error('Unsafe configuration: dangerous browser argument');
-                }
-            }
-        }
-
-        if (config.downloadsPath !== undefined) {
-            if (typeof config.downloadsPath !== 'string') {
-                throw new Error('Invalid configuration: downloadsPath must be a string');
-            }
-            
-            const dangerousPaths = ['/etc', '/usr', '/var', '/bin', '/sbin'];
-            if (dangerousPaths.some(path => config.downloadsPath!.startsWith(path))) {
-                throw new Error('Unsafe configuration: dangerous downloads path');
-            }
-        }
-
-        if (config.userDataDir !== undefined) {
-            if (typeof config.userDataDir !== 'string') {
-                throw new Error('Invalid configuration: userDataDir must be a string');
-            }
-            
-            if (config.userDataDir.includes('../') || config.userDataDir.includes('..\\')) {
-                throw new Error('Unsafe configuration: path traversal in userDataDir');
-            }
-        }
-
-        // Resource limits
-        if (config.timeout !== undefined && config.timeout > 120000) { // 2 minutes
-            throw new Error('Resource limit exceeded: timeout too long');
         }
     }
 
