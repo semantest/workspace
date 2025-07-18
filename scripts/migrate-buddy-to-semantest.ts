@@ -164,7 +164,7 @@ async function getFilesToProcess(): Promise<string[]> {
   
   const files: string[] = [];
   for (const pattern of patterns) {
-    const matches = await globAsync(pattern, { ignore: ignorePatterns });
+    const matches = await globAsync(pattern, { ignore: ignorePatterns }) as string[];
     files.push(...matches);
   }
   
@@ -249,7 +249,7 @@ async function performRollback(): Promise<void> {
   console.log(`  Using backup: ${latestBackup}`);
   
   // Restore files from backup
-  const backupFiles = await promisify(glob.glob)(`${latestBackup}/**/*`, { nodir: true });
+  const backupFiles = await promisify(glob.glob)(`${latestBackup}/**/*`, { nodir: true }) as string[];
   for (const backupFile of backupFiles) {
     const originalPath = backupFile.replace(`${latestBackup}/`, '');
     fs.copyFileSync(backupFile, originalPath);
