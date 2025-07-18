@@ -17,6 +17,7 @@ export * from './value-objects';
 export * from './adapters';
 export * from './types';
 export * from './utils';
+export { Utils, ResultUtils, OptionUtils, EitherUtils } from './utils';
 export * from './browser';
 export * from './validation';
 export * from './storage';
