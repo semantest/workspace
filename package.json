@@ -1,0 +1,45 @@
+{
+  "name": "semantest-workspace",
+  "version": "1.0.0",
+  "description": "Semantest monorepo workspace",
+  "private": true,
+  "workspaces": [
+    "core",
+    "browser",
+    "chatgpt.com",
+    "docs",
+    "extension.chrome",
+    "google.com",
+    "images.google.com",
+    "nodejs.server",
+    "typescript.client"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "clean": "npm run clean --workspaces",
+    "install:all": "npm install --workspaces",
+    "audit": "npm audit --workspaces",
+    "audit:fix": "npm audit fix --workspaces"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.5.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/semantest.git"
+  },
+  "license": "GPL-3.0"
+}
