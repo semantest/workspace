@@ -1,1 +1,2 @@
-- Create commits on the semantest-workspace/ folder only for global documentation, but make sure each module provides its own too. Maintain an overall `ROADMAP.md`, `JOURNAL.md` and `STORY.md`, but also spread reduced versions in each specific module.
+- Maintain an overall `JOURNAL.md` and `STORY.md`, but also spread reduced versions in each specific module.
+- Github issues for each task should belong to the github:semantest/workspace repository. 
