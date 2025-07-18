@@ -6,7 +6,8 @@
     "migrate": "ts-node migrate-buddy-to-semantest.ts",
     "migrate:dry": "ts-node migrate-buddy-to-semantest.ts --dry-run",
     "migrate:simple": "ts-node migrate-buddy-to-semantest.ts --pattern simple --dry-run",
-    "migrate:rollback": "ts-node migrate-buddy-to-semantest.ts --rollback"
+    "migrate:rollback": "ts-node migrate-buddy-to-semantest.ts --rollback",
+    "backup": "ts-node backup-repos.ts"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
