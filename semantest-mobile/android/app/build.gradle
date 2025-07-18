@@ -1,0 +1,121 @@
+apply plugin: "com.android.application"
+apply plugin: "com.facebook.react"
+apply plugin: 'com.google.gms.google-services'
+
+import com.android.build.OutputFile
+
+def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def expoModulesDir = new File(projectRoot, 'node_modules')
+
+react {
+    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", projectRoot, "android", "absolute"].execute(null, rootDir).text.trim())
+    reactNativeDir = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+    hermesCommand = new File(["node", "--print", "require.resolve('react-native/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsolutePath() + "/sdks/hermesc/%OS-BIN%/hermesc"
+    codegenDir = new File(["node", "--print", "require.resolve('@react-native/codegen/package.json')"].execute(null, rootDir).text.trim()).getParentFile().getAbsoluteFile()
+}
+
+def enableSeparateBuildPerCPUArchitecture = false
+def enableProguardInReleaseBuilds = true
+def jscFlavor = 'org.webkit:android-jsc:+'
+def enableHermes = true
+
+android {
+    ndkVersion rootProject.ext.ndkVersion
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    namespace "com.semantest.mobile"
+
+    defaultConfig {
+        applicationId "com.semantest.mobile"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0.0"
+        
+        missingDimensionStrategy 'react-native-camera', 'general'
+        multiDexEnabled true
+        
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+        release {
+            if (project.hasProperty('SEMANTEST_UPLOAD_STORE_FILE')) {
+                storeFile file(SEMANTEST_UPLOAD_STORE_FILE)
+                storePassword SEMANTEST_UPLOAD_STORE_PASSWORD
+                keyAlias SEMANTEST_UPLOAD_KEY_ALIAS
+                keyPassword SEMANTEST_UPLOAD_KEY_PASSWORD
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+            applicationIdSuffix ".debug"
+            matchingFallbacks = ['debug', 'release']
+        }
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+
+    splits {
+        abi {
+            reset()
+            enable enableSeparateBuildPerCPUArchitecture
+            universalApk false
+            include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"
+        }
+    }
+
+    packagingOptions {
+        pickFirst '**/armeabi-v7a/libc++_shared.so'
+        pickFirst '**/x86/libc++_shared.so'
+        pickFirst '**/arm64-v8a/libc++_shared.so'
+        pickFirst '**/x86_64/libc++_shared.so'
+        pickFirst '**/x86/libjsc.so'
+        pickFirst '**/armeabi-v7a/libjsc.so'
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+    
+    // React Native
+    implementation("com.facebook.react:react-native:+")
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.0.0")
+    
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation 'com.google.firebase:firebase-messaging'
+    implementation 'com.google.firebase:firebase-analytics'
+    
+    // Android X
+    implementation 'androidx.multidex:multidex:2.0.1'
+    implementation 'androidx.work:work-runtime:2.9.0'
+    
+    // Biometrics
+    implementation 'androidx.biometric:biometric:1.1.0'
+    
+    // Debugging
+    debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}")
+    debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}")
+    debugImplementation("com.facebook.flipper:flipper-fresco-plugin:${FLIPPER_VERSION}")
+
+    if (enableHermes) {
+        implementation("com.facebook.react:hermes-engine:+")
+    } else {
+        implementation jscFlavor
+    }
+}
+
+apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)
