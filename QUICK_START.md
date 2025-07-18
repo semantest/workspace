@@ -30,7 +30,7 @@ This will:
 ```bash
 npm run download:simple
 ```
-- Uses the Web-Buddy client API
+- Uses the Semantest client API
 - Simulates the download process
 - Good for testing the API integration
 
@@ -42,9 +42,9 @@ npm run download:direct
 - Actually navigates to Google Images
 - Downloads images directly
 
-### Option 3: Full Web-Buddy Integration
+### Option 3: Full Semantest Integration
 ```bash
-# First, ensure the Web-Buddy server is running
+# First, ensure the Semantest server is running
 cd ../nodejs.server
 npm start
 
@@ -52,7 +52,7 @@ npm start
 cd typescript.client
 npm run download:playwright
 ```
-- Uses the complete Web-Buddy framework
+- Uses the complete Semantest framework
 - Requires the Chrome extension
 - Full event-driven architecture
 
@@ -81,7 +81,7 @@ typescript.client/downloads/
    - Try running with visible browser to debug
 
 4. **Connection refused on port 3000**
-   - The Web-Buddy server isn't running
+   - The Semantest server isn't running
    - Use the simulated or direct download options instead
 
 ## Success Criteria
