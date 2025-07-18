@@ -1,0 +1,64 @@
+{
+  "welcome": {
+    "title": "Welcome to Semantest",
+    "description": "The next-generation semantic testing platform",
+    "getStarted": "Get Started"
+  },
+  "navigation": {
+    "home": "Home",
+    "tests": "Tests",
+    "marketplace": "Marketplace",
+    "documentation": "Documentation",
+    "settings": "Settings",
+    "profile": "Profile",
+    "logout": "Logout"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter",
+    "sort": "Sort",
+    "export": "Export",
+    "import": "Import"
+  },
+  "status": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information"
+  },
+  "errors": {
+    "generic": "An error occurred. Please try again.",
+    "network": "Network error. Please check your connection.",
+    "unauthorized": "You are not authorized to perform this action.",
+    "notFound": "The requested resource was not found.",
+    "validation": "Please check your input and try again."
+  },
+  "plurals": {
+    "items": {
+      "zero": "No items",
+      "one": "{{count}} item",
+      "other": "{{count}} items"
+    },
+    "results": {
+      "zero": "No results found",
+      "one": "{{count}} result found",
+      "other": "{{count}} results found"
+    }
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}} minutes ago",
+    "hoursAgo": "{{count}} hours ago",
+    "daysAgo": "{{count}} days ago",
+    "weeksAgo": "{{count}} weeks ago",
+    "monthsAgo": "{{count}} months ago",
+    "yearsAgo": "{{count}} years ago"
+  }
+}

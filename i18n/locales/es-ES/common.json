@@ -1,0 +1,64 @@
+{
+  "welcome": {
+    "title": "Bienvenido a Semantest",
+    "description": "La plataforma de pruebas semánticas de próxima generación",
+    "getStarted": "Comenzar"
+  },
+  "navigation": {
+    "home": "Inicio",
+    "tests": "Pruebas",
+    "marketplace": "Marketplace",
+    "documentation": "Documentación",
+    "settings": "Configuración",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión"
+  },
+  "actions": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "sort": "Ordenar",
+    "export": "Exportar",
+    "import": "Importar"
+  },
+  "status": {
+    "loading": "Cargando...",
+    "saving": "Guardando...",
+    "success": "Éxito",
+    "error": "Error",
+    "warning": "Advertencia",
+    "info": "Información"
+  },
+  "errors": {
+    "generic": "Ocurrió un error. Por favor, inténtalo de nuevo.",
+    "network": "Error de red. Por favor, verifica tu conexión.",
+    "unauthorized": "No estás autorizado para realizar esta acción.",
+    "notFound": "No se encontró el recurso solicitado.",
+    "validation": "Por favor, verifica tu entrada e inténtalo de nuevo."
+  },
+  "plurals": {
+    "items": {
+      "zero": "Sin elementos",
+      "one": "{{count}} elemento",
+      "other": "{{count}} elementos"
+    },
+    "results": {
+      "zero": "No se encontraron resultados",
+      "one": "Se encontró {{count}} resultado",
+      "other": "Se encontraron {{count}} resultados"
+    }
+  },
+  "time": {
+    "justNow": "Justo ahora",
+    "minutesAgo": "Hace {{count}} minutos",
+    "hoursAgo": "Hace {{count}} horas",
+    "daysAgo": "Hace {{count}} días",
+    "weeksAgo": "Hace {{count}} semanas",
+    "monthsAgo": "Hace {{count}} meses",
+    "yearsAgo": "Hace {{count}} años"
+  }
+}

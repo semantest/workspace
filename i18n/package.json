@@ -1,0 +1,71 @@
+{
+  "name": "@semantest/i18n",
+  "version": "0.1.0",
+  "description": "Internationalization support for Semantest",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "extract": "node dist/tools/extract-translations.js",
+    "validate": "node dist/tools/validate-translations.js",
+    "lint": "eslint src --ext .ts,.tsx"
+  },
+  "dependencies": {
+    "@semantest/core": "workspace:*",
+    "@babel/parser": "^7.23.0",
+    "@babel/traverse": "^7.23.0",
+    "chalk": "^4.1.2",
+    "glob": "^8.1.0",
+    "ora": "^5.4.1",
+    "fs-extra": "^11.1.1"
+  },
+  "devDependencies": {
+    "@types/babel__traverse": "^7.20.4",
+    "@types/fs-extra": "^11.0.4",
+    "@types/glob": "^8.1.0",
+    "@types/node": "^20.10.4",
+    "@types/react": "^18.2.42",
+    "@angular/core": "^17.0.0",
+    "react": "^18.2.0",
+    "vue": "^3.3.10",
+    "typescript": "^5.3.3",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.10"
+  },
+  "peerDependencies": {
+    "react": "^16.8.0 || ^17.0.0 || ^18.0.0",
+    "vue": "^3.0.0",
+    "@angular/core": "^12.0.0 || ^13.0.0 || ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    },
+    "@angular/core": {
+      "optional": true
+    }
+  },
+  "files": [
+    "dist",
+    "locales",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/workspace.git",
+    "directory": "i18n"
+  },
+  "keywords": [
+    "i18n",
+    "internationalization",
+    "localization",
+    "translation",
+    "semantest"
+  ],
+  "author": "Semantest Team",
+  "license": "MIT"
+}
