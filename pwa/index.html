@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+  
+  <!-- PWA Meta Tags -->
+  <meta name="application-name" content="Semantest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Semantest">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#6366f1">
+  <meta name="color-scheme" content="light dark">
+  
+  <!-- SEO Meta Tags -->
+  <title>Semantest - Professional Semantic Testing Platform</title>
+  <meta name="description" content="Professional semantic testing platform for modern development teams. Test smarter with AI-powered insights.">
+  <meta name="keywords" content="semantic testing, test automation, AI testing, quality assurance">
+  <meta name="author" content="Semantest Team">
+  
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:title" content="Semantest - Professional Semantic Testing">
+  <meta property="og:description" content="Test smarter with AI-powered semantic testing platform">
+  <meta property="og:image" content="/images/og-image.png">
+  <meta property="og:url" content="https://app.semantest.com">
+  <meta property="og:type" content="website">
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Semantest">
+  <meta name="twitter:description" content="Professional semantic testing platform">
+  <meta name="twitter:image" content="/images/twitter-card.png">
+  
+  <!-- iOS Specific -->
+  <meta name="format-detection" content="telephone=no">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/apple-touch-icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon-180x180.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="/icons/apple-touch-icon-167x167.png">
+  
+  <!-- Splash Screens for iOS -->
+  <link rel="apple-touch-startup-image" href="/splash/iphone-se.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="/splash/iphone-xr.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="/splash/iphone-x.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="/splash/iphone-plus.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+  <link rel="apple-touch-startup-image" href="/splash/ipad.png" media="(device-width: 768px) and (device-height: 1024px) and (-webkit-device-pixel-ratio: 2)">
+  <link rel="apple-touch-startup-image" href="/splash/ipad-pro.png" media="(device-width: 1024px) and (device-height: 1366px) and (-webkit-device-pixel-ratio: 2)">
+  
+  <!-- Android & General -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/icons/android-chrome-512x512.png">
+  
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+  
+  <!-- Windows Tiles -->
+  <meta name="msapplication-TileColor" content="#6366f1">
+  <meta name="msapplication-TileImage" content="/icons/mstile-144x144.png">
+  <meta name="msapplication-config" content="/browserconfig.xml">
+  
+  <!-- Preconnect to improve performance -->
+  <link rel="preconnect" href="https://api.semantest.com">
+  <link rel="dns-prefetch" href="https://api.semantest.com">
+  
+  <!-- Critical CSS -->
+  <style>
+    /* Initial loading styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #f9fafb;
+      color: #1f2937;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    
+    #root {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .app-loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid #e5e7eb;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Prevent FOUC */
+    .no-js #root { display: none; }
+    
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background-color: #111827;
+        color: #f9fafb;
+      }
+    }
+  </style>
+  
+  <!-- Async load non-critical CSS -->
+  <link rel="preload" href="/css/app.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="/css/app.css"></noscript>
+  
+  <!-- Remove no-js class when JavaScript is enabled -->
+  <script>document.documentElement.classList.remove('no-js');</script>
+</head>
+<body>
+  <div id="root">
+    <div class="app-loading">
+      <div class="loading-spinner"></div>
+    </div>
+  </div>
+  
+  <noscript>
+    <div style="padding: 20px; text-align: center;">
+      <h1>JavaScript Required</h1>
+      <p>Please enable JavaScript to use Semantest.</p>
+    </div>
+  </noscript>
+  
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('SW registered:', registration);
+            
+            // Check for updates periodically
+            setInterval(() => {
+              registration.update();
+            }, 60000); // Check every minute
+            
+            // Handle updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // New update available
+                  if (confirm('New version available! Reload to update?')) {
+                    window.location.reload();
+                  }
+                }
+              });
+            });
+          })
+          .catch(err => console.error('SW registration failed:', err));
+      });
+      
+      // Handle messages from service worker
+      navigator.serviceWorker.addEventListener('message', event => {
+        console.log('Message from SW:', event.data);
+        
+        if (event.data.type === 'SYNC_COMPLETE') {
+          // Handle sync completion
+          document.dispatchEvent(new CustomEvent('sync-complete', { detail: event.data.data }));
+        }
+      });
+    }
+  </script>
+  
+  <!-- App Scripts -->
+  <script type="module" src="/js/app.js"></script>
+  
+  <!-- Analytics (optional) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-XXXXXXXXXX');
+  </script>
+</body>
+</html>

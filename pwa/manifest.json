@@ -1,0 +1,145 @@
+{
+  "name": "Semantest - Semantic Testing Platform",
+  "short_name": "Semantest",
+  "description": "Professional semantic testing platform for modern development teams",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#6366f1",
+  "background_color": "#ffffff",
+  "scope": "/",
+  "id": "com.semantest.pwa",
+  "categories": ["developer", "productivity", "business"],
+  "dir": "ltr",
+  "lang": "en-US",
+  "prefer_related_applications": true,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=com.semantest.app",
+      "id": "com.semantest.app"
+    },
+    {
+      "platform": "itunes",
+      "url": "https://apps.apple.com/app/semantest/id1234567890"
+    }
+  ],
+  "icons": [
+    {
+      "src": "/icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/dashboard-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Dashboard view on mobile"
+    },
+    {
+      "src": "/screenshots/tests-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Test management on mobile"
+    },
+    {
+      "src": "/screenshots/results-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
+      "platform": "narrow",  
+      "label": "Test results on mobile"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Test",
+      "short_name": "New Test",
+      "description": "Create a new semantic test",
+      "url": "/tests/new",
+      "icons": [{ "src": "/icons/new-test-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View test dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/icons/dashboard-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Recent Results",
+      "short_name": "Results",
+      "description": "View recent test results",
+      "url": "/results",
+      "icons": [{ "src": "/icons/results-96x96.png", "sizes": "96x96" }]
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "test_files",
+          "accept": ["application/json", "text/*", ".test", ".spec"]
+        }
+      ]
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+semantest",
+      "url": "/protocol?url=%s"
+    }
+  ]
+}
