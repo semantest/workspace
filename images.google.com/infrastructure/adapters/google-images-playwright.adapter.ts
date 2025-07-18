@@ -8,7 +8,7 @@
 */
 
 import { chromium, Browser, Page, BrowserContext } from 'playwright';
-import { EventDrivenWebBuddyClient } from '@semantest/typescript.client';
+import { EventDrivenWebBuddyClient } from '@semantest/client';
 import { 
     GoogleImageDownloadCompleted, 
     GoogleImageDownloadFailed 

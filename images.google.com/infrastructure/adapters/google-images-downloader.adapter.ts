@@ -7,7 +7,7 @@
     one of the matching images locally using the Web-Buddy framework.
 */
 
-import { EventDrivenWebBuddyClient } from '@semantest/typescript.client';
+import { EventDrivenWebBuddyClient } from '@semantest/client';
 import { 
     GoogleImageDownloadCompleted, 
     GoogleImageDownloadFailed 

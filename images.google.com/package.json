@@ -36,7 +36,6 @@
   },
   "bugs": "https://github.com/semantest/semantest/issues",
   "dependencies": {
-    "@semantest/core": "^2.0.0",
     "axios": "^1.7.2",
     "playwright": "^1.40.0"
   },
@@ -50,10 +49,6 @@
     "ts-jest": "^29.1.0",
     "rimraf": "^5.0.1",
     "typescript": "^5.5.3"
-  },
-  "peerDependencies": {
-    "@semantest/browser": "^2.0.0",
-    "@semantest/typescript.client": "^2.0.0"
   },
   "files": [
     "dist",
