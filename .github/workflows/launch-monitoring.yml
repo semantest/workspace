@@ -1,0 +1,752 @@
+name: Q1 Launch Monitoring & Metrics
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'monitoring/launch/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Monitoring action'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - update
+          - test
+          - report
+      dashboard_type:
+        description: 'Dashboard type'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - executive
+          - marketing
+          - technical
+          - conversion
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  GRAFANA_URL: 'https://grafana.semantest.com'
+  PROMETHEUS_URL: 'http://prometheus-server.monitoring.svc.cluster.local'
+  LAUNCH_DATE: '2024-03-01'
+  ALERT_CHANNELS: 'slack,email,pagerduty'
+
+jobs:
+  setup-launch-monitoring:
+    runs-on: ubuntu-latest
+    outputs:
+      dashboard_urls: ${{ steps.setup.outputs.urls }}
+      alert_config: ${{ steps.setup.outputs.alerts }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install monitoring tools
+        run: |
+          # Install required tools
+          pip install prometheus-api-client grafana-api pandas matplotlib seaborn
+          
+          # Install dashboard templating tools
+          npm install -g @grafana/toolkit
+          
+          # Install alert management tools
+          curl -LO https://github.com/prometheus/alertmanager/releases/download/v0.26.0/amtool-0.26.0.linux-amd64.tar.gz
+          tar xvf amtool-0.26.0.linux-amd64.tar.gz
+          sudo mv amtool /usr/local/bin/
+
+      - name: Create launch dashboards
+        id: setup
+        run: |
+          python << 'EOF'
+          import json
+          import os
+          from datetime import datetime, timedelta
+          
+          # Dashboard configurations
+          dashboards = {
+              "executive": {
+                  "title": "Q1 Launch - Executive Overview",
+                  "uid": "launch-exec-2024q1",
+                  "panels": [
+                      {
+                          "title": "Live User Count",
+                          "type": "stat",
+                          "query": "sum(rate(http_requests_total[5m])) * 60 / 3",
+                          "unit": "users",
+                          "thresholds": [0, 10000, 50000, 100000]
+                      },
+                      {
+                          "title": "Revenue Impact",
+                          "type": "graph",
+                          "query": "sum(rate(purchase_completed_total[5m])) * avg(purchase_value)",
+                          "unit": "currencyUSD"
+                      },
+                      {
+                          "title": "Conversion Rate",
+                          "type": "gauge",
+                          "query": "100 * sum(rate(purchase_completed_total[5m])) / sum(rate(landing_page_views_total[5m]))",
+                          "unit": "percent",
+                          "thresholds": [0, 2, 5, 10]
+                      },
+                      {
+                          "title": "Geographic Distribution",
+                          "type": "geomap",
+                          "query": "sum by (country) (rate(http_requests_total[5m]))"
+                      }
+                  ]
+              },
+              "marketing": {
+                  "title": "Q1 Launch - Marketing Metrics",
+                  "uid": "launch-marketing-2024q1",
+                  "panels": [
+                      {
+                          "title": "Campaign Performance",
+                          "type": "table",
+                          "query": "sum by (campaign, source) (rate(landing_page_views_total[5m]))"
+                      },
+                      {
+                          "title": "User Acquisition Funnel",
+                          "type": "funnel",
+                          "queries": [
+                              "sum(landing_page_views_total)",
+                              "sum(signup_started_total)",
+                              "sum(signup_completed_total)",
+                              "sum(first_action_total)",
+                              "sum(purchase_completed_total)"
+                          ]
+                      },
+                      {
+                          "title": "Social Media Engagement",
+                          "type": "timeseries",
+                          "query": "sum by (platform) (rate(social_referral_total[5m]))"
+                      },
+                      {
+                          "title": "Email Campaign Effectiveness",
+                          "type": "heatmap",
+                          "query": "histogram_quantile(0.95, rate(email_click_duration_bucket[5m]))"
+                      }
+                  ]
+              },
+              "technical": {
+                  "title": "Q1 Launch - Technical Performance",
+                  "uid": "launch-tech-2024q1",
+                  "panels": [
+                      {
+                          "title": "Response Time (p95)",
+                          "type": "graph",
+                          "query": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+                          "unit": "s",
+                          "alert_threshold": 0.5
+                      },
+                      {
+                          "title": "Error Rate",
+                          "type": "timeseries",
+                          "query": "sum(rate(http_requests_total{status=~'5..'}[5m])) / sum(rate(http_requests_total[5m]))",
+                          "unit": "percentunit",
+                          "alert_threshold": 0.01
+                      },
+                      {
+                          "title": "Pod Scaling",
+                          "type": "graph",
+                          "query": "sum by (deployment) (kube_deployment_status_replicas)"
+                      },
+                      {
+                          "title": "Database Performance",
+                          "type": "row",
+                          "panels": [
+                              {
+                                  "title": "Query Latency",
+                                  "query": "histogram_quantile(0.95, rate(pg_query_duration_seconds_bucket[5m]))"
+                              },
+                              {
+                                  "title": "Connection Pool",
+                                  "query": "pg_stat_database_numbackends / pg_settings_max_connections"
+                              },
+                              {
+                                  "title": "Cache Hit Rate",
+                                  "query": "rate(pg_stat_database_blks_hit[5m]) / (rate(pg_stat_database_blks_hit[5m]) + rate(pg_stat_database_blks_read[5m]))"
+                              }
+                          ]
+                      }
+                  ]
+              },
+              "conversion": {
+                  "title": "Q1 Launch - Conversion Analytics",
+                  "uid": "launch-conversion-2024q1",
+                  "panels": [
+                      {
+                          "title": "Real-time Conversion Funnel",
+                          "type": "funnel",
+                          "queries": [
+                              "sum(rate(page_view_total{page='landing'}[5m]))",
+                              "sum(rate(page_view_total{page='product'}[5m]))",
+                              "sum(rate(add_to_cart_total[5m]))",
+                              "sum(rate(checkout_started_total[5m]))",
+                              "sum(rate(purchase_completed_total[5m]))"
+                          ],
+                          "refresh": "10s"
+                      },
+                      {
+                          "title": "Cart Abandonment Rate",
+                          "type": "stat",
+                          "query": "100 * (1 - sum(rate(purchase_completed_total[5m])) / sum(rate(add_to_cart_total[5m])))",
+                          "unit": "percent"
+                      },
+                      {
+                          "title": "Average Order Value",
+                          "type": "timeseries",
+                          "query": "avg(purchase_value)",
+                          "unit": "currencyUSD"
+                      },
+                      {
+                          "title": "Conversion by Source",
+                          "type": "piechart",
+                          "query": "sum by (source) (purchase_completed_total)"
+                      }
+                  ]
+              }
+          }
+          
+          # Generate Grafana dashboard JSON
+          dashboard_configs = []
+          dashboard_urls = {}
+          
+          for dashboard_type, config in dashboards.items():
+              dashboard_json = {
+                  "dashboard": {
+                      "title": config["title"],
+                      "uid": config["uid"],
+                      "timezone": "browser",
+                      "refresh": "30s",
+                      "time": {
+                          "from": "now-6h",
+                          "to": "now"
+                      },
+                      "panels": []
+                  }
+              }
+              
+              # Generate panels
+              panel_id = 1
+              y_pos = 0
+              
+              for panel in config["panels"]:
+                  panel_config = {
+                      "id": panel_id,
+                      "title": panel["title"],
+                      "type": panel["type"],
+                      "gridPos": {
+                          "h": 8,
+                          "w": 12,
+                          "x": (panel_id - 1) % 2 * 12,
+                          "y": y_pos
+                      },
+                      "targets": []
+                  }
+                  
+                  # Handle different query types
+                  if isinstance(panel.get("query"), str):
+                      panel_config["targets"].append({
+                          "expr": panel["query"],
+                          "refId": "A"
+                      })
+                  elif isinstance(panel.get("queries"), list):
+                      for idx, query in enumerate(panel["queries"]):
+                          panel_config["targets"].append({
+                              "expr": query,
+                              "refId": chr(65 + idx)  # A, B, C, etc.
+                          })
+                  
+                  # Add panel-specific options
+                  if panel.get("unit"):
+                      panel_config["fieldConfig"] = {
+                          "defaults": {
+                              "unit": panel["unit"]
+                          }
+                      }
+                  
+                  if panel.get("thresholds"):
+                      panel_config["fieldConfig"]["defaults"]["thresholds"] = {
+                          "mode": "absolute",
+                          "steps": [
+                              {"color": "red", "value": panel["thresholds"][0]},
+                              {"color": "yellow", "value": panel["thresholds"][1]},
+                              {"color": "green", "value": panel["thresholds"][2]}
+                          ]
+                      }
+                  
+                  dashboard_json["dashboard"]["panels"].append(panel_config)
+                  panel_id += 1
+                  if panel_id % 2 == 1:
+                      y_pos += 8
+              
+              # Save dashboard
+              filename = f"dashboard-{dashboard_type}.json"
+              with open(filename, "w") as f:
+                  json.dump(dashboard_json, f, indent=2)
+              
+              dashboard_configs.append(filename)
+              dashboard_urls[dashboard_type] = f"{os.environ['GRAFANA_URL']}/d/{config['uid']}"
+          
+          # Save outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"urls={json.dumps(dashboard_urls)}\n")
+          
+          print("📊 Launch Dashboards Created")
+          print("=========================")
+          for dash_type, url in dashboard_urls.items():
+              print(f"{dash_type.title()}: {url}")
+          EOF
+
+      - name: Configure launch alerts
+        run: |
+          # Create comprehensive alerting rules
+          cat > launch-alerts.yaml << 'EOF'
+          groups:
+          - name: launch_critical
+            interval: 30s
+            rules:
+            - alert: LaunchTrafficSpike
+              expr: rate(http_requests_total[1m]) > 10000
+              for: 30s
+              labels:
+                severity: critical
+                team: platform
+                launch: q1-2024
+              annotations:
+                summary: "Massive traffic spike detected"
+                description: "Traffic has exceeded 10k requests/second. Current: {{ $value | humanize }}req/s"
+                runbook_url: "https://runbooks.semantest.com/launch-traffic-spike"
+            
+            - alert: LaunchErrorRateHigh
+              expr: |
+                100 * sum(rate(http_requests_total{status=~"5.."}[1m])) 
+                / sum(rate(http_requests_total[1m])) > 1
+              for: 1m
+              labels:
+                severity: critical
+                team: platform
+                launch: q1-2024
+              annotations:
+                summary: "High error rate during launch"
+                description: "Error rate is {{ $value | humanize }}%. Immediate action required!"
+                dashboard: "https://grafana.semantest.com/d/launch-tech-2024q1"
+            
+            - alert: LaunchDatabaseOverload
+              expr: pg_stat_database_numbackends / pg_settings_max_connections > 0.9
+              for: 30s
+              labels:
+                severity: critical
+                team: database
+                launch: q1-2024
+              annotations:
+                summary: "Database connection pool exhausted"
+                description: "Database is at {{ $value | humanizePercentage }} capacity"
+            
+            - alert: LaunchResponseTimeSlow
+              expr: |
+                histogram_quantile(0.95, 
+                  rate(http_request_duration_seconds_bucket[5m])
+                ) > 1
+              for: 2m
+              labels:
+                severity: warning
+                team: platform
+                launch: q1-2024
+              annotations:
+                summary: "Response times degraded"
+                description: "95th percentile response time is {{ $value | humanizeDuration }}"
+          
+          - name: launch_marketing
+            interval: 1m
+            rules:
+            - alert: ConversionRateDropped
+              expr: |
+                100 * sum(rate(purchase_completed_total[5m])) 
+                / sum(rate(landing_page_views_total[5m])) < 2
+              for: 5m
+              labels:
+                severity: warning
+                team: marketing
+                launch: q1-2024
+              annotations:
+                summary: "Conversion rate below target"
+                description: "Current conversion rate: {{ $value | humanize }}% (target: 2%)"
+                dashboard: "https://grafana.semantest.com/d/launch-conversion-2024q1"
+            
+            - alert: CartAbandonmentHigh
+              expr: |
+                100 * (1 - sum(rate(purchase_completed_total[5m])) 
+                / sum(rate(add_to_cart_total[5m]))) > 70
+              for: 10m
+              labels:
+                severity: warning
+                team: product
+                launch: q1-2024
+              annotations:
+                summary: "High cart abandonment rate"
+                description: "{{ $value | humanize }}% of carts are being abandoned"
+            
+            - alert: TrafficSourceDown
+              expr: |
+                sum by (source) (rate(landing_page_views_total[5m])) == 0
+              for: 5m
+              labels:
+                severity: warning
+                team: marketing
+                launch: q1-2024
+              annotations:
+                summary: "Traffic source {{ $labels.source }} is down"
+                description: "No traffic from {{ $labels.source }} in the last 5 minutes"
+          
+          - name: launch_capacity
+            interval: 30s
+            rules:
+            - alert: AutoScalingMaxed
+              expr: |
+                kube_deployment_status_replicas{deployment="semantest-app"} 
+                >= kube_deployment_spec_replicas{deployment="semantest-app"}
+              for: 2m
+              labels:
+                severity: warning
+                team: platform
+                launch: q1-2024
+              annotations:
+                summary: "Auto-scaling at maximum capacity"
+                description: "Deployment {{ $labels.deployment }} is at max replicas"
+            
+            - alert: NodeCapacityLow
+              expr: |
+                (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.85
+              for: 5m
+              labels:
+                severity: warning
+                team: infrastructure
+                launch: q1-2024
+              annotations:
+                summary: "Node memory pressure"
+                description: "Node {{ $labels.instance }} memory usage is {{ $value | humanizePercentage }}"
+          EOF
+
+      - name: Create custom launch metrics
+        run: |
+          # Create custom metric collection for launch
+          cat > launch-metrics-collector.py << 'EOF'
+          #!/usr/bin/env python3
+          
+          import time
+          import requests
+          from prometheus_client import Counter, Histogram, Gauge, push_to_gateway
+          from prometheus_client.registry import CollectorRegistry
+          import os
+          
+          # Custom metrics for launch
+          registry = CollectorRegistry()
+          
+          # Business metrics
+          user_signups = Counter('launch_user_signups_total', 
+                                'Total user signups during launch',
+                                ['source', 'plan'], registry=registry)
+          
+          revenue_generated = Counter('launch_revenue_dollars_total',
+                                    'Total revenue generated during launch',
+                                    ['product', 'region'], registry=registry)
+          
+          active_users = Gauge('launch_active_users',
+                              'Currently active users on the platform',
+                              ['tier'], registry=registry)
+          
+          feature_adoption = Gauge('launch_feature_adoption_ratio',
+                                  'Feature adoption rate',
+                                  ['feature'], registry=registry)
+          
+          # Marketing metrics
+          campaign_clicks = Counter('launch_campaign_clicks_total',
+                                   'Marketing campaign clicks',
+                                   ['campaign', 'channel'], registry=registry)
+          
+          social_engagement = Counter('launch_social_engagement_total',
+                                     'Social media engagement',
+                                     ['platform', 'type'], registry=registry)
+          
+          # Technical metrics
+          api_latency = Histogram('launch_api_latency_seconds',
+                                 'API endpoint latency',
+                                 ['endpoint', 'method'], registry=registry)
+          
+          cache_performance = Histogram('launch_cache_performance',
+                                       'Cache hit/miss ratio',
+                                       ['cache_type'], registry=registry)
+          
+          def collect_metrics():
+              """Collect and push custom launch metrics"""
+              
+              # Simulate metric collection (in production, these would come from real sources)
+              
+              # Business metrics
+              user_signups.labels(source='organic', plan='premium').inc(45)
+              user_signups.labels(source='campaign', plan='premium').inc(120)
+              user_signups.labels(source='social', plan='free').inc(380)
+              
+              revenue_generated.labels(product='premium', region='us-east').inc(4500)
+              revenue_generated.labels(product='premium', region='eu-west').inc(3200)
+              revenue_generated.labels(product='enterprise', region='us-east').inc(15000)
+              
+              active_users.labels(tier='free').set(8500)
+              active_users.labels(tier='premium').set(2100)
+              active_users.labels(tier='enterprise').set(150)
+              
+              feature_adoption.labels(feature='ai_assistant').set(0.73)
+              feature_adoption.labels(feature='analytics').set(0.89)
+              feature_adoption.labels(feature='automation').set(0.45)
+              
+              # Marketing metrics
+              campaign_clicks.labels(campaign='launch2024', channel='google').inc(1250)
+              campaign_clicks.labels(campaign='launch2024', channel='facebook').inc(890)
+              campaign_clicks.labels(campaign='launch2024', channel='email').inc(2100)
+              
+              social_engagement.labels(platform='twitter', type='like').inc(450)
+              social_engagement.labels(platform='twitter', type='share').inc(120)
+              social_engagement.labels(platform='linkedin', type='share').inc(89)
+              
+              # Technical metrics
+              api_latency.labels(endpoint='/api/v1/products', method='GET').observe(0.045)
+              api_latency.labels(endpoint='/api/v1/checkout', method='POST').observe(0.123)
+              api_latency.labels(endpoint='/api/v1/user', method='GET').observe(0.023)
+              
+              cache_performance.labels(cache_type='redis').observe(0.92)  # 92% hit rate
+              cache_performance.labels(cache_type='cdn').observe(0.87)    # 87% hit rate
+              
+              # Push to Prometheus gateway
+              push_to_gateway('prometheus-pushgateway:9091', 
+                            job='launch_metrics_collector',
+                            registry=registry)
+          
+          if __name__ == '__main__':
+              print("Starting launch metrics collector...")
+              while True:
+                  try:
+                      collect_metrics()
+                      print(f"Metrics pushed at {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                  except Exception as e:
+                      print(f"Error collecting metrics: {e}")
+                  
+                  time.sleep(30)  # Collect every 30 seconds
+          EOF
+          
+          chmod +x launch-metrics-collector.py
+
+      - name: Deploy monitoring stack
+        run: |
+          echo "🚀 Deploying launch monitoring stack..."
+          
+          # In production, this would:
+          # - Deploy Grafana dashboards
+          # - Configure Prometheus rules
+          # - Set up AlertManager routing
+          # - Deploy custom metric collectors
+          # - Configure log aggregation
+          # - Set up distributed tracing
+          
+          echo "✅ Monitoring stack deployed"
+
+      - name: Create launch metrics report template
+        run: |
+          # Generate report template
+          cat > launch-report-template.md << 'EOF'
+          # Q1 2024 Launch Metrics Report
+          
+          **Generated**: {{ .Timestamp }}
+          **Report Period**: {{ .StartTime }} - {{ .EndTime }}
+          
+          ## Executive Summary
+          
+          ### Key Metrics
+          - **Total Users**: {{ .TotalUsers | number }}
+          - **Peak Concurrent Users**: {{ .PeakConcurrent | number }}
+          - **Total Revenue**: ${{ .TotalRevenue | currency }}
+          - **Conversion Rate**: {{ .ConversionRate | percent }}
+          - **System Uptime**: {{ .Uptime | percent }}
+          
+          ### Traffic Overview
+          - **Total Requests**: {{ .TotalRequests | number }}
+          - **Peak RPS**: {{ .PeakRPS | number }}
+          - **Average Response Time**: {{ .AvgResponseTime }}ms
+          - **Error Rate**: {{ .ErrorRate | percent }}
+          
+          ## Marketing Performance
+          
+          ### Campaign Effectiveness
+          | Campaign | Clicks | Conversions | ROI |
+          |----------|--------|-------------|-----|
+          {{ range .Campaigns }}
+          | {{ .Name }} | {{ .Clicks | number }} | {{ .Conversions | number }} | {{ .ROI | percent }} |
+          {{ end }}
+          
+          ### User Acquisition Funnel
+          1. Landing Page Views: {{ .Funnel.Landing | number }}
+          2. Sign-ups Started: {{ .Funnel.SignupStart | number }} ({{ .Funnel.SignupStartRate | percent }})
+          3. Sign-ups Completed: {{ .Funnel.SignupComplete | number }} ({{ .Funnel.SignupCompleteRate | percent }})
+          4. First Action: {{ .Funnel.FirstAction | number }} ({{ .Funnel.FirstActionRate | percent }})
+          5. Purchase: {{ .Funnel.Purchase | number }} ({{ .Funnel.PurchaseRate | percent }})
+          
+          ## Technical Performance
+          
+          ### Infrastructure Scaling
+          - **Starting Pods**: {{ .Scaling.StartPods }}
+          - **Peak Pods**: {{ .Scaling.PeakPods }}
+          - **Scaling Events**: {{ .Scaling.Events }}
+          - **Average Scale Time**: {{ .Scaling.AvgTime }}s
+          
+          ### Database Performance
+          - **Peak Connections**: {{ .Database.PeakConnections }}
+          - **Average Query Time**: {{ .Database.AvgQueryTime }}ms
+          - **Cache Hit Rate**: {{ .Database.CacheHitRate | percent }}
+          
+          ### CDN Performance
+          - **Cache Hit Rate**: {{ .CDN.HitRate | percent }}
+          - **Data Transferred**: {{ .CDN.DataTransferred | bytes }}
+          - **Cost Savings**: ${{ .CDN.CostSavings | currency }}
+          
+          ## Notable Events
+          
+          {{ range .Events }}
+          - **{{ .Time }}**: {{ .Description }}
+          {{ end }}
+          
+          ## Recommendations
+          
+          1. **Scaling**: {{ .Recommendations.Scaling }}
+          2. **Performance**: {{ .Recommendations.Performance }}
+          3. **Marketing**: {{ .Recommendations.Marketing }}
+          4. **Next Launch**: {{ .Recommendations.NextLaunch }}
+          
+          ---
+          
+          *Report generated by Semantest Launch Analytics*
+          EOF
+
+      - name: Setup real-time launch dashboard
+        run: |
+          # Create real-time dashboard configuration
+          cat > realtime-dashboard-config.json << 'EOF'
+          {
+            "dashboard": {
+              "title": "Q1 Launch - Real-Time Command Center",
+              "uid": "launch-realtime-2024q1",
+              "refresh": "5s",
+              "time": {
+                "from": "now-30m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "title": "LIVE USERS",
+                  "type": "stat",
+                  "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+                  "options": {
+                    "colorMode": "value",
+                    "graphMode": "area",
+                    "textSize": {
+                      "titleSize": 14,
+                      "valueSize": 40
+                    }
+                  },
+                  "targets": [{
+                    "expr": "sum(increase(http_requests_total[1m])) / 3",
+                    "instant": true
+                  }]
+                },
+                {
+                  "title": "REVENUE/MIN",
+                  "type": "stat",
+                  "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+                  "fieldConfig": {
+                    "defaults": {
+                      "unit": "currencyUSD",
+                      "decimals": 0
+                    }
+                  },
+                  "targets": [{
+                    "expr": "sum(rate(purchase_value_total[1m]) * 60)"
+                  }]
+                },
+                {
+                  "title": "CONVERSION",
+                  "type": "gauge",
+                  "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+                  "fieldConfig": {
+                    "defaults": {
+                      "unit": "percent",
+                      "max": 10,
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 2},
+                          {"color": "green", "value": 5}
+                        ]
+                      }
+                    }
+                  },
+                  "targets": [{
+                    "expr": "100 * sum(rate(purchase_completed_total[5m])) / sum(rate(landing_page_views_total[5m]))"
+                  }]
+                },
+                {
+                  "title": "SYSTEM HEALTH",
+                  "type": "state-timeline",
+                  "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+                  "targets": [{
+                    "expr": "up{job=~'semantest.*'}"
+                  }]
+                },
+                {
+                  "title": "Live Traffic Flow",
+                  "type": "timeseries",
+                  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+                  "fieldConfig": {
+                    "defaults": {
+                      "custom": {
+                        "lineWidth": 2,
+                        "fillOpacity": 10
+                      }
+                    }
+                  },
+                  "targets": [
+                    {
+                      "expr": "sum(rate(http_requests_total[30s])) by (method)",
+                      "legendFormat": "{{ method }}"
+                    }
+                  ]
+                },
+                {
+                  "title": "Geographic Heat Map",
+                  "type": "geomap",
+                  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+                  "targets": [{
+                    "expr": "sum by (country) (increase(http_requests_total[1m]))"
+                  }]
+                }
+              ]
+            }
+          }
+          EOF
+
+      - name: Upload monitoring artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: launch-monitoring-${{ github.run_number }}
+          path: |
+            dashboard-*.json
+            launch-alerts.yaml
+            launch-metrics-collector.py
+            launch-report-template.md
+            realtime-dashboard-config.json
+          retention-days: 90

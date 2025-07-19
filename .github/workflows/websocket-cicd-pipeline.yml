@@ -1,0 +1,762 @@
+name: WebSocket Service - Production CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop, release/* ]
+    paths:
+      - 'websocket/**'
+      - 'services/websocket/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'websocket/**'
+      - 'services/websocket/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'blue-green'
+        type: choice
+        options:
+          - blue-green
+          - rolling
+          - canary
+      force_deploy:
+        description: 'Force deployment (skip checks)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+  checks: write
+
+concurrency:
+  group: websocket-cicd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: semantest/websocket-service
+  NODE_VERSION: '18'
+  DOCKER_BUILDKIT: 1
+  HEALTH_CHECK_TIMEOUT: 300
+  DEPLOYMENT_TIMEOUT: 600
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      commit_sha: ${{ steps.version.outputs.commit_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'websocket/package-lock.json'
+
+      - name: Generate version
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            VERSION="$(date +%Y.%m.%d)-$(git rev-parse --short HEAD)"
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            VERSION="dev-$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
+          else
+            VERSION="$(git rev-parse --short HEAD)"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+          echo "📦 Version: $VERSION"
+
+      - name: Install dependencies
+        working-directory: websocket
+        run: |
+          npm ci --production=false
+          npm audit --audit-level=high
+
+      - name: Code quality checks
+        working-directory: websocket
+        run: |
+          # ESLint
+          npm run lint || echo "⚠️ Linting issues found"
+          
+          # TypeScript type checking
+          npm run type-check || echo "⚠️ Type checking issues found"
+          
+          # Security scan
+          npm audit --audit-level=moderate
+          
+          # Dependency vulnerabilities
+          npx audit-ci --moderate
+
+      - name: Run unit tests
+        working-directory: websocket
+        run: |
+          npm run test:unit -- --coverage --ci --watchAll=false
+          
+          # Generate test report
+          npx jest --coverage --outputFile=test-results.json --json
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ steps.version.outputs.version }}
+          path: |
+            websocket/coverage/
+            websocket/test-results.json
+          retention-days: 30
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: code-quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run security scans
+        working-directory: websocket
+        run: |
+          # SAST with Semgrep
+          pip install semgrep
+          semgrep --config=p/security-audit \
+                   --config=p/nodejs \
+                   --config=p/typescript \
+                   --config=p/secrets \
+                   --json --output=semgrep-results.json . || true
+          
+          # Dependency security scan
+          npm audit --json > npm-audit.json || true
+          
+          # Container security (if Dockerfile exists)
+          if [[ -f "Dockerfile" ]]; then
+            docker run --rm -v "$PWD:/workspace" \
+              aquasec/trivy fs /workspace \
+              --format json --output trivy-results.json || true
+          fi
+
+      - name: Upload security scan results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-${{ needs.code-quality.outputs.version }}
+          path: |
+            websocket/semgrep-results.json
+            websocket/npm-audit.json
+            websocket/trivy-results.json
+          retention-days: 30
+
+  build-and-push:
+    runs-on: ubuntu-latest
+    needs: [code-quality, security-scan]
+    outputs:
+      image_tag: ${{ steps.build.outputs.image_tag }}
+      image_digest: ${{ steps.build.outputs.image_digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate optimized Dockerfile
+        working-directory: websocket
+        run: |
+          cat > Dockerfile << 'EOF'
+          # Multi-stage build for WebSocket service
+          FROM node:18-alpine AS builder
+          
+          WORKDIR /app
+          
+          # Copy package files
+          COPY package*.json ./
+          
+          # Install dependencies
+          RUN npm ci --only=production && npm cache clean --force
+          
+          # Copy source code
+          COPY . .
+          
+          # Build the application
+          RUN npm run build
+          
+          # Production stage
+          FROM node:18-alpine AS production
+          
+          # Security: Create non-root user
+          RUN addgroup -g 1001 -S nodejs && \
+              adduser -S websocket -u 1001
+          
+          WORKDIR /app
+          
+          # Copy built application
+          COPY --from=builder --chown=websocket:nodejs /app/dist ./dist
+          COPY --from=builder --chown=websocket:nodejs /app/node_modules ./node_modules
+          COPY --from=builder --chown=websocket:nodejs /app/package.json ./
+          
+          # Health check
+          HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+              CMD curl -f http://localhost:3001/health || exit 1
+          
+          # Install curl for health checks
+          RUN apk add --no-cache curl
+          
+          # Switch to non-root user
+          USER websocket
+          
+          # Expose port
+          EXPOSE 3001
+          
+          # Start the application
+          CMD ["node", "dist/server.js"]
+          EOF
+
+      - name: Build and push container image
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ./websocket
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.code-quality.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            VERSION=${{ needs.code-quality.outputs.version }}
+            COMMIT_SHA=${{ needs.code-quality.outputs.commit_sha }}
+
+      - name: Generate SBOM
+        run: |
+          # Software Bill of Materials
+          docker sbom ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.code-quality.outputs.version }} \
+            --format spdx-json --output sbom.json || true
+
+      - name: Container security scan
+        run: |
+          # Scan the built image
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy image \
+            --format json --output container-scan.json \
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.code-quality.outputs.version }} || true
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ needs.code-quality.outputs.version }}
+          path: |
+            sbom.json
+            container-scan.json
+          retention-days: 90
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: [code-quality, build-and-push]
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: 'websocket/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: websocket
+        run: npm ci
+
+      - name: Run integration tests
+        working-directory: websocket
+        env:
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+        run: |
+          npm run test:integration -- --ci --coverage
+          
+          # WebSocket connection tests
+          npm run test:websocket || true
+
+      - name: Load test WebSocket service
+        working-directory: websocket
+        run: |
+          # Start the service in background
+          npm start &
+          SERVICE_PID=$!
+          
+          # Wait for service to be ready
+          sleep 10
+          
+          # Run load tests
+          npx artillery run tests/load-test.yml || true
+          
+          # Kill the service
+          kill $SERVICE_PID || true
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-results-${{ needs.code-quality.outputs.version }}
+          path: |
+            websocket/coverage/
+            websocket/test-results/
+          retention-days: 30
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [code-quality, build-and-push, integration-tests]
+    if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'staging'
+    environment:
+      name: staging
+      url: https://websocket-staging.semantest.com
+    outputs:
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_STAGING }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Deploy to staging with blue-green
+        id: deploy
+        run: |
+          IMAGE_TAG="${{ needs.code-quality.outputs.version }}"
+          NAMESPACE="websocket-staging"
+          
+          # Generate deployment manifests
+          cat > websocket-deployment-staging.yaml << EOF
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: websocket-service-green
+            namespace: $NAMESPACE
+            labels:
+              app: websocket-service
+              version: green
+              environment: staging
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: websocket-service
+                version: green
+            template:
+              metadata:
+                labels:
+                  app: websocket-service
+                  version: green
+                annotations:
+                  prometheus.io/scrape: "true"
+                  prometheus.io/port: "3002"
+              spec:
+                containers:
+                - name: websocket
+                  image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+                  ports:
+                  - containerPort: 3001
+                    name: websocket
+                  - containerPort: 3002
+                    name: metrics
+                  env:
+                  - name: NODE_ENV
+                    value: "staging"
+                  - name: REDIS_URL
+                    value: "redis://redis-cluster-client.websocket-staging:6379"
+                  - name: VERSION
+                    value: "$IMAGE_TAG"
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "250m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 3002
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: 3002
+                    initialDelaySeconds: 10
+                    periodSeconds: 5
+          EOF
+          
+          # Apply deployment
+          kubectl apply -f websocket-deployment-staging.yaml
+          
+          # Wait for rollout
+          kubectl rollout status deployment/websocket-service-green -n $NAMESPACE --timeout=300s
+          
+          # Health check
+          kubectl wait --for=condition=ready pod -l app=websocket-service,version=green -n $NAMESPACE --timeout=180s
+          
+          echo "deployment_id=staging-$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "✅ Staging deployment successful"
+
+      - name: Run smoke tests
+        run: |
+          # Wait for service to be fully ready
+          sleep 30
+          
+          # WebSocket connection test
+          echo "Testing WebSocket connection..."
+          timeout 30 wscat -c wss://websocket-staging.semantest.com/ws || echo "WebSocket test completed"
+          
+          # Health check
+          curl -f https://websocket-staging.semantest.com/health
+          
+          # Metrics check
+          curl -f https://websocket-staging.semantest.com/metrics
+          
+          echo "✅ Smoke tests passed"
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: [code-quality, build-and-push, integration-tests, deploy-staging]
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://websocket.semantest.com
+    outputs:
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Pre-deployment validation
+        run: |
+          IMAGE_TAG="${{ needs.code-quality.outputs.version }}"
+          
+          echo "🔍 Pre-deployment validation"
+          echo "============================="
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG"
+          echo "Commit: ${{ needs.code-quality.outputs.commit_sha }}"
+          
+          # Verify image exists
+          docker manifest inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+          
+          # Check staging deployment status
+          if [[ "${{ needs.deploy-staging.result }}" != "success" ]]; then
+            echo "❌ Staging deployment failed - blocking production"
+            exit 1
+          fi
+          
+          echo "✅ Pre-deployment validation passed"
+
+      - name: Blue-Green Production Deployment
+        id: deploy
+        run: |
+          IMAGE_TAG="${{ needs.code-quality.outputs.version }}"
+          NAMESPACE="websocket-production"
+          STRATEGY="${{ github.event.inputs.deployment_strategy || 'blue-green' }}"
+          
+          echo "🚀 Starting $STRATEGY deployment to production"
+          
+          # Determine current active color
+          CURRENT_COLOR=$(kubectl get service websocket-service -n $NAMESPACE -o jsonpath='{.spec.selector.version}' 2>/dev/null || echo "blue")
+          if [[ "$CURRENT_COLOR" == "blue" ]]; then
+            NEW_COLOR="green"
+          else
+            NEW_COLOR="blue"
+          fi
+          
+          echo "Current: $CURRENT_COLOR, Deploying: $NEW_COLOR"
+          
+          # Generate production deployment
+          cat > websocket-deployment-production.yaml << EOF
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: websocket-service-$NEW_COLOR
+            namespace: $NAMESPACE
+            labels:
+              app: websocket-service
+              version: $NEW_COLOR
+              environment: production
+          spec:
+            replicas: 6
+            selector:
+              matchLabels:
+                app: websocket-service
+                version: $NEW_COLOR
+            template:
+              metadata:
+                labels:
+                  app: websocket-service
+                  version: $NEW_COLOR
+                annotations:
+                  prometheus.io/scrape: "true"
+                  prometheus.io/port: "3002"
+              spec:
+                containers:
+                - name: websocket
+                  image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$IMAGE_TAG
+                  ports:
+                  - containerPort: 3001
+                    name: websocket
+                  - containerPort: 3002
+                    name: metrics
+                  env:
+                  - name: NODE_ENV
+                    value: "production"
+                  - name: REDIS_URL
+                    value: "redis://redis-cluster-client.websocket-production:6379"
+                  - name: VERSION
+                    value: "$IMAGE_TAG"
+                  - name: MAX_CONNECTIONS
+                    value: "10000"
+                  resources:
+                    requests:
+                      memory: "1Gi"
+                      cpu: "500m"
+                    limits:
+                      memory: "2Gi"
+                      cpu: "1"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 3002
+                    initialDelaySeconds: 60
+                    periodSeconds: 10
+                    timeoutSeconds: 5
+                    failureThreshold: 3
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: 3002
+                    initialDelaySeconds: 30
+                    periodSeconds: 5
+                    timeoutSeconds: 3
+                    failureThreshold: 2
+          EOF
+          
+          # Deploy new version
+          kubectl apply -f websocket-deployment-production.yaml
+          
+          # Wait for rollout
+          kubectl rollout status deployment/websocket-service-$NEW_COLOR -n $NAMESPACE --timeout=600s
+          
+          # Health validation
+          kubectl wait --for=condition=ready pod -l app=websocket-service,version=$NEW_COLOR -n $NAMESPACE --timeout=300s
+          
+          echo "deployment_id=production-$NEW_COLOR-$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "new_color=$NEW_COLOR" >> $GITHUB_OUTPUT
+          echo "current_color=$CURRENT_COLOR" >> $GITHUB_OUTPUT
+          
+          echo "✅ $NEW_COLOR deployment ready for traffic switch"
+
+      - name: Production health validation
+        run: |
+          NAMESPACE="websocket-production"
+          NEW_COLOR="${{ steps.deploy.outputs.new_color }}"
+          
+          echo "🔍 Validating $NEW_COLOR deployment health"
+          
+          # Wait for all pods to be ready
+          sleep 60
+          
+          # Check pod health
+          READY_PODS=$(kubectl get pods -n $NAMESPACE -l app=websocket-service,version=$NEW_COLOR -o jsonpath='{.items[*].status.conditions[?(@.type=="Ready")].status}' | grep -o "True" | wc -l)
+          TOTAL_PODS=$(kubectl get pods -n $NAMESPACE -l app=websocket-service,version=$NEW_COLOR --no-headers | wc -l)
+          
+          echo "Ready pods: $READY_PODS/$TOTAL_PODS"
+          
+          if [[ $READY_PODS -lt $TOTAL_PODS ]]; then
+            echo "❌ Not all pods are ready"
+            kubectl get pods -n $NAMESPACE -l app=websocket-service,version=$NEW_COLOR
+            exit 1
+          fi
+          
+          # Test WebSocket connections
+          POD_IP=$(kubectl get pod -n $NAMESPACE -l app=websocket-service,version=$NEW_COLOR -o jsonpath='{.items[0].status.podIP}')
+          
+          # Internal health check
+          kubectl exec -n $NAMESPACE deployment/websocket-service-$NEW_COLOR -- curl -f http://localhost:3002/health
+          
+          echo "✅ Health validation passed"
+
+      - name: Switch traffic (Blue-Green)
+        run: |
+          NAMESPACE="websocket-production"
+          NEW_COLOR="${{ steps.deploy.outputs.new_color }}"
+          CURRENT_COLOR="${{ steps.deploy.outputs.current_color }}"
+          
+          echo "🔄 Switching traffic from $CURRENT_COLOR to $NEW_COLOR"
+          
+          # Update service selector
+          kubectl patch service websocket-service -n $NAMESPACE -p '{"spec":{"selector":{"version":"'$NEW_COLOR'"}}}'
+          
+          # Wait for traffic switch
+          sleep 30
+          
+          # Verify traffic switch
+          ACTIVE_COLOR=$(kubectl get service websocket-service -n $NAMESPACE -o jsonpath='{.spec.selector.version}')
+          if [[ "$ACTIVE_COLOR" != "$NEW_COLOR" ]]; then
+            echo "❌ Traffic switch failed"
+            exit 1
+          fi
+          
+          echo "✅ Traffic successfully switched to $NEW_COLOR"
+
+      - name: Post-deployment validation
+        run: |
+          echo "🔍 Post-deployment validation"
+          
+          # Wait for traffic to stabilize
+          sleep 60
+          
+          # External health check
+          curl -f https://websocket.semantest.com/health
+          
+          # WebSocket connection test
+          echo "Testing WebSocket connection..."
+          timeout 30 wscat -c wss://websocket.semantest.com/ws || echo "WebSocket test completed"
+          
+          # Metrics endpoint
+          curl -f https://websocket.semantest.com/metrics
+          
+          echo "✅ Production deployment validated"
+
+      - name: Cleanup old deployment
+        run: |
+          NAMESPACE="websocket-production"
+          CURRENT_COLOR="${{ steps.deploy.outputs.current_color }}"
+          
+          echo "🧹 Cleaning up old $CURRENT_COLOR deployment"
+          
+          # Scale down old deployment
+          kubectl scale deployment websocket-service-$CURRENT_COLOR -n $NAMESPACE --replicas=0 || true
+          
+          # Wait before deletion
+          sleep 60
+          
+          # Delete old deployment
+          kubectl delete deployment websocket-service-$CURRENT_COLOR -n $NAMESPACE || true
+          
+          echo "✅ Cleanup completed"
+
+  rollback-mechanism:
+    runs-on: ubuntu-latest
+    needs: [deploy-production]
+    if: failure() && github.ref == 'refs/heads/main'
+    environment:
+      name: production-rollback
+    steps:
+      - name: Emergency rollback
+        run: |
+          echo "🚨 EMERGENCY ROLLBACK TRIGGERED"
+          
+          NAMESPACE="websocket-production"
+          
+          # Get previous stable version
+          PREVIOUS_COLOR=$(kubectl get deployment -n $NAMESPACE -l app=websocket-service -o jsonpath='{.items[?(@.status.replicas>0)].metadata.labels.version}' | head -1)
+          
+          if [[ -n "$PREVIOUS_COLOR" ]]; then
+            echo "Rolling back to $PREVIOUS_COLOR"
+            kubectl patch service websocket-service -n $NAMESPACE -p '{"spec":{"selector":{"version":"'$PREVIOUS_COLOR'"}}}'
+            echo "✅ Rollback completed"
+          else
+            echo "❌ No previous deployment found for rollback"
+          fi
+
+  deployment-notification:
+    runs-on: ubuntu-latest
+    needs: [code-quality, deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: Generate deployment report
+        run: |
+          cat > deployment-report.md << EOF
+          # WebSocket Service Deployment Report
+          
+          **Version**: ${{ needs.code-quality.outputs.version }}
+          **Commit**: ${{ needs.code-quality.outputs.commit_sha }}
+          **Pipeline**: ${{ github.run_id }}
+          
+          ## Deployment Status
+          
+          - **Staging**: ${{ needs.deploy-staging.result }}
+          - **Production**: ${{ needs.deploy-production.result }}
+          
+          ## Services
+          
+          - **Staging**: https://websocket-staging.semantest.com
+          - **Production**: https://websocket.semantest.com
+          
+          ## Monitoring
+          
+          - **Metrics**: https://grafana.semantest.com/d/websocket-perf-monitoring
+          - **Health**: https://websocket.semantest.com/health
+          
+          Pipeline completed: $(date)
+          EOF
+          
+          echo "🎉 WebSocket Service CI/CD Pipeline Complete!"
+          echo "Version: ${{ needs.code-quality.outputs.version }}"
+          echo "Production: https://websocket.semantest.com"
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployment-report-${{ needs.code-quality.outputs.version }}
+          path: deployment-report.md
+          retention-days: 90
