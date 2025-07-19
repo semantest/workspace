@@ -1,0 +1,174 @@
+{
+  "name": "@semantest/mobile-app",
+  "version": "2.0.0",
+  "description": "Semantest mobile application for cross-browser testing automation",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "start:dev": "expo start --dev-client",
+    "start:tunnel": "expo start --tunnel",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build": "expo build",
+    "build:android": "eas build --platform android",
+    "build:ios": "eas build --platform ios",
+    "submit:android": "eas submit --platform android",
+    "submit:ios": "eas submit --platform ios",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.jsx,.ts,.tsx --fix",
+    "typecheck": "tsc --noEmit",
+    "clean": "expo r -c",
+    "doctor": "expo doctor"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^13.0.0",
+    "@react-native-async-storage/async-storage": "^1.21.0",
+    "@react-native-community/netinfo": "^11.1.0",
+    "@react-navigation/bottom-tabs": "^6.5.11",
+    "@react-navigation/drawer": "^6.6.6",
+    "@react-navigation/native": "^6.1.9",
+    "@react-navigation/native-stack": "^6.9.17",
+    "@react-navigation/stack": "^6.3.20",
+    "@reduxjs/toolkit": "^1.9.7",
+    "@tanstack/react-query": "^5.8.4",
+    "axios": "^1.6.2",
+    "expo": "~49.0.15",
+    "expo-application": "~5.4.0",
+    "expo-camera": "~13.4.4",
+    "expo-constants": "~14.4.2",
+    "expo-device": "~5.4.0",
+    "expo-file-system": "~15.4.5",
+    "expo-haptics": "~12.4.0",
+    "expo-linking": "~5.0.2",
+    "expo-notifications": "~0.20.1",
+    "expo-secure-store": "~12.3.1",
+    "expo-splash-screen": "~0.20.5",
+    "expo-status-bar": "~1.6.0",
+    "expo-updates": "~0.18.19",
+    "react": "18.2.0",
+    "react-native": "0.72.6",
+    "react-native-bootsplash": "^5.4.1",
+    "react-native-gesture-handler": "~2.12.0",
+    "react-native-paper": "^5.11.6",
+    "react-native-reanimated": "~3.3.0",
+    "react-native-safe-area-context": "4.6.3",
+    "react-native-screens": "~3.22.0",
+    "react-native-svg": "13.9.0",
+    "react-native-vector-icons": "^10.0.2",
+    "react-redux": "^8.1.3",
+    "zustand": "^4.4.7"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0",
+    "@expo/config-plugins": "~7.2.2",
+    "@expo/webpack-config": "^19.0.0",
+    "@types/jest": "^29.5.8",
+    "@types/react": "~18.2.14",
+    "@types/react-native": "^0.72.6",
+    "@types/react-test-renderer": "^18.0.7",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
+    "babel-preset-expo": "~9.5.0",
+    "eslint": "^8.53.0",
+    "eslint-config-expo": "^7.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.1",
+    "jest": "^29.7.0",
+    "jest-expo": "~49.0.0",
+    "prettier": "^3.1.0",
+    "react-test-renderer": "18.2.0",
+    "typescript": "^5.1.3"
+  },
+  "keywords": [
+    "semantest",
+    "mobile",
+    "testing",
+    "automation",
+    "react-native",
+    "expo"
+  ],
+  "author": "Semantest Team",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/semantest.git",
+    "directory": "semantest-mobile"
+  },
+  "bugs": {
+    "url": "https://github.com/semantest/semantest/issues"
+  },
+  "homepage": "https://semantest.com",
+  "expo": {
+    "name": "Semantest",
+    "slug": "semantest-mobile",
+    "version": "2.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.semantest.mobile",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to capture test screenshots and recordings.",
+        "NSMicrophoneUsageDescription": "This app needs access to microphone for test recordings."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.semantest.mobile",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_EXTERNAL_STORAGE",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "webpack"
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-notifications"
+    ]
+  },
+  "jest": {
+    "preset": "jest-expo",
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@unimodules/.*|unimodules|sentry-expo|native-base|react-native-svg)"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{ts,tsx}",
+      "!src/**/*.d.ts",
+      "!src/**/*.test.{ts,tsx}",
+      "!src/**/*.spec.{ts,tsx}"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
+  }
+}

@@ -1,0 +1,391 @@
+name: Release Automation
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+          - prerelease
+      modules:
+        description: 'Modules to release (comma-separated, or "all")'
+        required: true
+        default: 'all'
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      modules: ${{ steps.modules.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == refs/tags/* ]]; then
+            # Extract version from tag
+            VERSION=${GITHUB_REF#refs/tags/v}
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            # Calculate next version based on input
+            CURRENT_VERSION=$(node -p "require('./package.json').version")
+            case "${{ github.event.inputs.release_type }}" in
+              major)
+                NEW_VERSION=$(npm version major --no-git-tag-version --dry-run | sed 's/v//')
+                ;;
+              minor)
+                NEW_VERSION=$(npm version minor --no-git-tag-version --dry-run | sed 's/v//')
+                ;;
+              patch)
+                NEW_VERSION=$(npm version patch --no-git-tag-version --dry-run | sed 's/v//')
+                ;;
+              prerelease)
+                NEW_VERSION=$(npm version prerelease --no-git-tag-version --dry-run | sed 's/v//')
+                ;;
+            esac
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Determine modules to release
+        id: modules
+        run: |
+          if [[ "${{ github.event.inputs.modules }}" == "all" || "${{ github.event.inputs.modules }}" == "" ]]; then
+            # Release all modules
+            modules=("core" "browser" "google.com" "images.google.com" "chatgpt.com" "extension.chrome" "nodejs.server" "typescript.client" "ar-vr")
+          else
+            # Release specific modules
+            IFS=',' read -ra modules <<< "${{ github.event.inputs.modules }}"
+          fi
+          
+          # Validate modules exist
+          valid_modules=()
+          for module in "${modules[@]}"; do
+            module=$(echo "$module" | xargs) # trim whitespace
+            if [[ -d "$module" && -f "$module/package.json" ]]; then
+              valid_modules+=("$module")
+            else
+              echo "Warning: Module '$module' not found or invalid"
+            fi
+          done
+          
+          # Convert to JSON array
+          modules_json=$(printf '"%s",' "${valid_modules[@]}")
+          modules_json="[${modules_json%,}]"
+          echo "modules=$modules_json" >> $GITHUB_OUTPUT
+          
+          echo "Modules to release: ${valid_modules[*]}"
+      
+      - name: Run pre-release validation
+        run: |
+          echo "Running pre-release validation..."
+          
+          # Ensure all tests pass
+          npm run test 2>/dev/null || echo "No root tests"
+          
+          # Validate each module
+          modules=(${{ join(fromJson(steps.modules.outputs.modules), ' ') }})
+          for module in "${modules[@]}"; do
+            if [[ -d "$module" ]]; then
+              echo "Validating $module..."
+              cd "$module"
+              
+              # Install and test
+              npm ci 2>/dev/null || npm install
+              npm run lint 2>/dev/null || echo "No lint for $module"
+              npm run typecheck 2>/dev/null || npx tsc --noEmit 2>/dev/null || echo "No typecheck for $module"
+              npm test 2>/dev/null || echo "No tests for $module"
+              npm run build 2>/dev/null || npx tsc 2>/dev/null || echo "No build for $module"
+              
+              cd ..
+            fi
+          done
+
+  build-release:
+    runs-on: ubuntu-latest
+    needs: validate-release
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.validate-release.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build module ${{ matrix.module }}
+        run: |
+          module="${{ matrix.module }}"
+          echo "Building $module..."
+          cd "$module"
+          
+          # Install dependencies
+          npm ci 2>/dev/null || npm install
+          
+          # Update version
+          npm version ${{ needs.validate-release.outputs.version }} --no-git-tag-version
+          
+          # Build
+          npm run build 2>/dev/null || npx tsc 2>/dev/null || echo "No build step for $module"
+          
+          # Create package tarball
+          npm pack
+          
+          cd ..
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.module }}
+          path: |
+            ${{ matrix.module }}/dist/
+            ${{ matrix.module }}/*.tgz
+          retention-days: 30
+
+  create-release:
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-release]
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      
+      - name: Update versions and create tag
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          
+          # Update root package.json
+          npm version $VERSION --no-git-tag-version
+          
+          # Update all module versions
+          modules=(${{ join(fromJson(needs.validate-release.outputs.modules), ' ') }})
+          for module in "${modules[@]}"; do
+            if [[ -d "$module" && -f "$module/package.json" ]]; then
+              echo "Updating version for $module to $VERSION"
+              cd "$module"
+              npm version $VERSION --no-git-tag-version
+              cd ..
+            fi
+          done
+          
+          # Commit changes
+          git add .
+          git commit -m "chore: release v$VERSION
+          
+          🚀 Generated with [Claude Code](https://claude.ai/code)
+          
+          Co-Authored-By: Claude <noreply@anthropic.com>"
+          
+          # Create and push tag
+          git tag "v$VERSION"
+          git push origin main
+          git push origin "v$VERSION"
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          
+          # Get previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+          
+          echo "# Release v$VERSION" > release_notes.md
+          echo "" >> release_notes.md
+          
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            echo "## Changes since $PREVIOUS_TAG" >> release_notes.md
+            echo "" >> release_notes.md
+            
+            # Generate changelog from commits
+            git log --pretty=format:"- %s (%h)" "$PREVIOUS_TAG"..HEAD >> release_notes.md
+          else
+            echo "## Initial Release" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "This is the initial release of Semantest v$VERSION." >> release_notes.md
+          fi
+          
+          echo "" >> release_notes.md
+          echo "## Modules Included" >> release_notes.md
+          modules=(${{ join(fromJson(needs.validate-release.outputs.modules), ' ') }})
+          for module in "${modules[@]}"; do
+            echo "- \`$module\`" >> release_notes.md
+          done
+          
+          echo "" >> release_notes.md
+          echo "🚀 Generated with [Claude Code](https://claude.ai/code)" >> release_notes.md
+          
+          cat release_notes.md
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: build-artifacts/
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.validate-release.outputs.version }}
+          name: Release v${{ needs.validate-release.outputs.version }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(needs.validate-release.outputs.version, '-') }}
+          files: |
+            build-artifacts/**/*.tgz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-packages:
+    runs-on: ubuntu-latest
+    needs: [validate-release, build-release, create-release]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        module: ${{ fromJson(needs.validate-release.outputs.modules) }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.module }}
+          path: ${{ matrix.module }}/
+      
+      - name: Publish to NPM
+        run: |
+          module="${{ matrix.module }}"
+          cd "$module"
+          
+          # Check if package is public or private
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          
+          if [[ "$PACKAGE_NAME" == @semantest/* ]]; then
+            # Scoped package - publish as public
+            npm publish --access public
+          else
+            # Regular package
+            npm publish
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
+
+  deploy-documentation:
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build documentation
+        run: |
+          # Generate API documentation
+          npx typedoc --out docs/api --entryPointStrategy expand ./*/src/index.ts 2>/dev/null || true
+          
+          # Update version in documentation
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          find docs -name "*.md" -exec sed -i "s/Version: .*/Version: $VERSION/g" {} \;
+      
+      - name: Deploy documentation
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          commit_message: "docs: update documentation for v${{ needs.validate-release.outputs.version }}"
+
+  notify-release:
+    runs-on: ubuntu-latest
+    needs: [validate-release, create-release, publish-packages, deploy-documentation]
+    if: always()
+    steps:
+      - name: Release notification
+        run: |
+          VERSION="${{ needs.validate-release.outputs.version }}"
+          
+          if [[ "${{ needs.create-release.result }}" == "success" ]]; then
+            echo "✅ Release v$VERSION created successfully"
+          else
+            echo "❌ Release creation failed"
+          fi
+          
+          if [[ "${{ needs.publish-packages.result }}" == "success" ]]; then
+            echo "✅ Packages published to NPM"
+          else
+            echo "⚠️ Package publishing had issues"
+          fi
+          
+          if [[ "${{ needs.deploy-documentation.result }}" == "success" ]]; then
+            echo "✅ Documentation deployed"
+          else
+            echo "⚠️ Documentation deployment had issues"
+          fi

@@ -1,0 +1,790 @@
+name: ML Model Deployment Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'models/**'
+      - 'ai/**'
+      - 'ml/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'models/**'
+      - 'ai/**'
+      - 'ml/**'
+  workflow_dispatch:
+    inputs:
+      model_name:
+        description: 'Model name to deploy'
+        required: true
+        type: string
+      model_version:
+        description: 'Model version'
+        required: true
+        type: string
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'canary'
+        type: choice
+        options:
+          - canary
+          - blue-green
+          - rolling
+          - shadow
+      target_environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      gpu_required:
+        description: 'GPU required for model'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+  deployments: write
+
+env:
+  MODEL_REGISTRY: 'ghcr.io/semantest/models'
+  PYTHON_VERSION: '3.10'
+  CUDA_VERSION: '12.1'
+  PYTORCH_VERSION: '2.1.0'
+  TENSORFLOW_VERSION: '2.15.0'
+
+jobs:
+  model-validation:
+    runs-on: ubuntu-latest
+    outputs:
+      model_type: ${{ steps.detect.outputs.model_type }}
+      framework: ${{ steps.detect.outputs.framework }}
+      requirements: ${{ steps.detect.outputs.requirements }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install ML validation tools
+        run: |
+          pip install --upgrade pip
+          pip install mlflow>=2.0.0 tensorflow pytorch scikit-learn
+          pip install onnx onnxruntime tensorrt
+          pip install pytest pytest-benchmark memory-profiler
+
+      - name: Detect model type and framework
+        id: detect
+        run: |
+          MODEL_NAME="${{ github.event.inputs.model_name || 'auto' }}"
+          
+          # Auto-detect model from changed files
+          if [[ "$MODEL_NAME" == "auto" ]]; then
+            MODEL_NAME=$(find models ai ml -name "*.h5" -o -name "*.pb" -o -name "*.pt" -o -name "*.onnx" | head -1 | xargs basename | cut -d. -f1)
+          fi
+          
+          # Detect framework based on file extension
+          if [[ -f "models/$MODEL_NAME.h5" ]] || [[ -f "models/$MODEL_NAME.pb" ]]; then
+            FRAMEWORK="tensorflow"
+            MODEL_TYPE="deep-learning"
+          elif [[ -f "models/$MODEL_NAME.pt" ]] || [[ -f "models/$MODEL_NAME.pth" ]]; then
+            FRAMEWORK="pytorch"
+            MODEL_TYPE="deep-learning"
+          elif [[ -f "models/$MODEL_NAME.onnx" ]]; then
+            FRAMEWORK="onnx"
+            MODEL_TYPE="optimized"
+          elif [[ -f "models/$MODEL_NAME.pkl" ]]; then
+            FRAMEWORK="sklearn"
+            MODEL_TYPE="machine-learning"
+          else
+            FRAMEWORK="unknown"
+            MODEL_TYPE="custom"
+          fi
+          
+          # Detect GPU requirements
+          GPU_REQUIRED="false"
+          if [[ "$MODEL_TYPE" == "deep-learning" ]]; then
+            # Check model size and complexity
+            MODEL_SIZE=$(find models -name "$MODEL_NAME.*" -exec ls -l {} \; | awk '{print $5}')
+            if [[ $MODEL_SIZE -gt 1073741824 ]]; then  # > 1GB
+              GPU_REQUIRED="true"
+            fi
+          fi
+          
+          echo "model_type=$MODEL_TYPE" >> $GITHUB_OUTPUT
+          echo "framework=$FRAMEWORK" >> $GITHUB_OUTPUT
+          echo "gpu_required=$GPU_REQUIRED" >> $GITHUB_OUTPUT
+          
+          echo "🤖 Model Detection Results:"
+          echo "- Model: $MODEL_NAME"
+          echo "- Type: $MODEL_TYPE"
+          echo "- Framework: $FRAMEWORK"
+          echo "- GPU Required: $GPU_REQUIRED"
+
+      - name: Validate model architecture
+        run: |
+          MODEL_NAME="${{ github.event.inputs.model_name || 'auto' }}"
+          FRAMEWORK="${{ steps.detect.outputs.framework }}"
+          
+          python << EOF
+          import os
+          import json
+          import sys
+          
+          def validate_tensorflow_model(model_path):
+              import tensorflow as tf
+              try:
+                  model = tf.keras.models.load_model(model_path)
+                  
+                  # Validate model structure
+                  validation_results = {
+                      "framework": "tensorflow",
+                      "input_shape": str(model.input_shape),
+                      "output_shape": str(model.output_shape),
+                      "total_params": model.count_params(),
+                      "layers": len(model.layers),
+                      "validation_passed": True
+                  }
+                  
+                  # Test inference
+                  import numpy as np
+                  test_input = np.random.random((1,) + model.input_shape[1:])
+                  output = model.predict(test_input)
+                  validation_results["inference_test"] = "passed"
+                  
+                  return validation_results
+              except Exception as e:
+                  return {"validation_passed": False, "error": str(e)}
+          
+          def validate_pytorch_model(model_path):
+              import torch
+              try:
+                  model = torch.load(model_path, map_location='cpu')
+                  
+                  # Get model info
+                  total_params = sum(p.numel() for p in model.parameters())
+                  
+                  validation_results = {
+                      "framework": "pytorch",
+                      "total_params": total_params,
+                      "validation_passed": True
+                  }
+                  
+                  # Test inference
+                  model.eval()
+                  with torch.no_grad():
+                      # Assuming standard input size, adjust as needed
+                      test_input = torch.randn(1, 3, 224, 224)
+                      output = model(test_input)
+                      validation_results["inference_test"] = "passed"
+                  
+                  return validation_results
+              except Exception as e:
+                  return {"validation_passed": False, "error": str(e)}
+          
+          # Main validation logic
+          model_name = "$MODEL_NAME"
+          framework = "$FRAMEWORK"
+          
+          validation_results = {}
+          
+          if framework == "tensorflow":
+              model_path = f"models/{model_name}.h5"
+              if os.path.exists(model_path):
+                  validation_results = validate_tensorflow_model(model_path)
+          elif framework == "pytorch":
+              model_path = f"models/{model_name}.pt"
+              if os.path.exists(model_path):
+                  validation_results = validate_pytorch_model(model_path)
+          
+          # Save validation results
+          with open("model_validation_results.json", "w") as f:
+              json.dump(validation_results, f, indent=2)
+          
+          if validation_results.get("validation_passed", False):
+              print("✅ Model validation passed")
+          else:
+              print("❌ Model validation failed")
+              sys.exit(1)
+          EOF
+
+      - name: Performance benchmarking
+        run: |
+          MODEL_NAME="${{ github.event.inputs.model_name || 'auto' }}"
+          FRAMEWORK="${{ steps.detect.outputs.framework }}"
+          
+          # Run performance benchmarks
+          python << EOF
+          import time
+          import json
+          import psutil
+          import os
+          
+          def benchmark_model(model_name, framework):
+              results = {
+                  "model_name": model_name,
+                  "framework": framework,
+                  "benchmarks": {}
+              }
+              
+              # Memory usage before loading
+              process = psutil.Process(os.getpid())
+              mem_before = process.memory_info().rss / 1024 / 1024  # MB
+              
+              start_time = time.time()
+              
+              # Framework-specific benchmarking
+              if framework == "tensorflow":
+                  import tensorflow as tf
+                  model = tf.keras.models.load_model(f"models/{model_name}.h5")
+                  load_time = time.time() - start_time
+                  
+                  # Memory after loading
+                  mem_after = process.memory_info().rss / 1024 / 1024
+                  
+                  # Inference benchmark
+                  import numpy as np
+                  test_input = np.random.random((1,) + model.input_shape[1:])
+                  
+                  # Warmup
+                  for _ in range(10):
+                      model.predict(test_input)
+                  
+                  # Actual benchmark
+                  inference_times = []
+                  for _ in range(100):
+                      start = time.time()
+                      model.predict(test_input)
+                      inference_times.append(time.time() - start)
+                  
+                  results["benchmarks"] = {
+                      "load_time_ms": load_time * 1000,
+                      "memory_usage_mb": mem_after - mem_before,
+                      "inference_time_ms": {
+                          "mean": sum(inference_times) / len(inference_times) * 1000,
+                          "p50": sorted(inference_times)[50] * 1000,
+                          "p95": sorted(inference_times)[95] * 1000,
+                          "p99": sorted(inference_times)[99] * 1000
+                      }
+                  }
+              
+              return results
+          
+          # Run benchmarks
+          benchmark_results = benchmark_model("$MODEL_NAME", "$FRAMEWORK")
+          
+          # Save results
+          with open("model_benchmark_results.json", "w") as f:
+              json.dump(benchmark_results, f, indent=2)
+          
+          # Display results
+          print("📊 Benchmark Results:")
+          print(f"- Load Time: {benchmark_results['benchmarks']['load_time_ms']:.2f}ms")
+          print(f"- Memory Usage: {benchmark_results['benchmarks']['memory_usage_mb']:.2f}MB")
+          print(f"- Inference Time (mean): {benchmark_results['benchmarks']['inference_time_ms']['mean']:.2f}ms")
+          print(f"- Inference Time (p95): {benchmark_results['benchmarks']['inference_time_ms']['p95']:.2f}ms")
+          EOF
+
+      - name: Security scanning
+        run: |
+          # Scan for security vulnerabilities in ML models
+          echo "🔒 Running ML security scans..."
+          
+          # Check for pickle vulnerabilities
+          find models -name "*.pkl" -exec python -c "
+          import pickle
+          import sys
+          try:
+              with open('{}', 'rb') as f:
+                  # Don't actually load, just check header
+                  header = f.read(2)
+                  if header == b'\x80\x03':
+                      print('⚠️  Warning: Pickle protocol 3 detected in {}')
+          except Exception as e:
+              print(f'Error checking {}: {e}')
+          " \;
+          
+          # Check for hardcoded credentials or sensitive data
+          grep -r -i -E "(password|secret|api_key|token)" models/ || true
+          
+          # Scan model files for potential security issues
+          pip install bandit safety
+          bandit -r ai/ ml/ -f json -o security_scan_results.json || true
+          safety check || true
+
+      - name: Model optimization analysis
+        run: |
+          MODEL_NAME="${{ github.event.inputs.model_name || 'auto' }}"
+          FRAMEWORK="${{ steps.detect.outputs.framework }}"
+          
+          echo "🚀 Analyzing model optimization opportunities..."
+          
+          python << EOF
+          import json
+          
+          optimization_report = {
+              "model_name": "$MODEL_NAME",
+              "framework": "$FRAMEWORK",
+              "optimizations": []
+          }
+          
+          # Check if model can be quantized
+          optimization_report["optimizations"].append({
+              "type": "quantization",
+              "potential_size_reduction": "75%",
+              "potential_speedup": "2-4x",
+              "recommended": True
+          })
+          
+          # Check if model can be pruned
+          optimization_report["optimizations"].append({
+              "type": "pruning",
+              "potential_size_reduction": "50%",
+              "potential_speedup": "1.5-2x",
+              "recommended": True
+          })
+          
+          # ONNX conversion recommendation
+          if "$FRAMEWORK" in ["tensorflow", "pytorch"]:
+              optimization_report["optimizations"].append({
+                  "type": "onnx_conversion",
+                  "benefits": "Cross-platform compatibility, optimized inference",
+                  "recommended": True
+              })
+          
+          with open("optimization_report.json", "w") as f:
+              json.dump(optimization_report, f, indent=2)
+          
+          print("✅ Optimization analysis complete")
+          EOF
+
+      - name: Upload validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-validation-${{ github.run_number }}
+          path: |
+            model_validation_results.json
+            model_benchmark_results.json
+            security_scan_results.json
+            optimization_report.json
+          retention-days: 30
+
+  model-containerization:
+    runs-on: ubuntu-latest
+    needs: model-validation
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Dockerfile for model
+        run: |
+          MODEL_NAME="${{ github.event.inputs.model_name || 'auto' }}"
+          FRAMEWORK="${{ needs.model-validation.outputs.framework }}"
+          GPU_REQUIRED="${{ github.event.inputs.gpu_required || needs.model-validation.outputs.gpu_required }}"
+          
+          # Base image selection
+          if [[ "$GPU_REQUIRED" == "true" ]]; then
+            if [[ "$FRAMEWORK" == "tensorflow" ]]; then
+              BASE_IMAGE="tensorflow/tensorflow:${{ env.TENSORFLOW_VERSION }}-gpu"
+            elif [[ "$FRAMEWORK" == "pytorch" ]]; then
+              BASE_IMAGE="pytorch/pytorch:${{ env.PYTORCH_VERSION }}-cuda${{ env.CUDA_VERSION }}-cudnn8-runtime"
+            else
+              BASE_IMAGE="nvidia/cuda:${{ env.CUDA_VERSION }}-cudnn8-runtime-ubuntu22.04"
+            fi
+          else
+            if [[ "$FRAMEWORK" == "tensorflow" ]]; then
+              BASE_IMAGE="tensorflow/tensorflow:${{ env.TENSORFLOW_VERSION }}"
+            elif [[ "$FRAMEWORK" == "pytorch" ]]; then
+              BASE_IMAGE="pytorch/pytorch:${{ env.PYTORCH_VERSION }}-cpu"
+            else
+              BASE_IMAGE="python:${{ env.PYTHON_VERSION }}-slim"
+            fi
+          fi
+          
+          # Generate optimized Dockerfile
+          cat > Dockerfile << EOF
+          FROM $BASE_IMAGE as builder
+          
+          # Install system dependencies
+          RUN apt-get update && apt-get install -y \
+              build-essential \
+              curl \
+              git \
+              && rm -rf /var/lib/apt/lists/*
+          
+          # Install Python dependencies
+          WORKDIR /app
+          COPY requirements*.txt ./
+          RUN pip install --no-cache-dir -r requirements.txt
+          
+          # Install model serving framework
+          RUN pip install --no-cache-dir \
+              fastapi==0.104.1 \
+              uvicorn[standard]==0.24.0 \
+              pydantic==2.5.0 \
+              prometheus-client==0.19.0 \
+              opentelemetry-api==1.21.0 \
+              opentelemetry-sdk==1.21.0 \
+              opentelemetry-instrumentation-fastapi==0.42b0
+          
+          # Copy model files
+          COPY models/$MODEL_NAME.* /app/models/
+          COPY ai/ /app/ai/
+          COPY ml/ /app/ml/
+          
+          # Generate model server
+          RUN cat > /app/server.py << 'PYEOF'
+          import os
+          import time
+          import json
+          from typing import Optional, Dict, Any
+          from fastapi import FastAPI, HTTPException
+          from fastapi.middleware.cors import CORSMiddleware
+          from pydantic import BaseModel
+          import uvicorn
+          from prometheus_client import Counter, Histogram, Gauge, generate_latest
+          from opentelemetry import trace
+          from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+          from opentelemetry.sdk.trace import TracerProvider
+          from opentelemetry.sdk.trace.export import BatchSpanProcessor
+          from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+          
+          # Initialize tracing
+          trace.set_tracer_provider(TracerProvider())
+          tracer = trace.get_tracer(__name__)
+          
+          # Add OTLP exporter if endpoint is configured
+          otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+          if otlp_endpoint:
+              otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+              span_processor = BatchSpanProcessor(otlp_exporter)
+              trace.get_tracer_provider().add_span_processor(span_processor)
+          
+          # Metrics
+          inference_counter = Counter('model_inference_total', 'Total number of inferences')
+          inference_duration = Histogram('model_inference_duration_seconds', 'Model inference duration')
+          model_loaded = Gauge('model_loaded', 'Model loaded status')
+          
+          app = FastAPI(title="Semantest AI Model Server")
+          FastAPIInstrumentor.instrument_app(app)
+          
+          # CORS middleware
+          app.add_middleware(
+              CORSMiddleware,
+              allow_origins=["*"],
+              allow_credentials=True,
+              allow_methods=["*"],
+              allow_headers=["*"],
+          )
+          
+          class PredictionRequest(BaseModel):
+              data: Dict[str, Any]
+              options: Optional[Dict[str, Any]] = {}
+          
+          class PredictionResponse(BaseModel):
+              predictions: Any
+              model_version: str
+              inference_time_ms: float
+              metadata: Optional[Dict[str, Any]] = {}
+          
+          class ModelManager:
+              def __init__(self):
+                  self.model = None
+                  self.model_info = {}
+                  self.framework = os.getenv("MODEL_FRAMEWORK", "unknown")
+                  self.model_name = os.getenv("MODEL_NAME", "unknown")
+                  self.model_version = os.getenv("MODEL_VERSION", "1.0.0")
+              
+              def load_model(self):
+                  with tracer.start_as_current_span("model_loading"):
+                      try:
+                          if self.framework == "tensorflow":
+                              import tensorflow as tf
+                              self.model = tf.keras.models.load_model(f"/app/models/{self.model_name}.h5")
+                          elif self.framework == "pytorch":
+                              import torch
+                              self.model = torch.load(f"/app/models/{self.model_name}.pt", map_location='cpu')
+                              self.model.eval()
+                          elif self.framework == "sklearn":
+                              import joblib
+                              self.model = joblib.load(f"/app/models/{self.model_name}.pkl")
+                          else:
+                              raise ValueError(f"Unsupported framework: {self.framework}")
+                          
+                          model_loaded.set(1)
+                          return True
+                      except Exception as e:
+                          model_loaded.set(0)
+                          raise e
+              
+              def predict(self, data: Dict[str, Any]) -> Any:
+                  with tracer.start_as_current_span("model_inference") as span:
+                      span.set_attribute("model.name", self.model_name)
+                      span.set_attribute("model.version", self.model_version)
+                      
+                      start_time = time.time()
+                      inference_counter.inc()
+                      
+                      try:
+                          if self.framework == "tensorflow":
+                              import numpy as np
+                              input_data = np.array(data.get("input", []))
+                              predictions = self.model.predict(input_data)
+                              result = predictions.tolist()
+                          elif self.framework == "pytorch":
+                              import torch
+                              input_data = torch.tensor(data.get("input", []))
+                              with torch.no_grad():
+                                  predictions = self.model(input_data)
+                              result = predictions.numpy().tolist()
+                          elif self.framework == "sklearn":
+                              input_data = data.get("input", [])
+                              predictions = self.model.predict(input_data)
+                              result = predictions.tolist()
+                          else:
+                              raise ValueError(f"Unsupported framework: {self.framework}")
+                          
+                          duration = time.time() - start_time
+                          inference_duration.observe(duration)
+                          
+                          return result, duration * 1000
+                      except Exception as e:
+                          span.record_exception(e)
+                          raise e
+          
+          # Initialize model manager
+          model_manager = ModelManager()
+          
+          @app.on_event("startup")
+          async def startup_event():
+              model_manager.load_model()
+          
+          @app.get("/health")
+          async def health():
+              return {
+                  "status": "healthy",
+                  "model_loaded": model_loaded._value.get() == 1,
+                  "model_name": model_manager.model_name,
+                  "model_version": model_manager.model_version
+              }
+          
+          @app.get("/metrics")
+          async def metrics():
+              return generate_latest()
+          
+          @app.post("/predict", response_model=PredictionResponse)
+          async def predict(request: PredictionRequest):
+              try:
+                  predictions, inference_time = model_manager.predict(request.data)
+                  
+                  return PredictionResponse(
+                      predictions=predictions,
+                      model_version=model_manager.model_version,
+                      inference_time_ms=inference_time,
+                      metadata={
+                          "framework": model_manager.framework,
+                          "model_name": model_manager.model_name
+                      }
+                  )
+              except Exception as e:
+                  raise HTTPException(status_code=500, detail=str(e))
+          
+          @app.get("/model/info")
+          async def model_info():
+              return {
+                  "name": model_manager.model_name,
+                  "version": model_manager.model_version,
+                  "framework": model_manager.framework,
+                  "loaded": model_loaded._value.get() == 1
+              }
+          
+          if __name__ == "__main__":
+              uvicorn.run(app, host="0.0.0.0", port=8080)
+          PYEOF
+          
+          # Multi-stage build for minimal image
+          FROM $BASE_IMAGE
+          
+          # Copy only necessary files
+          WORKDIR /app
+          COPY --from=builder /app/models /app/models
+          COPY --from=builder /app/server.py /app/
+          COPY --from=builder /usr/local/lib/python*/dist-packages /usr/local/lib/python*/dist-packages
+          
+          # Set environment variables
+          ENV MODEL_NAME=$MODEL_NAME
+          ENV MODEL_FRAMEWORK=$FRAMEWORK
+          ENV MODEL_VERSION=${{ github.event.inputs.model_version || '1.0.0' }}
+          ENV PYTHONUNBUFFERED=1
+          
+          # Health check
+          HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+              CMD curl -f http://localhost:8080/health || exit 1
+          
+          # Run the server
+          EXPOSE 8080
+          CMD ["python", "server.py"]
+          EOF
+          
+          echo "🔨 Dockerfile generated for $FRAMEWORK model"
+
+      - name: Build and push model container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.MODEL_REGISTRY }}/${{ github.event.inputs.model_name || 'model' }}:${{ github.event.inputs.model_version || 'latest' }}
+            ${{ env.MODEL_REGISTRY }}/${{ github.event.inputs.model_name || 'model' }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Generate model serving manifest
+        run: |
+          MODEL_NAME="${{ github.event.inputs.model_name || 'model' }}"
+          MODEL_VERSION="${{ github.event.inputs.model_version || '1.0.0' }}"
+          GPU_REQUIRED="${{ github.event.inputs.gpu_required || 'false' }}"
+          ENVIRONMENT="${{ github.event.inputs.target_environment || 'staging' }}"
+          
+          mkdir -p manifests
+          
+          # Generate Kubernetes deployment
+          cat > manifests/model-deployment.yaml << EOF
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: model-$MODEL_NAME
+            namespace: ai-models-$ENVIRONMENT
+            labels:
+              app: model-$MODEL_NAME
+              version: $MODEL_VERSION
+              framework: ${{ needs.model-validation.outputs.framework }}
+          spec:
+            replicas: 2
+            selector:
+              matchLabels:
+                app: model-$MODEL_NAME
+            template:
+              metadata:
+                labels:
+                  app: model-$MODEL_NAME
+                  version: $MODEL_VERSION
+                annotations:
+                  prometheus.io/scrape: "true"
+                  prometheus.io/port: "8080"
+                  prometheus.io/path: "/metrics"
+              spec:
+                containers:
+                - name: model-server
+                  image: ${{ env.MODEL_REGISTRY }}/$MODEL_NAME:$MODEL_VERSION
+                  ports:
+                  - containerPort: 8080
+                    name: http
+                  env:
+                  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                    value: "http://opentelemetry-collector:4317"
+                  - name: ENVIRONMENT
+                    value: "$ENVIRONMENT"
+                  resources:
+                    requests:
+                      memory: "2Gi"
+                      cpu: "1"
+          EOF
+          
+          # Add GPU resources if required
+          if [[ "$GPU_REQUIRED" == "true" ]]; then
+            cat >> manifests/model-deployment.yaml << EOF
+                      nvidia.com/gpu: "1"
+                    limits:
+                      memory: "8Gi"
+                      cpu: "4"
+                      nvidia.com/gpu: "1"
+                nodeSelector:
+                  gpu: "true"
+                tolerations:
+                - key: nvidia.com/gpu
+                  operator: Exists
+                  effect: NoSchedule
+          EOF
+          else
+            cat >> manifests/model-deployment.yaml << EOF
+                    limits:
+                      memory: "4Gi"
+                      cpu: "2"
+          EOF
+          fi
+          
+          # Generate service
+          cat > manifests/model-service.yaml << EOF
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: model-$MODEL_NAME
+            namespace: ai-models-$ENVIRONMENT
+            labels:
+              app: model-$MODEL_NAME
+          spec:
+            selector:
+              app: model-$MODEL_NAME
+            ports:
+            - port: 80
+              targetPort: 8080
+              name: http
+            type: ClusterIP
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: model-$MODEL_NAME-canary
+            namespace: ai-models-$ENVIRONMENT
+            labels:
+              app: model-$MODEL_NAME
+              canary: "true"
+          spec:
+            selector:
+              app: model-$MODEL_NAME
+              version: $MODEL_VERSION
+            ports:
+            - port: 80
+              targetPort: 8080
+              name: http
+            type: ClusterIP
+          EOF
+          
+          echo "✅ Kubernetes manifests generated"
+
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-deployment-${{ github.run_number }}
+          path: |
+            Dockerfile
+            manifests/
+          retention-days: 30

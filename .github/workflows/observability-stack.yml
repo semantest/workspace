@@ -1,0 +1,2524 @@
+name: Enterprise Observability Stack
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      action:
+        required: true
+        type: string
+        description: 'deploy, update, or teardown'
+    secrets:
+      KUBE_CONFIG:
+        required: true
+      JAEGER_COLLECTOR_URL:
+        required: false
+      GRAFANA_ADMIN_PASSWORD:
+        required: true
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      action:
+        description: 'Observability action'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+          - deploy
+          - update
+          - teardown
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: observability-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  NAMESPACE: observability-${{ inputs.environment }}
+
+jobs:
+  setup-distributed-tracing:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'deploy' || inputs.action == 'update'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl config set-context --current --namespace=${{ env.NAMESPACE }}
+
+      - name: Create observability namespace
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy OpenTelemetry Collector
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Add OpenTelemetry Helm repo
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update
+          
+          # Create OpenTelemetry Collector configuration
+          cat > otel-collector-values.yaml << EOF
+          mode: daemonset
+          
+          image:
+            repository: otel/opentelemetry-collector-contrib
+            tag: "0.91.0"
+          
+          config:
+            receivers:
+              otlp:
+                protocols:
+                  grpc:
+                    endpoint: 0.0.0.0:4317
+                  http:
+                    endpoint: 0.0.0.0:4318
+              
+              prometheus:
+                config:
+                  scrape_configs:
+                    - job_name: 'kubernetes-pods'
+                      kubernetes_sd_configs:
+                        - role: pod
+                          namespaces:
+                            names:
+                              - semantest-${{ env.ENVIRONMENT }}
+                      relabel_configs:
+                        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                          action: keep
+                          regex: true
+                        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                          action: replace
+                          target_label: __metrics_path__
+                          regex: (.+)
+              
+              k8s_cluster:
+                auth_type: serviceAccount
+                node: \${env:K8S_NODE_NAME}
+                
+              k8s_events:
+                auth_type: serviceAccount
+                
+              kubeletstats:
+                collection_interval: 20s
+                auth_type: serviceAccount
+                endpoint: \${env:K8S_NODE_IP}:10250
+                insecure_skip_verify: true
+            
+            processors:
+              batch:
+                timeout: 1s
+                send_batch_size: 1024
+                send_batch_max_size: 2048
+              
+              memory_limiter:
+                limit_mib: 512
+                
+              resource:
+                attributes:
+                  - key: cluster.name
+                    value: semantest-${{ env.ENVIRONMENT }}
+                    action: upsert
+                  - key: environment
+                    value: ${{ env.ENVIRONMENT }}
+                    action: upsert
+              
+              resourcedetection:
+                detectors: [env, system, k8snode]
+                timeout: 2s
+                override: false
+              
+              k8sattributes:
+                auth_type: serviceAccount
+                passthrough: false
+                filter:
+                  node_from_env_var: KUBE_NODE_NAME
+                extract:
+                  metadata:
+                    - k8s.pod.name
+                    - k8s.pod.uid
+                    - k8s.deployment.name
+                    - k8s.namespace.name
+                    - k8s.node.name
+                    - k8s.pod.start_time
+                  labels:
+                    - tag_name: app
+                      key: app
+                    - tag_name: version
+                      key: version
+                pod_association:
+                  - sources:
+                      - from: resource_attribute
+                        name: k8s.pod.ip
+                  - sources:
+                      - from: resource_attribute
+                        name: k8s.pod.uid
+                  - sources:
+                      - from: connection
+            
+            exporters:
+              jaeger:
+                endpoint: jaeger-collector:14250
+                tls:
+                  insecure: true
+              
+              prometheus:
+                endpoint: "0.0.0.0:8889"
+                
+              logging:
+                loglevel: info
+                
+              elasticsearch:
+                endpoints: [elasticsearch-master:9200]
+                logs_index: semantest-logs
+                traces_index: semantest-traces
+                metrics_index: semantest-metrics
+                
+              otlp/jaeger:
+                endpoint: jaeger-collector:4317
+                tls:
+                  insecure: true
+            
+            service:
+              telemetry:
+                logs:
+                  level: "info"
+                metrics:
+                  address: 0.0.0.0:8888
+              
+              pipelines:
+                traces:
+                  receivers: [otlp]
+                  processors: [memory_limiter, resourcedetection, resource, k8sattributes, batch]
+                  exporters: [jaeger, otlp/jaeger, logging]
+                
+                metrics:
+                  receivers: [otlp, prometheus, k8s_cluster, kubeletstats]
+                  processors: [memory_limiter, resourcedetection, resource, k8sattributes, batch]
+                  exporters: [prometheus, logging]
+                
+                logs:
+                  receivers: [otlp, k8s_events]
+                  processors: [memory_limiter, resourcedetection, resource, k8sattributes, batch]
+                  exporters: [elasticsearch, logging]
+          
+          ports:
+            otlp:
+              enabled: true
+              containerPort: 4317
+              servicePort: 4317
+              hostPort: 4317
+              protocol: TCP
+            otlp-http:
+              enabled: true
+              containerPort: 4318
+              servicePort: 4318
+              hostPort: 4318
+              protocol: TCP
+            metrics:
+              enabled: true
+              containerPort: 8889
+              servicePort: 8889
+              protocol: TCP
+            
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          
+          tolerations:
+            - key: node-role.kubernetes.io/master
+              operator: Exists
+              effect: NoSchedule
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+              effect: NoSchedule
+          EOF
+          
+          # Install OpenTelemetry Collector
+          helm upgrade --install otel-collector open-telemetry/opentelemetry-collector \
+            --namespace ${{ env.NAMESPACE }} \
+            --values otel-collector-values.yaml \
+            --wait --timeout=600s
+
+      - name: Deploy Jaeger Tracing Backend
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Add Jaeger Helm repo
+          helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+          helm repo update
+          
+          # Create Jaeger values
+          cat > jaeger-values.yaml << EOF
+          provisionDataStore:
+            cassandra: false
+            elasticsearch: true
+            kafka: false
+          
+          storage:
+            type: elasticsearch
+            elasticsearch:
+              host: elasticsearch-master
+              port: 9200
+              scheme: http
+              user: ""
+              password: ""
+              nodesWanOnly: false
+              useSSL: false
+              createIndexTemplates: true
+          
+          agent:
+            enabled: false
+          
+          collector:
+            enabled: true
+            replicaCount: 3
+            resources:
+              limits:
+                cpu: 1000m
+                memory: 1Gi
+              requests:
+                cpu: 100m
+                memory: 256Mi
+            service:
+              type: ClusterIP
+              grpc:
+                port: 14250
+              http:
+                port: 14268
+              otlp:
+                grpc:
+                  port: 4317
+                http:
+                  port: 4318
+          
+          query:
+            enabled: true
+            replicaCount: 2
+            resources:
+              limits:
+                cpu: 500m
+                memory: 512Mi
+              requests:
+                cpu: 100m
+                memory: 128Mi
+            service:
+              type: LoadBalancer
+              port: 16686
+            ingress:
+              enabled: true
+              annotations:
+                kubernetes.io/ingress.class: nginx
+                cert-manager.io/cluster-issuer: letsencrypt-prod
+              hosts:
+                - jaeger-${{ env.ENVIRONMENT }}.semantest.com
+              tls:
+                - secretName: jaeger-tls
+                  hosts:
+                    - jaeger-${{ env.ENVIRONMENT }}.semantest.com
+          
+          hotrod:
+            enabled: false
+          EOF
+          
+          # Install Jaeger
+          helm upgrade --install jaeger jaegertracing/jaeger \
+            --namespace ${{ env.NAMESPACE }} \
+            --values jaeger-values.yaml \
+            --wait --timeout=600s
+
+      - name: Deploy Tempo for Long-term Trace Storage
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Add Grafana Helm repo
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo update
+          
+          # Create Tempo values
+          cat > tempo-values.yaml << EOF
+          tempo:
+            retention: 168h # 7 days
+            
+            global_overrides:
+              per_tenant_override_config: /conf/overrides.yaml
+            
+            overrides:
+              per_tenant_override_config: |
+                overrides:
+                  "semantest":
+                    ingestion_rate_limit_bytes: 20000000
+                    ingestion_burst_size_bytes: 30000000
+                    max_traces_per_user: 50000
+            
+            storage:
+              trace:
+                backend: s3
+                s3:
+                  bucket: semantest-tempo-traces-${{ env.ENVIRONMENT }}
+                  region: us-west-2
+                  access_key: \${AWS_ACCESS_KEY_ID}
+                  secret_key: \${AWS_SECRET_ACCESS_KEY}
+                  insecure: false
+                wal:
+                  path: /var/tempo/wal
+                local:
+                  path: /var/tempo/blocks
+          
+          tempoQuery:
+            enabled: true
+            repository: grafana/tempo-query
+            tag: 2.3.0
+            
+          persistence:
+            enabled: true
+            storageClassName: fast-ssd
+            size: 50Gi
+          
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
+          EOF
+          
+          # Install Tempo
+          helm upgrade --install tempo grafana/tempo \
+            --namespace ${{ env.NAMESPACE }} \
+            --values tempo-values.yaml \
+            --wait --timeout=600s
+
+  setup-custom-dashboards:
+    runs-on: ubuntu-latest
+    needs: setup-distributed-tracing
+    if: inputs.action == 'deploy' || inputs.action == 'update'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Create Business KPI Dashboard
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > business-kpi-dashboard.json << 'EOF'
+          {
+            "dashboard": {
+              "id": null,
+              "title": "Semantest Business KPIs - ${{ env.ENVIRONMENT }}",
+              "tags": ["semantest", "business", "kpi", "${{ env.ENVIRONMENT }}"],
+              "timezone": "UTC",
+              "refresh": "30s",
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": 1,
+                  "title": "Active Users",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(user_sessions_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m]))",
+                      "legendFormat": "Active Sessions/min"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 100},
+                          {"color": "green", "value": 500}
+                        ]
+                      },
+                      "unit": "short"
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+                },
+                {
+                  "id": 2,
+                  "title": "Revenue per Minute",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(revenue_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m]))",
+                      "legendFormat": "Revenue/min"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 100},
+                          {"color": "green", "value": 1000}
+                        ]
+                      },
+                      "unit": "currencyUSD"
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+                },
+                {
+                  "id": 3,
+                  "title": "Conversion Rate",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(conversions_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) / sum(rate(user_sessions_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) * 100",
+                      "legendFormat": "Conversion %"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 2},
+                          {"color": "green", "value": 5}
+                        ]
+                      },
+                      "unit": "percent"
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+                },
+                {
+                  "id": 4,
+                  "title": "Error Budget Remaining",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "(1 - (sum(rate(http_requests_total{status=~\"5..\",environment=\"${{ env.ENVIRONMENT }}\"}[30d])) / sum(rate(http_requests_total{environment=\"${{ env.ENVIRONMENT }}\"}[30d])))) * 100",
+                      "legendFormat": "Error Budget %"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 95},
+                          {"color": "green", "value": 99}
+                        ]
+                      },
+                      "unit": "percent"
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+                },
+                {
+                  "id": 5,
+                  "title": "API Performance Trends",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) by (le, endpoint))",
+                      "legendFormat": "95th percentile - {{endpoint}}"
+                    },
+                    {
+                      "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) by (le, endpoint))",
+                      "legendFormat": "50th percentile - {{endpoint}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Response Time (s)"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+                },
+                {
+                  "id": 6,
+                  "title": "Feature Usage Heatmap",
+                  "type": "heatmap",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(feature_usage_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) by (feature, hour)",
+                      "legendFormat": "{{feature}}"
+                    }
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+                },
+                {
+                  "id": 7,
+                  "title": "User Journey Funnel",
+                  "type": "bargauge",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(user_journey_step_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) by (step)",
+                      "legendFormat": "{{step}}"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "continuous-GrYlRd"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "green", "value": 0},
+                          {"color": "yellow", "value": 50},
+                          {"color": "red", "value": 80}
+                        ]
+                      }
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16}
+                }
+              ]
+            }
+          }
+          EOF
+          
+          # Create dashboard ConfigMap
+          kubectl create configmap business-kpi-dashboard \
+            --from-file=business-kpi-dashboard.json \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create Technical Performance Dashboard
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > technical-dashboard.json << 'EOF'
+          {
+            "dashboard": {
+              "id": null,
+              "title": "Semantest Technical Performance - ${{ env.ENVIRONMENT }}",
+              "tags": ["semantest", "technical", "performance", "${{ env.ENVIRONMENT }}"],
+              "timezone": "UTC",
+              "refresh": "10s",
+              "time": {
+                "from": "now-15m",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": 1,
+                  "title": "Request Throughput",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(http_requests_total{environment=\"${{ env.ENVIRONMENT }}\"}[1m])) by (service)",
+                      "legendFormat": "{{service}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Requests/sec"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+                },
+                {
+                  "id": 2,
+                  "title": "Error Rates by Service",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(http_requests_total{status=~\"5..\",environment=\"${{ env.ENVIRONMENT }}\"}[1m])) by (service)",
+                      "legendFormat": "5xx - {{service}}"
+                    },
+                    {
+                      "expr": "sum(rate(http_requests_total{status=~\"4..\",environment=\"${{ env.ENVIRONMENT }}\"}[1m])) by (service)",
+                      "legendFormat": "4xx - {{service}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Errors/sec"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+                },
+                {
+                  "id": 3,
+                  "title": "Database Performance",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "histogram_quantile(0.95, sum(rate(database_query_duration_seconds_bucket{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) by (le, query_type))",
+                      "legendFormat": "95th percentile - {{query_type}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Query Time (s)"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+                },
+                {
+                  "id": 4,
+                  "title": "Cache Hit Rates",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(cache_hits_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) / sum(rate(cache_requests_total{environment=\"${{ env.ENVIRONMENT }}\"}[5m])) * 100",
+                      "legendFormat": "Cache Hit Rate"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 70},
+                          {"color": "green", "value": 90}
+                        ]
+                      },
+                      "unit": "percent"
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+                }
+              ]
+            }
+          }
+          EOF
+          
+          kubectl create configmap technical-dashboard \
+            --from-file=technical-dashboard.json \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Create SLA Dashboard
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > sla-dashboard.json << 'EOF'
+          {
+            "dashboard": {
+              "id": null,
+              "title": "Semantest SLA Monitoring - ${{ env.ENVIRONMENT }}",
+              "tags": ["semantest", "sla", "monitoring", "${{ env.ENVIRONMENT }}"],
+              "timezone": "UTC",
+              "refresh": "1m",
+              "time": {
+                "from": "now-24h",
+                "to": "now"
+              },
+              "panels": [
+                {
+                  "id": 1,
+                  "title": "Service Availability (99.9% SLA)",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "avg_over_time(up{job=\"semantest-enterprise\",environment=\"${{ env.ENVIRONMENT }}\"}[24h]) * 100",
+                      "legendFormat": "Availability %"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 99},
+                          {"color": "green", "value": 99.9}
+                        ]
+                      },
+                      "unit": "percent",
+                      "decimals": 3
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0}
+                },
+                {
+                  "id": 2,
+                  "title": "Response Time SLA (< 500ms)",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{environment=\"${{ env.ENVIRONMENT }}\"}[24h])) by (le)) * 1000",
+                      "legendFormat": "95th percentile"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "green", "value": 0},
+                          {"color": "yellow", "value": 500},
+                          {"color": "red", "value": 1000}
+                        ]
+                      },
+                      "unit": "ms"
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0}
+                },
+                {
+                  "id": 3,
+                  "title": "Error Rate SLA (< 0.1%)",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(http_requests_total{status=~\"5..\",environment=\"${{ env.ENVIRONMENT }}\"}[24h])) / sum(rate(http_requests_total{environment=\"${{ env.ENVIRONMENT }}\"}[24h])) * 100",
+                      "legendFormat": "Error Rate %"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "green", "value": 0},
+                          {"color": "yellow", "value": 0.1},
+                          {"color": "red", "value": 1}
+                        ]
+                      },
+                      "unit": "percent",
+                      "decimals": 3
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0}
+                },
+                {
+                  "id": 4,
+                  "title": "SLA Compliance Score",
+                  "type": "gauge",
+                  "targets": [
+                    {
+                      "expr": "(\n  (avg_over_time(up{job=\"semantest-enterprise\",environment=\"${{ env.ENVIRONMENT }}\"}[24h]) >= 0.999) * 40 +\n  (histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{environment=\"${{ env.ENVIRONMENT }}\"}[24h])) by (le)) <= 0.5) * 30 +\n  ((sum(rate(http_requests_total{status=~\"5..\",environment=\"${{ env.ENVIRONMENT }}\"}[24h])) / sum(rate(http_requests_total{environment=\"${{ env.ENVIRONMENT }}\"}[24h]))) <= 0.001) * 30\n)",
+                      "legendFormat": "SLA Score"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {"mode": "thresholds"},
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "yellow", "value": 70},
+                          {"color": "green", "value": 90}
+                        ]
+                      },
+                      "unit": "percent",
+                      "max": 100,
+                      "min": 0
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0}
+                }
+              ]
+            }
+          }
+          EOF
+          
+          kubectl create configmap sla-dashboard \
+            --from-file=sla-dashboard.json \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+  setup-alert-management:
+    runs-on: ubuntu-latest
+    needs: setup-distributed-tracing
+    if: inputs.action == 'deploy' || inputs.action == 'update'
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy Intelligent AlertManager Configuration
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > intelligent-alertmanager-config.yaml << EOF
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: alertmanager-config
+            namespace: ${{ env.NAMESPACE }}
+          type: Opaque
+          stringData:
+            alertmanager.yml: |
+              global:
+                slack_api_url: '\${SLACK_WEBHOOK_URL}'
+                smtp_smarthost: 'smtp.company.com:587'
+                smtp_from: 'alerts@semantest.com'
+                
+              templates:
+                - '/etc/alertmanager/templates/*.tmpl'
+                
+              route:
+                group_by: ['alertname', 'cluster', 'service', 'severity']
+                group_wait: 30s
+                group_interval: 5m
+                repeat_interval: 12h
+                receiver: 'default-receiver'
+                routes:
+                  # Critical alerts - immediate escalation
+                  - match:
+                      severity: critical
+                    receiver: 'critical-escalation'
+                    group_wait: 10s
+                    repeat_interval: 5m
+                    routes:
+                      # Security incidents
+                      - match:
+                          category: security
+                        receiver: 'security-team'
+                        group_wait: 0s
+                        repeat_interval: 1h
+                      # Infrastructure failures
+                      - match:
+                          category: infrastructure
+                        receiver: 'infrastructure-team'
+                        group_wait: 0s
+                        repeat_interval: 30m
+                      # Application errors
+                      - match:
+                          category: application
+                        receiver: 'development-team'
+                        group_wait: 15s
+                        repeat_interval: 15m
+                  
+                  # Warning alerts - standard escalation
+                  - match:
+                      severity: warning
+                    receiver: 'warning-escalation'
+                    group_wait: 2m
+                    repeat_interval: 6h
+                    routes:
+                      # Performance degradation
+                      - match:
+                          category: performance
+                        receiver: 'performance-team'
+                        repeat_interval: 2h
+                      # Capacity issues
+                      - match:
+                          category: capacity
+                        receiver: 'infrastructure-team'
+                        repeat_interval: 4h
+                  
+                  # Business hours routing
+                  - match_re:
+                      time_range: '^(09|10|11|12|13|14|15|16|17):.*'
+                    receiver: 'business-hours-team'
+                  
+                  # SLA breach alerts
+                  - match:
+                      sla: breach
+                    receiver: 'sla-team'
+                    group_wait: 0s
+                    repeat_interval: 30m
+              
+              inhibit_rules:
+                # Inhibit warning alerts when critical alerts are firing
+                - source_match:
+                    severity: 'critical'
+                  target_match:
+                    severity: 'warning'
+                  equal: ['alertname', 'cluster', 'service']
+                
+                # Inhibit duplicate alerts from different sources
+                - source_match:
+                    alertname: 'ServiceDown'
+                  target_match_re:
+                    alertname: '(HighErrorRate|HighLatency|LowThroughput)'
+                  equal: ['service', 'cluster']
+                
+                # Inhibit capacity alerts during known maintenance
+                - source_match:
+                    maintenance: 'true'
+                  target_match:
+                    category: 'capacity'
+                  equal: ['cluster']
+              
+              receivers:
+                - name: 'default-receiver'
+                  slack_configs:
+                    - channel: '#semantest-alerts-${{ env.ENVIRONMENT }}'
+                      title: 'Semantest Alert - ${{ env.ENVIRONMENT }}'
+                      text: |
+                        {{ range .Alerts }}
+                        *Alert:* {{ .Annotations.summary }}
+                        *Description:* {{ .Annotations.description }}
+                        *Severity:* {{ .Labels.severity }}
+                        *Environment:* ${{ env.ENVIRONMENT }}
+                        *Runbook:* {{ .Annotations.runbook_url }}
+                        *Dashboard:* {{ .Annotations.dashboard_url }}
+                        {{ end }}
+                
+                - name: 'critical-escalation'
+                  slack_configs:
+                    - channel: '#semantest-critical'
+                      title: '🚨 CRITICAL: Semantest Alert - ${{ env.ENVIRONMENT }}'
+                      text: |
+                        {{ range .Alerts }}
+                        *Alert:* {{ .Annotations.summary }}
+                        *Description:* {{ .Annotations.description }}
+                        *Environment:* ${{ env.ENVIRONMENT }}
+                        *Started:* {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+                        *Runbook:* {{ .Annotations.runbook_url }}
+                        *Dashboard:* {{ .Annotations.dashboard_url }}
+                        {{ end }}
+                  email_configs:
+                    - to: 'oncall@company.com'
+                      subject: 'CRITICAL: Semantest Alert - ${{ env.ENVIRONMENT }}'
+                      body: |
+                        {{ range .Alerts }}
+                        Alert: {{ .Annotations.summary }}
+                        Description: {{ .Annotations.description }}
+                        Environment: ${{ env.ENVIRONMENT }}
+                        Started: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+                        Runbook: {{ .Annotations.runbook_url }}
+                        {{ end }}
+                  pagerduty_configs:
+                    - routing_key: '\${PAGERDUTY_ROUTING_KEY}'
+                      description: 'Semantest Critical Alert - ${{ env.ENVIRONMENT }}'
+                      severity: critical
+                
+                - name: 'security-team'
+                  slack_configs:
+                    - channel: '#security-incidents'
+                      title: '🔒 SECURITY INCIDENT: Semantest - ${{ env.ENVIRONMENT }}'
+                      text: |
+                        {{ range .Alerts }}
+                        *SECURITY ALERT*
+                        *Alert:* {{ .Annotations.summary }}
+                        *Description:* {{ .Annotations.description }}
+                        *Environment:* ${{ env.ENVIRONMENT }}
+                        *Threat Level:* {{ .Labels.threat_level }}
+                        *Runbook:* {{ .Annotations.runbook_url }}
+                        {{ end }}
+                  email_configs:
+                    - to: 'security-team@company.com'
+                      subject: 'SECURITY INCIDENT: Semantest Alert'
+                      body: |
+                        {{ range .Alerts }}
+                        Alert: {{ .Annotations.summary }}
+                        Description: {{ .Annotations.description }}
+                        Environment: ${{ env.ENVIRONMENT }}
+                        Threat Level: {{ .Labels.threat_level }}
+                        Started: {{ .StartsAt.Format "2006-01-02 15:04:05" }}
+                        {{ end }}
+                
+                - name: 'sla-team'
+                  slack_configs:
+                    - channel: '#sla-breaches'
+                      title: '📊 SLA BREACH: Semantest - ${{ env.ENVIRONMENT }}'
+                      text: |
+                        {{ range .Alerts }}
+                        *SLA BREACH DETECTED*
+                        *Alert:* {{ .Annotations.summary }}
+                        *SLA Target:* {{ .Labels.sla_target }}
+                        *Current Value:* {{ .Labels.current_value }}
+                        *Environment:* ${{ env.ENVIRONMENT }}
+                        *Impact:* {{ .Annotations.business_impact }}
+                        {{ end }}
+                  email_configs:
+                    - to: 'sla-team@company.com,management@company.com'
+                      subject: 'SLA BREACH: Semantest - ${{ env.ENVIRONMENT }}'
+                      body: |
+                        {{ range .Alerts }}
+                        SLA Target: {{ .Labels.sla_target }}
+                        Current Value: {{ .Labels.current_value }}
+                        Business Impact: {{ .Annotations.business_impact }}
+                        Environment: ${{ env.ENVIRONMENT }}
+                        {{ end }}
+          EOF
+          
+          kubectl apply -f intelligent-alertmanager-config.yaml
+
+      - name: Deploy Alert Rules with Intelligence
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > intelligent-alert-rules.yaml << EOF
+          apiVersion: monitoring.coreos.com/v1
+          kind: PrometheusRule
+          metadata:
+            name: intelligent-alert-rules
+            namespace: ${{ env.NAMESPACE }}
+            labels:
+              prometheus: kube-prometheus
+              role: alert-rules
+          spec:
+            groups:
+              - name: sla.rules
+                interval: 30s
+                rules:
+                  - alert: SLAAvailabilityBreach
+                    expr: avg_over_time(up{job="semantest-enterprise"}[5m]) < 0.999
+                    for: 1m
+                    labels:
+                      severity: critical
+                      category: application
+                      sla: breach
+                      sla_target: "99.9%"
+                    annotations:
+                      summary: "SLA Availability Breach"
+                      description: "Service availability {{ \$value | humanizePercentage }} is below 99.9% SLA"
+                      business_impact: "Customer-facing service degradation"
+                      runbook_url: "https://docs.semantest.com/runbooks/sla-breach"
+                      dashboard_url: "https://grafana.semantest.com/d/sla-dashboard"
+                  
+                  - alert: SLALatencyBreach
+                    expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
+                    for: 2m
+                    labels:
+                      severity: critical
+                      category: performance
+                      sla: breach
+                      sla_target: "500ms"
+                    annotations:
+                      summary: "SLA Latency Breach"
+                      description: "95th percentile latency {{ \$value }}s exceeds 500ms SLA"
+                      business_impact: "Poor user experience, potential customer churn"
+                      runbook_url: "https://docs.semantest.com/runbooks/latency-breach"
+                      dashboard_url: "https://grafana.semantest.com/d/performance-dashboard"
+                  
+                  - alert: SLAErrorRateBreach
+                    expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.001
+                    for: 1m
+                    labels:
+                      severity: critical
+                      category: application
+                      sla: breach
+                      sla_target: "0.1%"
+                    annotations:
+                      summary: "SLA Error Rate Breach"
+                      description: "Error rate {{ \$value | humanizePercentage }} exceeds 0.1% SLA"
+                      business_impact: "Customer transactions failing"
+                      runbook_url: "https://docs.semantest.com/runbooks/error-rate-breach"
+                      dashboard_url: "https://grafana.semantest.com/d/error-dashboard"
+              
+              - name: business.rules
+                interval: 60s
+                rules:
+                  - alert: RevenueLoss
+                    expr: rate(revenue_total[5m]) < rate(revenue_total[1h] offset 1h) * 0.8
+                    for: 5m
+                    labels:
+                      severity: critical
+                      category: business
+                      business_impact: high
+                    annotations:
+                      summary: "Significant Revenue Loss Detected"
+                      description: "Revenue rate has dropped by more than 20% compared to the same time last week"
+                      business_impact: "Direct revenue impact"
+                      runbook_url: "https://docs.semantest.com/runbooks/revenue-loss"
+                  
+                  - alert: ConversionRateDrop
+                    expr: rate(conversions_total[10m]) / rate(user_sessions_total[10m]) < 0.02
+                    for: 10m
+                    labels:
+                      severity: warning
+                      category: business
+                      business_impact: medium
+                    annotations:
+                      summary: "Conversion Rate Below Threshold"
+                      description: "Conversion rate {{ \$value | humanizePercentage }} is below 2%"
+                      business_impact: "Reduced business efficiency"
+                      runbook_url: "https://docs.semantest.com/runbooks/conversion-rate"
+              
+              - name: security.rules
+                interval: 30s
+                rules:
+                  - alert: SecurityThreatDetected
+                    expr: increase(security_events_total{severity="high"}[5m]) > 0
+                    for: 0m
+                    labels:
+                      severity: critical
+                      category: security
+                      threat_level: high
+                    annotations:
+                      summary: "High Severity Security Event"
+                      description: "{{ \$value }} high-severity security events detected"
+                      runbook_url: "https://docs.semantest.com/runbooks/security-incident"
+                  
+                  - alert: AuthenticationFailureSpike
+                    expr: rate(auth_failures_total[5m]) > rate(auth_failures_total[1h] offset 1h) * 5
+                    for: 2m
+                    labels:
+                      severity: warning
+                      category: security
+                      threat_level: medium
+                    annotations:
+                      summary: "Authentication Failure Spike"
+                      description: "Auth failure rate is 5x higher than usual"
+                      runbook_url: "https://docs.semantest.com/runbooks/auth-spike"
+              
+              - name: capacity.rules
+                interval: 60s
+                rules:
+                  - alert: PredictiveCapacityWarning
+                    expr: predict_linear(node_memory_MemAvailable_bytes[2h], 4*3600) < 1024*1024*1024
+                    for: 10m
+                    labels:
+                      severity: warning
+                      category: capacity
+                    annotations:
+                      summary: "Memory Capacity Warning"
+                      description: "Memory will be exhausted in approximately 4 hours based on current trend"
+                      runbook_url: "https://docs.semantest.com/runbooks/capacity-planning"
+                  
+                  - alert: DatabaseConnectionPoolExhaustion
+                    expr: database_connection_pool_active / database_connection_pool_max > 0.9
+                    for: 5m
+                    labels:
+                      severity: warning
+                      category: capacity
+                    annotations:
+                      summary: "Database Connection Pool Near Exhaustion"
+                      description: "{{ \$value | humanizePercentage }} of database connections in use"
+                      runbook_url: "https://docs.semantest.com/runbooks/db-connections"
+          EOF
+          
+          kubectl apply -f intelligent-alert-rules.yaml
+
+  setup-log-aggregation:
+    runs-on: ubuntu-latest
+    needs: setup-distributed-tracing
+    if: inputs.action == 'deploy' || inputs.action == 'update'
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy Enterprise Elasticsearch Cluster
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Add Elastic Helm repo
+          helm repo add elastic https://helm.elastic.co
+          helm repo update
+          
+          # Create Elasticsearch values for enterprise deployment
+          cat > elasticsearch-values.yaml << EOF
+          clusterName: "semantest-logs-${{ env.ENVIRONMENT }}"
+          nodeGroup: "master"
+          
+          roles:
+            master: "true"
+            ingest: "true"
+            data: "true"
+            remote_cluster_client: "true"
+            ml: "true"
+          
+          replicas: 3
+          minimumMasterNodes: 2
+          
+          esMajorVersion: ""
+          
+          clusterHealthCheckParams: "wait_for_status=yellow&timeout=1s"
+          
+          esConfig:
+            elasticsearch.yml: |
+              cluster.name: semantest-logs-${{ env.ENVIRONMENT }}
+              network.host: 0.0.0.0
+              
+              # Security settings
+              xpack.security.enabled: true
+              xpack.security.transport.ssl.enabled: true
+              xpack.security.transport.ssl.verification_mode: certificate
+              xpack.security.transport.ssl.client_authentication: required
+              xpack.security.transport.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-keystore.p12
+              xpack.security.transport.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-keystore.p12
+              
+              # Monitoring
+              xpack.monitoring.collection.enabled: true
+              xpack.monitoring.exporters.semantest_monitoring.type: http
+              xpack.monitoring.exporters.semantest_monitoring.host: ["elasticsearch-monitoring:9200"]
+              
+              # Index lifecycle management
+              xpack.ilm.enabled: true
+              
+              # Machine learning
+              xpack.ml.enabled: true
+              xpack.ml.node_concurrent_job_allocations: 4
+          
+          extraEnvs:
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-credentials
+                  key: password
+            - name: ELASTIC_USERNAME
+              value: "elastic"
+          
+          secretMounts:
+            - name: elastic-keystore
+              secretName: elastic-keystore
+              path: /usr/share/elasticsearch/config/certs
+          
+          image: "docker.elastic.co/elasticsearch/elasticsearch"
+          imageTag: "8.11.0"
+          imagePullPolicy: "IfNotPresent"
+          
+          podAnnotations:
+            co.elastic.logs/enabled: "true"
+            co.elastic.logs/json.keys_under_root: "true"
+            co.elastic.logs/json.add_error_key: "true"
+            co.elastic.logs/json.message_key: "message"
+          
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "2Gi"
+            limits:
+              cpu: "2000m"
+              memory: "4Gi"
+          
+          volumeClaimTemplate:
+            accessModes: [ "ReadWriteOnce" ]
+            storageClassName: "fast-ssd"
+            resources:
+              requests:
+                storage: 100Gi
+          
+          persistence:
+            enabled: true
+            labels:
+              enabled: false
+          
+          ingress:
+            enabled: true
+            annotations:
+              kubernetes.io/ingress.class: nginx
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              nginx.ingress.kubernetes.io/auth-type: basic
+              nginx.ingress.kubernetes.io/auth-secret: elasticsearch-basic-auth
+            hosts:
+              - host: elasticsearch-${{ env.ENVIRONMENT }}.semantest.com
+                paths:
+                  - path: /
+            tls:
+              - secretName: elasticsearch-tls
+                hosts:
+                  - elasticsearch-${{ env.ENVIRONMENT }}.semantest.com
+          
+          service:
+            type: ClusterIP
+            nodePort: ""
+            annotations: {}
+            httpPortName: http
+            transportPortName: transport
+            loadBalancerIP: ""
+            loadBalancerSourceRanges: []
+            externalTrafficPolicy: ""
+          
+          updateStrategy: RollingUpdate
+          
+          maxUnavailable: 1
+          
+          podSecurityContext:
+            fsGroup: 1000
+            runAsUser: 1000
+          
+          securityContext:
+            capabilities:
+              drop:
+              - ALL
+            runAsNonRoot: true
+            runAsUser: 1000
+          
+          terminationGracePeriod: 120
+          
+          sysctlVmMaxMapCount: 262144
+          
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 3
+            timeoutSeconds: 5
+          
+          clusterHealthCheckParams: "wait_for_status=yellow&timeout=1s"
+          
+          protocol: https
+          httpPort: 9200
+          transportPort: 9300
+          
+          httpHostPort: ""
+          transportHostPort: ""
+          
+          lifecycle: {}
+          
+          sysctlInitContainer:
+            enabled: true
+          
+          keystore: []
+          
+          networkHost: "0.0.0.0"
+          
+          nodeAffinity: {}
+          
+          podManagementPolicy: "Parallel"
+          
+          enableServiceLinks: true
+          
+          tests:
+            enabled: true
+          EOF
+          
+          # Install Elasticsearch
+          helm upgrade --install elasticsearch elastic/elasticsearch \
+            --namespace ${{ env.NAMESPACE }} \
+            --values elasticsearch-values.yaml \
+            --wait --timeout=900s
+
+      - name: Deploy Logstash for Log Processing
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > logstash-values.yaml << EOF
+          replicas: 3
+          
+          image: "docker.elastic.co/logstash/logstash"
+          imageTag: "8.11.0"
+          imagePullPolicy: "IfNotPresent"
+          
+          logstashConfig:
+            logstash.yml: |
+              http.host: "0.0.0.0"
+              xpack.monitoring.elasticsearch.hosts: [ "https://elasticsearch-master:9200" ]
+              xpack.monitoring.elasticsearch.username: logstash_system
+              xpack.monitoring.elasticsearch.password: "\${LOGSTASH_PASSWORD}"
+              xpack.monitoring.elasticsearch.ssl.certificate_authority: /usr/share/logstash/config/certs/ca.crt
+          
+          logstashPipeline:
+            logstash.conf: |
+              input {
+                beats {
+                  port => 5044
+                }
+                http {
+                  port => 8080
+                  codec => json
+                }
+              }
+              
+              filter {
+                if [kubernetes] {
+                  mutate {
+                    add_field => { "environment" => "${{ env.ENVIRONMENT }}" }
+                    add_field => { "cluster" => "semantest" }
+                  }
+                  
+                  # Parse JSON logs
+                  if [message] =~ /^\{.*\}$/ {
+                    json {
+                      source => "message"
+                      target => "parsed_json"
+                    }
+                    
+                    if [parsed_json] {
+                      mutate {
+                        add_field => { "log_level" => "%{[parsed_json][level]}" }
+                        add_field => { "trace_id" => "%{[parsed_json][traceId]}" }
+                        add_field => { "span_id" => "%{[parsed_json][spanId]}" }
+                        add_field => { "service_name" => "%{[parsed_json][service]}" }
+                        add_field => { "request_id" => "%{[parsed_json][requestId]}" }
+                      }
+                    }
+                  }
+                  
+                  # Grok patterns for common log formats
+                  grok {
+                    match => { 
+                      "message" => [
+                        "%{TIMESTAMP_ISO8601:timestamp} %{LOGLEVEL:level} %{DATA:logger} %{GREEDYDATA:message}",
+                        "\[%{TIMESTAMP_ISO8601:timestamp}\] %{WORD:environment}\.%{LOGLEVEL:level}: %{GREEDYDATA:message}"
+                      ]
+                    }
+                    tag_on_failure => ["_grokparsefailure"]
+                  }
+                  
+                  # Parse timestamp
+                  date {
+                    match => [ "timestamp", "ISO8601" ]
+                  }
+                  
+                  # Add semantic enrichment
+                  if [kubernetes][labels][app] == "semantest" {
+                    mutate {
+                      add_field => { "application" => "semantest" }
+                      add_field => { "team" => "platform" }
+                    }
+                    
+                    # Classify log severity
+                    if [level] in ["ERROR", "FATAL"] {
+                      mutate { add_field => { "severity" => "high" } }
+                    } else if [level] in ["WARN", "WARNING"] {
+                      mutate { add_field => { "severity" => "medium" } }
+                    } else {
+                      mutate { add_field => { "severity" => "low" } }
+                    }
+                  }
+                  
+                  # Security event detection
+                  if [message] =~ /(?i)(unauthorized|forbidden|authentication failed|security|breach|attack)/ {
+                    mutate {
+                      add_field => { "security_event" => "true" }
+                      add_field => { "alert_priority" => "high" }
+                    }
+                  }
+                  
+                  # Performance event detection
+                  if [message] =~ /(?i)(slow query|timeout|performance|latency|response time)/ {
+                    mutate {
+                      add_field => { "performance_event" => "true" }
+                    }
+                  }
+                  
+                  # Business event detection
+                  if [message] =~ /(?i)(transaction|payment|order|user registration|conversion)/ {
+                    mutate {
+                      add_field => { "business_event" => "true" }
+                    }
+                  }
+                }
+              }
+              
+              output {
+                elasticsearch {
+                  hosts => ["https://elasticsearch-master:9200"]
+                  user => "logstash_writer"
+                  password => "\${LOGSTASH_PASSWORD}"
+                  cacert => "/usr/share/logstash/config/certs/ca.crt"
+                  
+                  # Dynamic index routing
+                  index => "semantest-logs-%{environment}-%{+YYYY.MM.dd}"
+                  
+                  # Index template
+                  template_name => "semantest-logs"
+                  template_pattern => ["semantest-logs-*"]
+                  template => "/usr/share/logstash/config/templates/semantest-template.json"
+                  template_overwrite => true
+                  
+                  # Document routing
+                  routing => "%{[kubernetes][namespace]}"
+                }
+                
+                # Send security events to dedicated index
+                if [security_event] == "true" {
+                  elasticsearch {
+                    hosts => ["https://elasticsearch-master:9200"]
+                    user => "logstash_writer"
+                    password => "\${LOGSTASH_PASSWORD}"
+                    cacert => "/usr/share/logstash/config/certs/ca.crt"
+                    index => "semantest-security-%{environment}-%{+YYYY.MM.dd}"
+                  }
+                }
+                
+                # Send business events to analytics pipeline
+                if [business_event] == "true" {
+                  http {
+                    url => "https://analytics.semantest.com/events"
+                    http_method => "post"
+                    format => "json"
+                    headers => {
+                      "Authorization" => "Bearer \${ANALYTICS_TOKEN}"
+                      "Content-Type" => "application/json"
+                    }
+                  }
+                }
+              }
+          
+          extraEnvs:
+            - name: LOGSTASH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-credentials
+                  key: logstash_password
+            - name: ANALYTICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: analytics-credentials
+                  key: token
+          
+          secretMounts:
+            - name: elasticsearch-certs
+              secretName: elasticsearch-certs
+              path: /usr/share/logstash/config/certs
+          
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          
+          persistence:
+            enabled: true
+            storageClass: "fast-ssd"
+            size: "20Gi"
+          
+          service:
+            type: ClusterIP
+            ports:
+              - name: beats
+                port: 5044
+                protocol: TCP
+                targetPort: 5044
+              - name: http
+                port: 8080
+                protocol: TCP
+                targetPort: 8080
+          EOF
+          
+          # Install Logstash
+          helm upgrade --install logstash elastic/logstash \
+            --namespace ${{ env.NAMESPACE }} \
+            --values logstash-values.yaml \
+            --wait --timeout=600s
+
+      - name: Deploy Enhanced Kibana
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > kibana-values.yaml << EOF
+          elasticsearchHosts: "https://elasticsearch-master:9200"
+          
+          image: "docker.elastic.co/kibana/kibana"
+          imageTag: "8.11.0"
+          
+          env:
+            ELASTICSEARCH_USERNAME: kibana_system
+            ELASTICSEARCH_PASSWORD: "\${KIBANA_PASSWORD}"
+            ELASTICSEARCH_SSL_CERTIFICATEAUTHORITIES: /usr/share/kibana/config/certs/ca.crt
+            
+          kibanaConfig:
+            kibana.yml: |
+              server.name: kibana
+              server.host: 0.0.0.0
+              elasticsearch.hosts: ["https://elasticsearch-master:9200"]
+              
+              # Security
+              elasticsearch.username: kibana_system
+              elasticsearch.password: "\${KIBANA_PASSWORD}"
+              elasticsearch.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca.crt"]
+              
+              # Monitoring
+              monitoring.ui.container.elasticsearch.enabled: true
+              
+              # Advanced features
+              xpack.security.enabled: true
+              xpack.encryptedSavedObjects.encryptionKey: "\${KIBANA_ENCRYPTION_KEY}"
+              xpack.reporting.enabled: true
+              xpack.canvas.enabled: true
+              xpack.maps.enabled: true
+              
+              # Machine learning
+              xpack.ml.enabled: true
+              
+              # Alerting
+              xpack.actions.enabled: true
+              xpack.alerts.enabled: true
+              
+              # Default space configuration
+              xpack.spaces.enabled: true
+              
+              # Custom branding
+              server.customResponseHeaders:
+                "X-Frame-Options": "SAMEORIGIN"
+                "X-Content-Type-Options": "nosniff"
+                "X-XSS-Protection": "1; mode=block"
+              
+              # Logging configuration
+              logging.appenders:
+                file:
+                  type: file
+                  fileName: /usr/share/kibana/logs/kibana.log
+                  layout:
+                    type: json
+              logging.loggers:
+                - name: plugins.security
+                  level: info
+                  appenders: [file]
+                - name: elasticsearch.query
+                  level: debug
+                  appenders: [file]
+              
+              # Default index patterns
+              kibana.defaultAppId: "discover"
+              kibana.autocompleteTimeout: 3000
+              kibana.autocompleteTerminateAfter: 2500000
+          
+          extraEnvs:
+            - name: KIBANA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-credentials
+                  key: kibana_password
+            - name: KIBANA_ENCRYPTION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kibana-credentials
+                  key: encryption_key
+          
+          secretMounts:
+            - name: elasticsearch-certs
+              secretName: elasticsearch-certs
+              path: /usr/share/kibana/config/certs
+          
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          
+          service:
+            type: LoadBalancer
+            port: 5601
+            nodePort: ""
+            labels: {}
+            annotations:
+              service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+              service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+            loadBalancerSourceRanges: []
+            httpPortName: http
+          
+          ingress:
+            enabled: true
+            annotations:
+              kubernetes.io/ingress.class: nginx
+              cert-manager.io/cluster-issuer: letsencrypt-prod
+              nginx.ingress.kubernetes.io/auth-type: basic
+              nginx.ingress.kubernetes.io/auth-secret: kibana-basic-auth
+              nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+            hosts:
+              - host: kibana-${{ env.ENVIRONMENT }}.semantest.com
+                paths:
+                  - path: /
+            tls:
+              - secretName: kibana-tls
+                hosts:
+                  - kibana-${{ env.ENVIRONMENT }}.semantest.com
+          
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 3
+            timeoutSeconds: 5
+          
+          updateStrategy:
+            type: "Recreate"
+          
+          # Custom dashboard and visualization imports
+          postStart: |
+            #!/bin/bash
+            # Wait for Kibana to be ready
+            until curl -s -f -o /dev/null "http://localhost:5601/api/status"; do
+              echo "Waiting for Kibana..."
+              sleep 10
+            done
+            
+            # Import default dashboards
+            curl -X POST "http://localhost:5601/api/saved_objects/_import" \
+              -H "kbn-xsrf: true" \
+              -H "Content-Type: application/json" \
+              --form file=@/usr/share/kibana/config/dashboards/semantest-dashboards.ndjson
+          EOF
+          
+          # Install Kibana
+          helm upgrade --install kibana elastic/kibana \
+            --namespace ${{ env.NAMESPACE }} \
+            --values kibana-values.yaml \
+            --wait --timeout=600s
+
+  setup-sla-monitoring:
+    runs-on: ubuntu-latest
+    needs: [setup-distributed-tracing, setup-custom-dashboards]
+    if: inputs.action == 'deploy' || inputs.action == 'update'
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy SLA Monitoring CronJobs
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > sla-monitoring-jobs.yaml << EOF
+          apiVersion: batch/v1
+          kind: CronJob
+          metadata:
+            name: sla-availability-check
+            namespace: ${{ env.NAMESPACE }}
+          spec:
+            schedule: "*/5 * * * *"  # Every 5 minutes
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - name: sla-checker
+                      image: curlimages/curl:latest
+                      command:
+                      - /bin/sh
+                      - -c
+                      - |
+                        # Check service availability
+                        TIMESTAMP=\$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                        
+                        # Test main service endpoint
+                        if curl -f -s --max-time 10 "https://api-${{ env.ENVIRONMENT }}.semantest.com/health" > /dev/null; then
+                          STATUS=1
+                        else
+                          STATUS=0
+                        fi
+                        
+                        # Report to Prometheus pushgateway
+                        echo "sla_availability_check{environment=\"${{ env.ENVIRONMENT }}\",service=\"main\"} \$STATUS" | \
+                          curl --data-binary @- "http://prometheus-pushgateway:9091/metrics/job/sla-monitoring/instance/availability-check"
+                        
+                        # Log result
+                        echo "\$TIMESTAMP - Availability check: \$STATUS"
+                    restartPolicy: OnFailure
+                    serviceAccountName: sla-monitoring
+          ---
+          apiVersion: batch/v1
+          kind: CronJob
+          metadata:
+            name: sla-performance-check
+            namespace: ${{ env.NAMESPACE }}
+          spec:
+            schedule: "*/2 * * * *"  # Every 2 minutes
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - name: performance-checker
+                      image: curlimages/curl:latest
+                      command:
+                      - /bin/sh
+                      - -c
+                      - |
+                        TIMESTAMP=\$(date -u +%Y-%m-%dT%H:%M:%SZ)
+                        
+                        # Measure response time
+                        START_TIME=\$(date +%s.%3N)
+                        HTTP_CODE=\$(curl -o /dev/null -s -w "%{http_code}" --max-time 10 "https://api-${{ env.ENVIRONMENT }}.semantest.com/health")
+                        END_TIME=\$(date +%s.%3N)
+                        
+                        RESPONSE_TIME=\$(echo "\$END_TIME - \$START_TIME" | bc)
+                        
+                        # Report metrics
+                        cat << METRICS | curl --data-binary @- "http://prometheus-pushgateway:9091/metrics/job/sla-monitoring/instance/performance-check"
+                        sla_response_time_seconds{environment="${{ env.ENVIRONMENT }}",service="main"} \$RESPONSE_TIME
+                        sla_http_status{environment="${{ env.ENVIRONMENT }}",service="main"} \$HTTP_CODE
+                        METRICS
+                        
+                        echo "\$TIMESTAMP - Response time: \${RESPONSE_TIME}s, HTTP: \$HTTP_CODE"
+                    restartPolicy: OnFailure
+                    serviceAccountName: sla-monitoring
+          ---
+          apiVersion: batch/v1
+          kind: CronJob
+          metadata:
+            name: sla-report-generator
+            namespace: ${{ env.NAMESPACE }}
+          spec:
+            schedule: "0 0 * * *"  # Daily at midnight
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    containers:
+                    - name: report-generator
+                      image: python:3.11-slim
+                      command:
+                      - /bin/bash
+                      - -c
+                      - |
+                        pip install requests jinja2 prometheus-api-client
+                        
+                        cat > /tmp/sla_report.py << 'SCRIPT'
+                        import requests
+                        import json
+                        from datetime import datetime, timedelta
+                        from prometheus_api_client import PrometheusConnect
+                        from jinja2 import Template
+                        
+                        # Connect to Prometheus
+                        prom = PrometheusConnect(url="http://prometheus-server:9090", disable_ssl=True)
+                        
+                        # Calculate SLA metrics for the last 24 hours
+                        end_time = datetime.now()
+                        start_time = end_time - timedelta(hours=24)
+                        
+                        # Availability SLA
+                        availability_query = 'avg_over_time(up{job="semantest-enterprise"}[24h])'
+                        availability_result = prom.custom_query(availability_query)
+                        availability_pct = float(availability_result[0]['value'][1]) * 100 if availability_result else 0
+                        
+                        # Latency SLA
+                        latency_query = 'histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[24h])) by (le))'
+                        latency_result = prom.custom_query(latency_query)
+                        latency_p95 = float(latency_result[0]['value'][1]) * 1000 if latency_result else 0
+                        
+                        # Error Rate SLA
+                        error_query = 'sum(rate(http_requests_total{status=~"5.."}[24h])) / sum(rate(http_requests_total[24h]))'
+                        error_result = prom.custom_query(error_query)
+                        error_rate_pct = float(error_result[0]['value'][1]) * 100 if error_result else 0
+                        
+                        # Generate report
+                        report_template = Template('''
+                        # SLA Report - {{ date }}
+                        Environment: {{ environment }}
+                        
+                        ## SLA Targets vs Actual
+                        
+                        | Metric | Target | Actual | Status |
+                        |--------|--------|--------|--------|
+                        | Availability | 99.9% | {{ "%.3f"|format(availability) }}% | {{ availability_status }} |
+                        | Latency (95th percentile) | < 500ms | {{ "%.1f"|format(latency) }}ms | {{ latency_status }} |
+                        | Error Rate | < 0.1% | {{ "%.3f"|format(error_rate) }}% | {{ error_status }} |
+                        
+                        ## Overall SLA Compliance
+                        
+                        **Status**: {{ overall_status }}
+                        **Score**: {{ overall_score }}/100
+                        
+                        ## Action Items
+                        
+                        {% if availability < 99.9 %}
+                        - 🔴 **Availability below target** - Investigate service outages
+                        {% endif %}
+                        {% if latency > 500 %}
+                        - 🔴 **Latency above target** - Performance optimization required
+                        {% endif %}
+                        {% if error_rate > 0.1 %}
+                        - 🔴 **Error rate above target** - Bug investigation and fixes needed
+                        {% endif %}
+                        
+                        ---
+                        *Generated automatically by SLA monitoring system*
+                        ''')
+                        
+                        # Calculate status
+                        availability_status = "✅ PASS" if availability_pct >= 99.9 else "❌ FAIL"
+                        latency_status = "✅ PASS" if latency_p95 <= 500 else "❌ FAIL"
+                        error_status = "✅ PASS" if error_rate_pct <= 0.1 else "❌ FAIL"
+                        
+                        # Overall score
+                        score = 0
+                        if availability_pct >= 99.9: score += 40
+                        if latency_p95 <= 500: score += 30
+                        if error_rate_pct <= 0.1: score += 30
+                        
+                        overall_status = "✅ COMPLIANT" if score >= 90 else "❌ NON-COMPLIANT"
+                        
+                        report = report_template.render(
+                            date=end_time.strftime("%Y-%m-%d"),
+                            environment="${{ env.ENVIRONMENT }}",
+                            availability=availability_pct,
+                            latency=latency_p95,
+                            error_rate=error_rate_pct,
+                            availability_status=availability_status,
+                            latency_status=latency_status,
+                            error_status=error_status,
+                            overall_status=overall_status,
+                            overall_score=score
+                        )
+                        
+                        print(report)
+                        
+                        # Save report to file
+                        with open('/tmp/sla_report.md', 'w') as f:
+                            f.write(report)
+                        
+                        # Send to Slack if configured
+                        slack_webhook = "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+                        if slack_webhook and slack_webhook != "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK":
+                            payload = {
+                                "channel": "#sla-reports",
+                                "username": "SLA Monitor",
+                                "text": f"Daily SLA Report - ${{ env.ENVIRONMENT }}",
+                                "attachments": [
+                                    {
+                                        "color": "good" if score >= 90 else "danger",
+                                        "title": f"SLA Compliance Score: {score}/100",
+                                        "text": report,
+                                        "mrkdwn_in": ["text"]
+                                    }
+                                ]
+                            }
+                            requests.post(slack_webhook, json=payload)
+                        
+                        print("SLA report generated successfully")
+                        SCRIPT
+                        
+                        python /tmp/sla_report.py
+                    restartPolicy: OnFailure
+                    serviceAccountName: sla-monitoring
+          ---
+          apiVersion: v1
+          kind: ServiceAccount
+          metadata:
+            name: sla-monitoring
+            namespace: ${{ env.NAMESPACE }}
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: Role
+          metadata:
+            namespace: ${{ env.NAMESPACE }}
+            name: sla-monitoring
+          rules:
+          - apiGroups: [""]
+            resources: ["pods", "services"]
+            verbs: ["get", "list"]
+          - apiGroups: ["monitoring.coreos.com"]
+            resources: ["servicemonitors"]
+            verbs: ["get", "list"]
+          ---
+          apiVersion: rbac.authorization.k8s.io/v1
+          kind: RoleBinding
+          metadata:
+            name: sla-monitoring
+            namespace: ${{ env.NAMESPACE }}
+          subjects:
+          - kind: ServiceAccount
+            name: sla-monitoring
+            namespace: ${{ env.NAMESPACE }}
+          roleRef:
+            kind: Role
+            name: sla-monitoring
+            apiGroup: rbac.authorization.k8s.io
+          EOF
+          
+          kubectl apply -f sla-monitoring-jobs.yaml
+
+  create-observability-sdk:
+    runs-on: ubuntu-latest
+    needs: setup-distributed-tracing
+    if: inputs.action == 'deploy' || inputs.action == 'update'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Observability SDK for Applications
+        run: |
+          mkdir -p observability-sdk/src
+          
+          cat > observability-sdk/package.json << EOF
+          {
+            "name": "@semantest/observability",
+            "version": "1.0.0",
+            "description": "Semantest enterprise observability SDK",
+            "main": "dist/index.js",
+            "types": "dist/index.d.ts",
+            "scripts": {
+              "build": "tsc",
+              "test": "jest",
+              "lint": "eslint src --ext .ts"
+            },
+            "dependencies": {
+              "@opentelemetry/api": "^1.7.0",
+              "@opentelemetry/sdk-node": "^0.45.0",
+              "@opentelemetry/auto-instrumentations-node": "^0.40.0",
+              "@opentelemetry/exporter-jaeger": "^1.17.0",
+              "@opentelemetry/exporter-prometheus": "^0.45.0",
+              "@opentelemetry/semantic-conventions": "^1.17.0",
+              "winston": "^3.11.0",
+              "prom-client": "^14.2.0"
+            },
+            "devDependencies": {
+              "@types/node": "^20.0.0",
+              "typescript": "^5.0.0",
+              "jest": "^29.0.0",
+              "@types/jest": "^29.0.0",
+              "eslint": "^8.0.0",
+              "@typescript-eslint/eslint-plugin": "^6.0.0",
+              "@typescript-eslint/parser": "^6.0.0"
+            },
+            "keywords": ["observability", "tracing", "metrics", "logging", "semantest"],
+            "author": "Semantest Team",
+            "license": "Apache-2.0"
+          }
+          EOF
+          
+          cat > observability-sdk/src/index.ts << 'EOF'
+          import { NodeSDK } from '@opentelemetry/sdk-node';
+          import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
+          import { JaegerExporter } from '@opentelemetry/exporter-jaeger';
+          import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
+          import { Resource } from '@opentelemetry/resources';
+          import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
+          import { createLogger, transports, format } from 'winston';
+          import { register, Counter, Histogram, Gauge } from 'prom-client';
+          
+          export interface ObservabilityConfig {
+            serviceName: string;
+            environment: string;
+            version: string;
+            jaegerEndpoint?: string;
+            prometheusPort?: number;
+            logLevel?: string;
+            enableTracing?: boolean;
+            enableMetrics?: boolean;
+            enableLogging?: boolean;
+          }
+          
+          export class SemanTestObservability {
+            private sdk: NodeSDK;
+            private logger: any;
+            private metricsRegistry = register;
+            private businessMetrics: Map<string, any> = new Map();
+            
+            constructor(private config: ObservabilityConfig) {
+              this.initializeSDK();
+              this.initializeLogger();
+              this.initializeBusinessMetrics();
+            }
+            
+            private initializeSDK() {
+              const jaegerExporter = new JaegerExporter({
+                endpoint: this.config.jaegerEndpoint || 'http://jaeger-collector:14268/api/traces',
+              });
+              
+              const prometheusExporter = new PrometheusExporter({
+                port: this.config.prometheusPort || 9090,
+              });
+              
+              this.sdk = new NodeSDK({
+                resource: new Resource({
+                  [SemanticResourceAttributes.SERVICE_NAME]: this.config.serviceName,
+                  [SemanticResourceAttributes.SERVICE_VERSION]: this.config.version,
+                  [SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: this.config.environment,
+                }),
+                traceExporter: this.config.enableTracing !== false ? jaegerExporter : undefined,
+                metricReader: this.config.enableMetrics !== false ? prometheusExporter : undefined,
+                instrumentations: [getNodeAutoInstrumentations({
+                  '@opentelemetry/instrumentation-fs': {
+                    enabled: false, // Disable file system instrumentation for performance
+                  },
+                  '@opentelemetry/instrumentation-express': {
+                    enabled: true,
+                    requestHook: (span, info) => {
+                      span.setAttributes({
+                        'semantest.request.id': info.request.headers['x-request-id'],
+                        'semantest.user.id': info.request.headers['x-user-id'],
+                      });
+                    },
+                  },
+                  '@opentelemetry/instrumentation-http': {
+                    enabled: true,
+                    requestHook: (span, request) => {
+                      span.setAttributes({
+                        'semantest.http.user_agent': request.getHeader('user-agent'),
+                      });
+                    },
+                  },
+                })],
+              });
+            }
+            
+            private initializeLogger() {
+              if (this.config.enableLogging === false) return;
+              
+              this.logger = createLogger({
+                level: this.config.logLevel || 'info',
+                format: format.combine(
+                  format.timestamp(),
+                  format.errors({ stack: true }),
+                  format.json(),
+                  format.printf(({ timestamp, level, message, service, traceId, spanId, ...meta }) => {
+                    return JSON.stringify({
+                      timestamp,
+                      level,
+                      message,
+                      service: this.config.serviceName,
+                      environment: this.config.environment,
+                      version: this.config.version,
+                      traceId,
+                      spanId,
+                      ...meta,
+                    });
+                  })
+                ),
+                transports: [
+                  new transports.Console(),
+                  new transports.File({ filename: 'logs/app.log' }),
+                ],
+              });
+            }
+            
+            private initializeBusinessMetrics() {
+              if (this.config.enableMetrics === false) return;
+              
+              // User engagement metrics
+              this.businessMetrics.set('user_sessions', new Counter({
+                name: 'user_sessions_total',
+                help: 'Total number of user sessions',
+                labelNames: ['environment', 'user_type'],
+              }));
+              
+              this.businessMetrics.set('user_actions', new Counter({
+                name: 'user_actions_total',
+                help: 'Total number of user actions',
+                labelNames: ['environment', 'action_type', 'feature'],
+              }));
+              
+              // Business transaction metrics
+              this.businessMetrics.set('transactions', new Counter({
+                name: 'transactions_total',
+                help: 'Total number of business transactions',
+                labelNames: ['environment', 'transaction_type', 'status'],
+              }));
+              
+              this.businessMetrics.set('revenue', new Counter({
+                name: 'revenue_total',
+                help: 'Total revenue generated',
+                labelNames: ['environment', 'currency'],
+              }));
+              
+              this.businessMetrics.set('conversions', new Counter({
+                name: 'conversions_total',
+                help: 'Total number of conversions',
+                labelNames: ['environment', 'conversion_type'],
+              }));
+              
+              // Performance metrics
+              this.businessMetrics.set('feature_usage', new Counter({
+                name: 'feature_usage_total',
+                help: 'Feature usage tracking',
+                labelNames: ['environment', 'feature', 'user_segment'],
+              }));
+              
+              this.businessMetrics.set('user_journey_step', new Counter({
+                name: 'user_journey_step_total',
+                help: 'User journey step completion',
+                labelNames: ['environment', 'step', 'funnel'],
+              }));
+              
+              // System health metrics
+              this.businessMetrics.set('database_query_duration', new Histogram({
+                name: 'database_query_duration_seconds',
+                help: 'Database query duration',
+                labelNames: ['environment', 'query_type', 'table'],
+                buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5],
+              }));
+              
+              this.businessMetrics.set('cache_operations', new Counter({
+                name: 'cache_operations_total',
+                help: 'Cache operations',
+                labelNames: ['environment', 'operation', 'cache_type'],
+              }));
+              
+              this.businessMetrics.set('security_events', new Counter({
+                name: 'security_events_total',
+                help: 'Security events',
+                labelNames: ['environment', 'event_type', 'severity'],
+              }));
+            }
+            
+            public start() {
+              this.sdk.start();
+              this.logger?.info('Semantest Observability SDK started', {
+                service: this.config.serviceName,
+                environment: this.config.environment,
+                version: this.config.version,
+              });
+            }
+            
+            public shutdown() {
+              return this.sdk.shutdown();
+            }
+            
+            // Business metrics methods
+            public trackUserSession(userType: string = 'anonymous') {
+              this.businessMetrics.get('user_sessions')?.inc({
+                environment: this.config.environment,
+                user_type: userType,
+              });
+            }
+            
+            public trackUserAction(actionType: string, feature: string) {
+              this.businessMetrics.get('user_actions')?.inc({
+                environment: this.config.environment,
+                action_type: actionType,
+                feature,
+              });
+            }
+            
+            public trackTransaction(transactionType: string, status: string) {
+              this.businessMetrics.get('transactions')?.inc({
+                environment: this.config.environment,
+                transaction_type: transactionType,
+                status,
+              });
+            }
+            
+            public trackRevenue(amount: number, currency: string = 'USD') {
+              this.businessMetrics.get('revenue')?.inc({
+                environment: this.config.environment,
+                currency,
+              }, amount);
+            }
+            
+            public trackConversion(conversionType: string) {
+              this.businessMetrics.get('conversions')?.inc({
+                environment: this.config.environment,
+                conversion_type: conversionType,
+              });
+            }
+            
+            public trackFeatureUsage(feature: string, userSegment: string = 'default') {
+              this.businessMetrics.get('feature_usage')?.inc({
+                environment: this.config.environment,
+                feature,
+                user_segment: userSegment,
+              });
+            }
+            
+            public trackUserJourneyStep(step: string, funnel: string) {
+              this.businessMetrics.get('user_journey_step')?.inc({
+                environment: this.config.environment,
+                step,
+                funnel,
+              });
+            }
+            
+            public trackDatabaseQuery(queryType: string, table: string, duration: number) {
+              this.businessMetrics.get('database_query_duration')?.observe({
+                environment: this.config.environment,
+                query_type: queryType,
+                table,
+              }, duration);
+            }
+            
+            public trackCacheOperation(operation: 'hit' | 'miss' | 'set', cacheType: string) {
+              this.businessMetrics.get('cache_operations')?.inc({
+                environment: this.config.environment,
+                operation,
+                cache_type: cacheType,
+              });
+            }
+            
+            public trackSecurityEvent(eventType: string, severity: 'low' | 'medium' | 'high' | 'critical') {
+              this.businessMetrics.get('security_events')?.inc({
+                environment: this.config.environment,
+                event_type: eventType,
+                severity,
+              });
+            }
+            
+            // Logging methods
+            public log = {
+              info: (message: string, meta?: any) => this.logger?.info(message, meta),
+              warn: (message: string, meta?: any) => this.logger?.warn(message, meta),
+              error: (message: string, meta?: any) => this.logger?.error(message, meta),
+              debug: (message: string, meta?: any) => this.logger?.debug(message, meta),
+            };
+            
+            // Custom span creation
+            public createSpan(name: string, fn: Function) {
+              // Implementation would use OpenTelemetry API to create custom spans
+              // This is a simplified version
+              return fn();
+            }
+          }
+          
+          // Convenience function for easy initialization
+          export function initializeObservability(config: ObservabilityConfig): SemanTestObservability {
+            const observability = new SemanTestObservability(config);
+            observability.start();
+            return observability;
+          }
+          
+          // Export types
+          export * from '@opentelemetry/api';
+          EOF
+          
+          cat > observability-sdk/tsconfig.json << EOF
+          {
+            "compilerOptions": {
+              "target": "ES2020",
+              "module": "commonjs",
+              "declaration": true,
+              "outDir": "./dist",
+              "rootDir": "./src",
+              "strict": true,
+              "esModuleInterop": true,
+              "skipLibCheck": true,
+              "forceConsistentCasingInFileNames": true
+            },
+            "include": ["src/**/*"],
+            "exclude": ["node_modules", "dist"]
+          }
+          EOF
+          
+          echo "✅ Observability SDK created at observability-sdk/"
+
+  teardown-observability:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'teardown'
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Remove observability stack
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          echo "Removing observability infrastructure..."
+          
+          # Remove Helm releases
+          helm uninstall otel-collector --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall jaeger --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall tempo --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall elasticsearch --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall logstash --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall kibana --namespace ${{ env.NAMESPACE }} || true
+          
+          # Remove SLA monitoring jobs
+          kubectl delete cronjobs --all --namespace ${{ env.NAMESPACE }} || true
+          
+          # Clean up PVCs
+          kubectl delete pvc --all --namespace ${{ env.NAMESPACE }} || true
+          
+          # Remove namespace
+          kubectl delete namespace ${{ env.NAMESPACE }} || true
+          
+          echo "Observability infrastructure removed"
+
+  observability-summary:
+    runs-on: ubuntu-latest
+    needs: [setup-distributed-tracing, setup-custom-dashboards, setup-alert-management, setup-log-aggregation, setup-sla-monitoring, create-observability-sdk, teardown-observability]
+    if: always()
+    steps:
+      - name: Generate observability summary
+        run: |
+          echo "📊 Enterprise Observability Stack Summary"
+          echo "========================================"
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Action: ${{ inputs.action }}"
+          echo "Namespace: ${{ env.NAMESPACE }}"
+          echo ""
+          
+          case "${{ inputs.action }}" in
+            "deploy")
+              echo "🚀 Observability Stack Deployed:"
+              echo "- ✅ Distributed Tracing (OpenTelemetry + Jaeger + Tempo)"
+              echo "- ✅ Custom Business KPI Dashboards"
+              echo "- ✅ Intelligent Alert Management with routing"
+              echo "- ✅ Enterprise Log Aggregation (ELK Stack)"
+              echo "- ✅ SLA Monitoring and Automated Reporting"
+              echo "- ✅ Observability SDK for application integration"
+              echo ""
+              echo "🔍 Access Points:"
+              echo "- Jaeger UI: https://jaeger-${{ env.ENVIRONMENT }}.semantest.com"
+              echo "- Kibana: https://kibana-${{ env.ENVIRONMENT }}.semantest.com"
+              echo "- Grafana: https://grafana-${{ env.ENVIRONMENT }}.semantest.com"
+              echo ""
+              echo "📈 Features:"
+              echo "- Real-time distributed tracing"
+              echo "- Business metrics and KPI tracking"
+              echo "- Intelligent alert routing and escalation"
+              echo "- Machine learning-powered log analysis"
+              echo "- Automated SLA compliance reporting"
+              echo "- Custom observability SDK for applications"
+              ;;
+            "update")
+              echo "🔄 Observability Stack Updated"
+              ;;
+            "teardown")
+              echo "🧹 Observability Stack Removed"
+              ;;
+          esac
+          
+          echo ""
+          echo "Job Results:"
+          echo "- Distributed Tracing: ${{ needs.setup-distributed-tracing.result }}"
+          echo "- Custom Dashboards: ${{ needs.setup-custom-dashboards.result }}"
+          echo "- Alert Management: ${{ needs.setup-alert-management.result }}"
+          echo "- Log Aggregation: ${{ needs.setup-log-aggregation.result }}"
+          echo "- SLA Monitoring: ${{ needs.setup-sla-monitoring.result }}"
+          echo "- Observability SDK: ${{ needs.create-observability-sdk.result }}"
+          echo "- Teardown: ${{ needs.teardown-observability.result }}"

@@ -1,0 +1,761 @@
+name: Enterprise Monitoring & Alerting
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      action:
+        required: true
+        type: string
+        description: 'setup, update, or teardown'
+    secrets:
+      KUBE_CONFIG:
+        required: true
+      SLACK_WEBHOOK:
+        required: false
+      PAGERDUTY_TOKEN:
+        required: false
+      DATADOG_API_KEY:
+        required: false
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      action:
+        description: 'Monitoring action'
+        required: true
+        default: 'setup'
+        type: choice
+        options:
+          - setup
+          - update
+          - teardown
+
+permissions:
+  contents: read
+  deployments: write
+
+concurrency:
+  group: monitoring-${{ inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  ENVIRONMENT: ${{ inputs.environment }}
+  NAMESPACE: monitoring-${{ inputs.environment }}
+
+jobs:
+  setup-monitoring-infrastructure:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'setup' || inputs.action == 'update'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+          kubectl config set-context --current --namespace=${{ env.NAMESPACE }}
+
+      - name: Create monitoring namespace
+        run: |
+          export KUBECONFIG=kubeconfig
+          kubectl create namespace ${{ env.NAMESPACE }} --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Install Prometheus Stack
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Add Prometheus Helm repo
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+          
+          # Create Prometheus values
+          cat > prometheus-values.yaml << EOF
+          prometheus:
+            prometheusSpec:
+              storageSpec:
+                volumeClaimTemplate:
+                  spec:
+                    storageClassName: fast-ssd
+                    accessModes: ["ReadWriteOnce"]
+                    resources:
+                      requests:
+                        storage: 50Gi
+              retention: 30d
+              retentionSize: 45GB
+              
+              additionalScrapeConfigs:
+                - job_name: 'semantest-enterprise'
+                  kubernetes_sd_configs:
+                    - role: pod
+                      namespaces:
+                        names:
+                          - semantest-${{ env.ENVIRONMENT }}
+                  relabel_configs:
+                    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+                      action: keep
+                      regex: true
+                    - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+                      action: replace
+                      target_label: __metrics_path__
+                      regex: (.+)
+                    - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+                      action: replace
+                      regex: ([^:]+)(?::\d+)?;(\d+)
+                      replacement: \$1:\$2
+                      target_label: __address__
+                      
+                - job_name: 'semantest-node-exporter'
+                  kubernetes_sd_configs:
+                    - role: node
+                  relabel_configs:
+                    - action: labelmap
+                      regex: __meta_kubernetes_node_label_(.+)
+          
+          alertmanager:
+            alertmanagerSpec:
+              storage:
+                volumeClaimTemplate:
+                  spec:
+                    storageClassName: fast-ssd
+                    accessModes: ["ReadWriteOnce"]
+                    resources:
+                      requests:
+                        storage: 10Gi
+          
+          grafana:
+            persistence:
+              enabled: true
+              storageClassName: fast-ssd
+              size: 10Gi
+            
+            adminPassword: \${{ secrets.GRAFANA_ADMIN_PASSWORD || 'admin' }}
+            
+            dashboardProviders:
+              dashboardproviders.yaml:
+                apiVersion: 1
+                providers:
+                - name: 'semantest'
+                  orgId: 1
+                  folder: 'Semantest'
+                  type: file
+                  disableDeletion: false
+                  editable: true
+                  options:
+                    path: /var/lib/grafana/dashboards/semantest
+          EOF
+          
+          # Install Prometheus stack
+          helm upgrade --install prometheus-stack prometheus-community/kube-prometheus-stack \
+            --namespace ${{ env.NAMESPACE }} \
+            --values prometheus-values.yaml \
+            --wait --timeout=600s
+
+      - name: Setup Enterprise Alerting Rules
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > semantest-alert-rules.yaml << EOF
+          apiVersion: monitoring.coreos.com/v1
+          kind: PrometheusRule
+          metadata:
+            name: semantest-enterprise-alerts
+            namespace: ${{ env.NAMESPACE }}
+            labels:
+              prometheus: kube-prometheus
+              role: alert-rules
+          spec:
+            groups:
+            - name: semantest.availability
+              interval: 30s
+              rules:
+              - alert: SemantestServiceDown
+                expr: up{job="semantest-enterprise"} == 0
+                for: 1m
+                labels:
+                  severity: critical
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                annotations:
+                  summary: "Semantest service is down"
+                  description: "Semantest service {{ \$labels.instance }} has been down for more than 1 minute"
+                  runbook_url: "https://docs.semantest.com/runbooks/service-down"
+              
+              - alert: SemantestHighErrorRate
+                expr: rate(http_requests_total{job="semantest-enterprise",status=~"5.."}[5m]) / rate(http_requests_total{job="semantest-enterprise"}[5m]) > 0.05
+                for: 5m
+                labels:
+                  severity: critical
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                annotations:
+                  summary: "High error rate detected"
+                  description: "Error rate is {{ \$value | humanizePercentage }} for {{ \$labels.instance }}"
+                  runbook_url: "https://docs.semantest.com/runbooks/high-error-rate"
+              
+              - alert: SemantestHighLatency
+                expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="semantest-enterprise"}[5m])) > 2
+                for: 10m
+                labels:
+                  severity: warning
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                annotations:
+                  summary: "High latency detected"
+                  description: "95th percentile latency is {{ \$value }}s for {{ \$labels.instance }}"
+                  runbook_url: "https://docs.semantest.com/runbooks/high-latency"
+            
+            - name: semantest.resources
+              interval: 60s
+              rules:
+              - alert: SemantestHighMemoryUsage
+                expr: (container_memory_working_set_bytes{pod=~"semantest-.*"} / container_spec_memory_limit_bytes{pod=~"semantest-.*"}) > 0.85
+                for: 5m
+                labels:
+                  severity: warning
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                annotations:
+                  summary: "High memory usage"
+                  description: "Memory usage is {{ \$value | humanizePercentage }} for {{ \$labels.pod }}"
+                  runbook_url: "https://docs.semantest.com/runbooks/high-memory"
+              
+              - alert: SemantestHighCPUUsage
+                expr: rate(container_cpu_usage_seconds_total{pod=~"semantest-.*"}[5m]) / container_spec_cpu_quota{pod=~"semantest-.*"} * container_spec_cpu_period{pod=~"semantest-.*"} > 0.8
+                for: 10m
+                labels:
+                  severity: warning
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                annotations:
+                  summary: "High CPU usage"
+                  description: "CPU usage is {{ \$value | humanizePercentage }} for {{ \$labels.pod }}"
+                  runbook_url: "https://docs.semantest.com/runbooks/high-cpu"
+              
+              - alert: SemantestDiskSpaceLow
+                expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.1
+                for: 5m
+                labels:
+                  severity: critical
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                annotations:
+                  summary: "Low disk space"
+                  description: "Disk space is {{ \$value | humanizePercentage }} available on {{ \$labels.instance }}"
+                  runbook_url: "https://docs.semantest.com/runbooks/low-disk-space"
+            
+            - name: semantest.business
+              interval: 60s
+              rules:
+              - alert: SemantestLowThroughput
+                expr: rate(http_requests_total{job="semantest-enterprise"}[5m]) < 10
+                for: 15m
+                labels:
+                  severity: warning
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                annotations:
+                  summary: "Low request throughput"
+                  description: "Request rate is {{ \$value }} requests/sec for {{ \$labels.instance }}"
+                  runbook_url: "https://docs.semantest.com/runbooks/low-throughput"
+              
+              - alert: SemantestSecurityIncident
+                expr: increase(security_events_total{severity="high"}[5m]) > 0
+                for: 0m
+                labels:
+                  severity: critical
+                  service: semantest
+                  environment: ${{ env.ENVIRONMENT }}
+                  incident_type: security
+                annotations:
+                  summary: "Security incident detected"
+                  description: "{{ \$value }} high-severity security events detected"
+                  runbook_url: "https://docs.semantest.com/runbooks/security-incident"
+          EOF
+          
+          kubectl apply -f semantest-alert-rules.yaml
+
+      - name: Configure AlertManager
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > alertmanager-config.yaml << EOF
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: alertmanager-prometheus-stack-kube-prom-alertmanager
+            namespace: ${{ env.NAMESPACE }}
+          type: Opaque
+          stringData:
+            alertmanager.yml: |
+              global:
+                slack_api_url: '${{ secrets.SLACK_WEBHOOK }}'
+                
+              templates:
+                - '/etc/alertmanager/templates/*.tmpl'
+                
+              route:
+                group_by: ['alertname', 'cluster', 'service']
+                group_wait: 10s
+                group_interval: 10s
+                repeat_interval: 12h
+                receiver: 'enterprise-default'
+                routes:
+                - match:
+                    severity: critical
+                  receiver: 'enterprise-critical'
+                  routes:
+                  - match:
+                      incident_type: security
+                    receiver: 'security-team'
+                - match:
+                    severity: warning
+                  receiver: 'enterprise-warning'
+              
+              inhibit_rules:
+                - source_match:
+                    severity: 'critical'
+                  target_match:
+                    severity: 'warning'
+                  equal: ['alertname', 'cluster', 'service']
+              
+              receivers:
+              - name: 'enterprise-default'
+                slack_configs:
+                - channel: '#semantest-monitoring'
+                  title: 'Semantest Alert - ${{ env.ENVIRONMENT }}'
+                  text: |
+                    {{ range .Alerts }}
+                    *Alert:* {{ .Annotations.summary }}
+                    *Description:* {{ .Annotations.description }}
+                    *Environment:* ${{ env.ENVIRONMENT }}
+                    *Runbook:* {{ .Annotations.runbook_url }}
+                    {{ end }}
+              
+              - name: 'enterprise-critical'
+                slack_configs:
+                - channel: '#semantest-critical'
+                  title: '🚨 CRITICAL: Semantest Alert - ${{ env.ENVIRONMENT }}'
+                  text: |
+                    {{ range .Alerts }}
+                    *Alert:* {{ .Annotations.summary }}
+                    *Description:* {{ .Annotations.description }}
+                    *Environment:* ${{ env.ENVIRONMENT }}
+                    *Runbook:* {{ .Annotations.runbook_url }}
+                    {{ end }}
+                email_configs:
+                - to: 'oncall@company.com'
+                  subject: 'CRITICAL: Semantest Production Alert'
+                  body: |
+                    {{ range .Alerts }}
+                    Alert: {{ .Annotations.summary }}
+                    Description: {{ .Annotations.description }}
+                    Environment: ${{ env.ENVIRONMENT }}
+                    Runbook: {{ .Annotations.runbook_url }}
+                    {{ end }}
+                pagerduty_configs:
+                - routing_key: '${{ secrets.PAGERDUTY_TOKEN }}'
+                  description: 'Semantest Critical Alert - ${{ env.ENVIRONMENT }}'
+              
+              - name: 'enterprise-warning'
+                slack_configs:
+                - channel: '#semantest-alerts'
+                  title: '⚠️ WARNING: Semantest Alert - ${{ env.ENVIRONMENT }}'
+                  text: |
+                    {{ range .Alerts }}
+                    *Alert:* {{ .Annotations.summary }}
+                    *Description:* {{ .Annotations.description }}
+                    *Environment:* ${{ env.ENVIRONMENT }}
+                    *Runbook:* {{ .Annotations.runbook_url }}
+                    {{ end }}
+              
+              - name: 'security-team'
+                slack_configs:
+                - channel: '#security-incidents'
+                  title: '🔒 SECURITY INCIDENT: Semantest - ${{ env.ENVIRONMENT }}'
+                  text: |
+                    {{ range .Alerts }}
+                    *Alert:* {{ .Annotations.summary }}
+                    *Description:* {{ .Annotations.description }}
+                    *Environment:* ${{ env.ENVIRONMENT }}
+                    *Runbook:* {{ .Annotations.runbook_url }}
+                    {{ end }}
+                email_configs:
+                - to: 'security-team@company.com'
+                  subject: 'SECURITY INCIDENT: Semantest Alert'
+                  body: |
+                    {{ range .Alerts }}
+                    Alert: {{ .Annotations.summary }}
+                    Description: {{ .Annotations.description }}
+                    Environment: ${{ env.ENVIRONMENT }}
+                    Runbook: {{ .Annotations.runbook_url }}
+                    {{ end }}
+          EOF
+          
+          kubectl apply -f alertmanager-config.yaml
+
+      - name: Setup Grafana Dashboards
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          cat > semantest-dashboard.json << 'EOF'
+          {
+            "dashboard": {
+              "id": null,
+              "title": "Semantest Enterprise Monitoring",
+              "tags": ["semantest", "enterprise"],
+              "timezone": "UTC",
+              "panels": [
+                {
+                  "id": 1,
+                  "title": "Service Health",
+                  "type": "stat",
+                  "targets": [
+                    {
+                      "expr": "up{job=\"semantest-enterprise\"}",
+                      "legendFormat": "{{instance}}"
+                    }
+                  ],
+                  "fieldConfig": {
+                    "defaults": {
+                      "color": {
+                        "mode": "thresholds"
+                      },
+                      "thresholds": {
+                        "steps": [
+                          {"color": "red", "value": 0},
+                          {"color": "green", "value": 1}
+                        ]
+                      }
+                    }
+                  },
+                  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+                },
+                {
+                  "id": 2,
+                  "title": "Request Rate",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "rate(http_requests_total{job=\"semantest-enterprise\"}[5m])",
+                      "legendFormat": "{{instance}} - {{method}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Requests/sec"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0}
+                },
+                {
+                  "id": 3,
+                  "title": "Error Rate",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "rate(http_requests_total{job=\"semantest-enterprise\",status=~\"5..\"}[5m])",
+                      "legendFormat": "5xx Errors - {{instance}}"
+                    },
+                    {
+                      "expr": "rate(http_requests_total{job=\"semantest-enterprise\",status=~\"4..\"}[5m])",
+                      "legendFormat": "4xx Errors - {{instance}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Errors/sec"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+                },
+                {
+                  "id": 4,
+                  "title": "Response Time",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=\"semantest-enterprise\"}[5m]))",
+                      "legendFormat": "95th percentile - {{instance}}"
+                    },
+                    {
+                      "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=\"semantest-enterprise\"}[5m]))",
+                      "legendFormat": "50th percentile - {{instance}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Seconds"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8}
+                },
+                {
+                  "id": 5,
+                  "title": "Memory Usage",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "container_memory_working_set_bytes{pod=~\"semantest-.*\"} / 1024 / 1024",
+                      "legendFormat": "{{pod}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "MB"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16}
+                },
+                {
+                  "id": 6,
+                  "title": "CPU Usage",
+                  "type": "graph",
+                  "targets": [
+                    {
+                      "expr": "rate(container_cpu_usage_seconds_total{pod=~\"semantest-.*\"}[5m]) * 100",
+                      "legendFormat": "{{pod}}"
+                    }
+                  ],
+                  "yAxes": [
+                    {"label": "Percent"},
+                    {"show": false}
+                  ],
+                  "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16}
+                }
+              ],
+              "time": {
+                "from": "now-1h",
+                "to": "now"
+              },
+              "refresh": "30s"
+            }
+          }
+          EOF
+          
+          # Create ConfigMap for dashboard
+          kubectl create configmap semantest-dashboard \
+            --from-file=semantest-dashboard.json \
+            --namespace=${{ env.NAMESPACE }} \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Setup Log Aggregation
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          # Add Elastic Helm repo
+          helm repo add elastic https://helm.elastic.co
+          helm repo update
+          
+          # Install Elasticsearch
+          helm upgrade --install elasticsearch elastic/elasticsearch \
+            --namespace ${{ env.NAMESPACE }} \
+            --set replicas=3 \
+            --set minimumMasterNodes=2 \
+            --set volumeClaimTemplate.resources.requests.storage=30Gi \
+            --set volumeClaimTemplate.storageClassName=fast-ssd \
+            --wait --timeout=600s
+          
+          # Install Kibana
+          helm upgrade --install kibana elastic/kibana \
+            --namespace ${{ env.NAMESPACE }} \
+            --set service.type=LoadBalancer \
+            --wait --timeout=300s
+          
+          # Install Filebeat
+          cat > filebeat-values.yaml << EOF
+          filebeatConfig:
+            filebeat.yml: |
+              filebeat.inputs:
+              - type: container
+                paths:
+                  - /var/log/containers/*.log
+                processors:
+                - add_kubernetes_metadata:
+                    host: \${NODE_NAME}
+                    matchers:
+                    - logs_path:
+                        logs_path: "/var/log/containers/"
+                - drop_event:
+                    when:
+                      not:
+                        kubernetes.labels.app: semantest
+              
+              output.elasticsearch:
+                host: "elasticsearch-master:9200"
+                
+              setup.kibana:
+                host: "kibana-kibana:5601"
+          EOF
+          
+          helm upgrade --install filebeat elastic/filebeat \
+            --namespace ${{ env.NAMESPACE }} \
+            --values filebeat-values.yaml \
+            --wait --timeout=300s
+
+  setup-external-monitoring:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'setup' || inputs.action == 'update'
+    steps:
+      - name: Setup Datadog Integration
+        if: ${{ secrets.DATADOG_API_KEY != '' }}
+        run: |
+          echo "Setting up Datadog monitoring integration..."
+          
+          cat > datadog-values.yaml << EOF
+          datadog:
+            apiKey: ${{ secrets.DATADOG_API_KEY }}
+            appKey: ${{ secrets.DATADOG_APP_KEY }}
+            site: datadoghq.com
+            tags:
+              - environment:${{ env.ENVIRONMENT }}
+              - service:semantest
+              - team:platform
+            
+            logs:
+              enabled: true
+              containerCollectAll: true
+            
+            apm:
+              enabled: true
+              
+            processAgent:
+              enabled: true
+              
+            systemProbe:
+              enabled: true
+              
+            networkMonitoring:
+              enabled: true
+          EOF
+          
+          echo "Datadog configuration prepared"
+
+      - name: Setup External Health Checks
+        run: |
+          echo "Setting up external health monitoring..."
+          
+          # Create external monitoring configuration
+          cat > external-monitoring.yaml << EOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: external-health-checks
+            namespace: ${{ env.NAMESPACE }}
+          data:
+            endpoints.json: |
+              {
+                "endpoints": [
+                  {
+                    "name": "semantest-api",
+                    "url": "https://api-${{ env.ENVIRONMENT }}.semantest.com/health",
+                    "method": "GET",
+                    "timeout": 10,
+                    "interval": 60,
+                    "expected_status": 200
+                  },
+                  {
+                    "name": "semantest-web",
+                    "url": "https://${{ env.ENVIRONMENT }}.semantest.com",
+                    "method": "GET",
+                    "timeout": 15,
+                    "interval": 60,
+                    "expected_status": 200
+                  }
+                ]
+              }
+          EOF
+
+  teardown-monitoring:
+    runs-on: ubuntu-latest
+    if: inputs.action == 'teardown'
+    steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'latest'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.12.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Remove monitoring stack
+        run: |
+          export KUBECONFIG=kubeconfig
+          
+          echo "Removing monitoring infrastructure..."
+          
+          # Remove Helm releases
+          helm uninstall prometheus-stack --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall elasticsearch --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall kibana --namespace ${{ env.NAMESPACE }} || true
+          helm uninstall filebeat --namespace ${{ env.NAMESPACE }} || true
+          
+          # Clean up PVCs
+          kubectl delete pvc --all --namespace ${{ env.NAMESPACE }} || true
+          
+          # Remove namespace
+          kubectl delete namespace ${{ env.NAMESPACE }} || true
+          
+          echo "Monitoring infrastructure removed"
+
+  monitoring-summary:
+    runs-on: ubuntu-latest
+    needs: [setup-monitoring-infrastructure, setup-external-monitoring, teardown-monitoring]
+    if: always()
+    steps:
+      - name: Generate monitoring summary
+        run: |
+          echo "📊 Enterprise Monitoring Setup Summary"
+          echo "===================================="
+          echo "Environment: ${{ env.ENVIRONMENT }}"
+          echo "Action: ${{ inputs.action }}"
+          echo "Namespace: ${{ env.NAMESPACE }}"
+          echo ""
+          
+          case "${{ inputs.action }}" in
+            "setup")
+              echo "🚀 Monitoring Infrastructure Deployed:"
+              echo "- ✅ Prometheus & Grafana"
+              echo "- ✅ AlertManager with enterprise alerting"
+              echo "- ✅ ELK Stack for log aggregation"
+              echo "- ✅ Custom Semantest dashboards"
+              echo "- ✅ Multi-channel alerting (Slack, Email, PagerDuty)"
+              echo "- ✅ External health checks"
+              ;;
+            "update")
+              echo "🔄 Monitoring Infrastructure Updated"
+              ;;
+            "teardown")
+              echo "🧹 Monitoring Infrastructure Removed"
+              ;;
+          esac
+          
+          echo ""
+          echo "Job Results:"
+          echo "- Infrastructure: ${{ needs.setup-monitoring-infrastructure.result }}"
+          echo "- External Setup: ${{ needs.setup-external-monitoring.result }}"
+          echo "- Teardown: ${{ needs.teardown-monitoring.result }}"

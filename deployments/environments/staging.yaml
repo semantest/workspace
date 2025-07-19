@@ -1,0 +1,192 @@
+# Staging Environment Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: semantest-staging
+  labels:
+    environment: staging
+    compliance: standard
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: semantest-config
+  namespace: semantest-staging
+data:
+  NODE_ENV: "staging"
+  LOG_LEVEL: "debug"
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+  CACHE_TTL: "1800"
+  RATE_LIMIT_WINDOW: "60000"
+  RATE_LIMIT_MAX: "500"
+  CORS_ORIGINS: "https://staging.semantest.com,https://staging-app.semantest.com"
+  DATABASE_POOL_SIZE: "10"
+  REDIS_POOL_SIZE: "5"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: semantest-secrets
+  namespace: semantest-staging
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://semantest:${DB_PASSWORD}@postgres-staging:5432/semantest_staging"
+  REDIS_URL: "redis://redis-staging:6379"
+  JWT_SECRET: "${JWT_SECRET_STAGING}"
+  API_ENCRYPTION_KEY: "${ENCRYPTION_KEY_STAGING}"
+  SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_STAGING}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: semantest-service-account
+  namespace: semantest-staging
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/SemanTestStagingRole
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: semantest-staging
+  name: semantest-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: semantest-rolebinding
+  namespace: semantest-staging
+subjects:
+- kind: ServiceAccount
+  name: semantest-service-account
+  namespace: semantest-staging
+roleRef:
+  kind: Role
+  name: semantest-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Staging Service Configuration
+apiVersion: v1
+kind: Service
+metadata:
+  name: semantest-service
+  namespace: semantest-staging
+  labels:
+    app: semantest
+    environment: staging
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+spec:
+  type: LoadBalancer
+  selector:
+    app: semantest
+    slot: blue  # Default to blue slot
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 3000
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+---
+# Network Policy for Staging
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: semantest-network-policy
+  namespace: semantest-staging
+spec:
+  podSelector:
+    matchLabels:
+      app: semantest
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring-staging
+    ports:
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 9090
+  egress:
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+---
+# Pod Disruption Budget for Staging
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: semantest-pdb
+  namespace: semantest-staging
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: semantest
+---
+# Horizontal Pod Autoscaler for Staging
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: semantest-hpa
+  namespace: semantest-staging
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: semantest-blue
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 75
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 85

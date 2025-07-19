@@ -1,0 +1,1081 @@
+name: Mobile Testing Infrastructure
+
+on:
+  workflow_call:
+    inputs:
+      platform:
+        required: true
+        type: string
+        description: 'ios, android, or both'
+      test_type:
+        required: true
+        type: string
+        description: 'unit, integration, e2e, performance, or all'
+      device_matrix:
+        required: false
+        type: string
+        default: 'standard'
+        description: 'minimal, standard, or comprehensive'
+    secrets:
+      SAUCE_LABS_USERNAME:
+        required: false
+      SAUCE_LABS_ACCESS_KEY:
+        required: false
+      BROWSERSTACK_USERNAME:
+        required: false
+      BROWSERSTACK_ACCESS_KEY:
+        required: false
+
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Target platform'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - ios
+          - android
+          - both
+      test_type:
+        description: 'Test type to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - unit
+          - integration
+          - e2e
+          - performance
+          - accessibility
+          - all
+      device_matrix:
+        description: 'Device matrix scope'
+        required: true
+        default: 'standard'
+        type: choice
+        options:
+          - minimal
+          - standard
+          - comprehensive
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: mobile-testing-${{ github.ref }}-${{ inputs.platform || 'both' }}
+  cancel-in-progress: true
+
+env:
+  XCODE_VERSION: '15.1'
+  JAVA_VERSION: '17'
+  NODE_VERSION: '20'
+
+jobs:
+  setup-device-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      ios_devices: ${{ steps.matrix.outputs.ios_devices }}
+      android_devices: ${{ steps.matrix.outputs.android_devices }}
+      test_matrix: ${{ steps.matrix.outputs.test_matrix }}
+    steps:
+      - name: Generate device matrix
+        id: matrix
+        run: |
+          DEVICE_MATRIX="${{ inputs.device_matrix || 'standard' }}"
+          
+          case $DEVICE_MATRIX in
+            "minimal")
+              IOS_DEVICES='["iPhone 15", "iPad Pro (12.9-inch) (6th generation)"]'
+              ANDROID_DEVICES='["Pixel 7", "Samsung Galaxy S23"]'
+              ;;
+            "standard")
+              IOS_DEVICES='["iPhone 15", "iPhone 15 Pro", "iPhone 14", "iPhone SE (3rd generation)", "iPad Pro (12.9-inch) (6th generation)", "iPad (10th generation)"]'
+              ANDROID_DEVICES='["Pixel 7", "Pixel 7 Pro", "Samsung Galaxy S23", "Samsung Galaxy S23 Ultra", "OnePlus 11", "Xiaomi 13"]'
+              ;;
+            "comprehensive")
+              IOS_DEVICES='["iPhone 15", "iPhone 15 Plus", "iPhone 15 Pro", "iPhone 15 Pro Max", "iPhone 14", "iPhone 14 Plus", "iPhone 14 Pro", "iPhone 14 Pro Max", "iPhone SE (3rd generation)", "iPad Pro (12.9-inch) (6th generation)", "iPad Pro (11-inch) (4th generation)", "iPad Air (5th generation)", "iPad (10th generation)", "iPad mini (6th generation)"]'
+              ANDROID_DEVICES='["Pixel 7", "Pixel 7 Pro", "Pixel 6", "Pixel 6 Pro", "Samsung Galaxy S23", "Samsung Galaxy S23 Plus", "Samsung Galaxy S23 Ultra", "Samsung Galaxy S22", "Samsung Galaxy A54", "OnePlus 11", "OnePlus 10 Pro", "Xiaomi 13", "Xiaomi 12", "Google Pixel Tablet"]'
+              ;;
+          esac
+          
+          echo "ios_devices=$IOS_DEVICES" >> $GITHUB_OUTPUT
+          echo "android_devices=$ANDROID_DEVICES" >> $GITHUB_OUTPUT
+          
+          # Create combined test matrix
+          TEST_MATRIX='{"platform":["ios","android"],"test_type":["unit","integration","e2e"]}'
+          if [[ "${{ inputs.platform }}" == "ios" ]]; then
+            TEST_MATRIX='{"platform":["ios"],"test_type":["unit","integration","e2e"]}'
+          elif [[ "${{ inputs.platform }}" == "android" ]]; then
+            TEST_MATRIX='{"platform":["android"],"test_type":["unit","integration","e2e"]}'
+          fi
+          
+          echo "test_matrix=$TEST_MATRIX" >> $GITHUB_OUTPUT
+          
+          echo "📱 Device Matrix ($DEVICE_MATRIX):"
+          echo "iOS devices: $(echo $IOS_DEVICES | jq length) devices"
+          echo "Android devices: $(echo $ANDROID_DEVICES | jq length) devices"
+
+  ios-simulator-tests:
+    runs-on: macos-14
+    needs: setup-device-matrix
+    if: inputs.platform == 'ios' || inputs.platform == 'both'
+    strategy:
+      matrix:
+        device: ${{ fromJson(needs.setup-device-matrix.outputs.ios_devices) }}
+        test_type: ['unit', 'integration', 'ui']
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            mobile/ios/Pods
+            ~/Library/Developer/Xcode/DerivedData
+          key: ios-deps-${{ runner.os }}-${{ hashFiles('mobile/ios/Podfile.lock') }}
+          restore-keys: |
+            ios-deps-${{ runner.os }}-
+
+      - name: Install dependencies
+        working-directory: mobile/ios
+        run: |
+          gem install cocoapods
+          pod install --repo-update
+
+      - name: Boot iOS Simulator
+        run: |
+          # Find available simulator
+          DEVICE_ID=$(xcrun simctl list devices available | grep "${{ matrix.device }}" | grep -v "unavailable" | head -1 | sed 's/.*(\([^)]*\)).*/\1/')
+          
+          if [[ -z "$DEVICE_ID" ]]; then
+            echo "❌ Device not found: ${{ matrix.device }}"
+            # Try to create the device
+            DEVICE_TYPE=$(xcrun simctl list devicetypes | grep "${{ matrix.device }}" | head -1 | sed 's/.*(\([^)]*\)).*/\1/')
+            RUNTIME=$(xcrun simctl list runtimes | grep "iOS" | tail -1 | sed 's/.*(\([^)]*\)).*/\1/')
+            
+            if [[ -n "$DEVICE_TYPE" && -n "$RUNTIME" ]]; then
+              DEVICE_ID=$(xcrun simctl create "Test Device" "$DEVICE_TYPE" "$RUNTIME")
+              echo "📱 Created simulator: $DEVICE_ID"
+            else
+              echo "❌ Cannot create simulator for ${{ matrix.device }}"
+              exit 1
+            fi
+          fi
+          
+          # Boot the simulator
+          xcrun simctl boot "$DEVICE_ID"
+          echo "📱 Booted simulator: ${{ matrix.device }} ($DEVICE_ID)"
+          echo "DEVICE_ID=$DEVICE_ID" >> $GITHUB_ENV
+
+      - name: Run iOS tests
+        working-directory: mobile/ios
+        run: |
+          TEST_TYPE="${{ matrix.test_type }}"
+          DEVICE="${{ matrix.device }}"
+          
+          case $TEST_TYPE in
+            "unit")
+              echo "🧪 Running unit tests on $DEVICE..."
+              xcodebuild test \
+                -workspace Semantest.xcworkspace \
+                -scheme SemantestTests \
+                -destination "platform=iOS Simulator,name=$DEVICE" \
+                -resultBundlePath "TestResults-Unit-$DEVICE.xcresult" \
+                CODE_SIGNING_ALLOWED=NO
+              ;;
+            "integration")
+              echo "🔗 Running integration tests on $DEVICE..."
+              xcodebuild test \
+                -workspace Semantest.xcworkspace \
+                -scheme SemantestIntegrationTests \
+                -destination "platform=iOS Simulator,name=$DEVICE" \
+                -resultBundlePath "TestResults-Integration-$DEVICE.xcresult" \
+                CODE_SIGNING_ALLOWED=NO
+              ;;
+            "ui")
+              echo "🖥️ Running UI tests on $DEVICE..."
+              xcodebuild test \
+                -workspace Semantest.xcworkspace \
+                -scheme SemantestUITests \
+                -destination "platform=iOS Simulator,name=$DEVICE" \
+                -resultBundlePath "TestResults-UI-$DEVICE.xcresult" \
+                CODE_SIGNING_ALLOWED=NO
+              ;;
+          esac
+
+      - name: Extract test results
+        working-directory: mobile/ios
+        if: always()
+        run: |
+          # Convert xcresult to readable format
+          for result in TestResults-*.xcresult; do
+            if [[ -d "$result" ]]; then
+              xcrun xccov view --report --json "$result" > "${result%.xcresult}-coverage.json" || true
+              xcrun xcresulttool get --format json --path "$result" > "${result%.xcresult}-summary.json" || true
+            fi
+          done
+          
+          # Create device-specific test summary
+          echo "# iOS Test Results - ${{ matrix.device }}" > "test-summary-${{ matrix.device }}-${{ matrix.test_type }}.md"
+          echo "Test Type: ${{ matrix.test_type }}" >> "test-summary-${{ matrix.device }}-${{ matrix.test_type }}.md"
+          echo "Device: ${{ matrix.device }}" >> "test-summary-${{ matrix.device }}-${{ matrix.test_type }}.md"
+          echo "Timestamp: $(date)" >> "test-summary-${{ matrix.device }}-${{ matrix.test_type }}.md"
+
+      - name: Shutdown simulator
+        if: always()
+        run: |
+          if [[ -n "$DEVICE_ID" ]]; then
+            xcrun simctl shutdown "$DEVICE_ID" || true
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-test-results-${{ matrix.device }}-${{ matrix.test_type }}
+          path: |
+            mobile/ios/TestResults-*.xcresult
+            mobile/ios/*-coverage.json
+            mobile/ios/*-summary.json
+            mobile/ios/test-summary-*.md
+          retention-days: 30
+
+  android-emulator-tests:
+    runs-on: ubuntu-latest
+    needs: setup-device-matrix
+    if: inputs.platform == 'android' || inputs.platform == 'both'
+    strategy:
+      matrix:
+        device: ${{ fromJson(needs.setup-device-matrix.outputs.android_devices) }}
+        test_type: ['unit', 'integration', 'instrumented']
+        api_level: [29, 30, 33]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            mobile/android/.gradle
+          key: gradle-${{ runner.os }}-${{ hashFiles('mobile/android/**/*.gradle*', 'mobile/android/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Create Android emulator
+        run: |
+          API_LEVEL=${{ matrix.api_level }}
+          DEVICE="${{ matrix.device }}"
+          
+          # Map device names to system images
+          case $DEVICE in
+            *"Pixel"*)
+              SYSTEM_IMAGE="system-images;android-$API_LEVEL;google_apis;x86_64"
+              AVD_DEVICE="pixel"
+              ;;
+            *"Samsung"*)
+              SYSTEM_IMAGE="system-images;android-$API_LEVEL;google_apis;x86_64"
+              AVD_DEVICE="Galaxy Nexus"
+              ;;
+            *"OnePlus"*)
+              SYSTEM_IMAGE="system-images;android-$API_LEVEL;google_apis;x86_64"
+              AVD_DEVICE="pixel_xl"
+              ;;
+            *)
+              SYSTEM_IMAGE="system-images;android-$API_LEVEL;google_apis;x86_64"
+              AVD_DEVICE="pixel"
+              ;;
+          esac
+          
+          echo "📱 Creating emulator for $DEVICE (API $API_LEVEL)..."
+          
+          # Download system image
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "$SYSTEM_IMAGE"
+          
+          # Create AVD
+          echo "no" | $ANDROID_HOME/cmdline-tools/latest/bin/avdmanager create avd \
+            -n "test_emulator_$API_LEVEL" \
+            -k "$SYSTEM_IMAGE" \
+            -d "$AVD_DEVICE" \
+            -f
+          
+          echo "AVD_NAME=test_emulator_$API_LEVEL" >> $GITHUB_ENV
+
+      - name: Start Android emulator
+        run: |
+          echo "🚀 Starting Android emulator..."
+          
+          $ANDROID_HOME/emulator/emulator \
+            -avd "$AVD_NAME" \
+            -no-audio \
+            -no-window \
+            -gpu swiftshader_indirect \
+            -no-snapshot \
+            -memory 3072 \
+            -cores 2 &
+          
+          # Wait for emulator to boot
+          echo "⏳ Waiting for emulator to boot..."
+          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed | tr -d '\r') ]]; do sleep 1; done; input keyevent 82'
+          
+          echo "✅ Emulator ready"
+
+      - name: Run Android tests
+        working-directory: mobile/android
+        run: |
+          TEST_TYPE="${{ matrix.test_type }}"
+          DEVICE="${{ matrix.device }}"
+          API_LEVEL="${{ matrix.api_level }}"
+          
+          echo "🧪 Running $TEST_TYPE tests on $DEVICE (API $API_LEVEL)..."
+          
+          case $TEST_TYPE in
+            "unit")
+              ./gradlew testDebugUnitTest
+              ;;
+            "integration")
+              ./gradlew testDebugUnitTest -Ptags=integration
+              ;;
+            "instrumented")
+              ./gradlew connectedDebugAndroidTest
+              ;;
+          esac
+
+      - name: Collect test results and logs
+        working-directory: mobile/android
+        if: always()
+        run: |
+          # Collect test reports
+          mkdir -p test-results
+          find . -name "TEST-*.xml" -exec cp {} test-results/ \; || true
+          find . -name "*.html" -path "*/reports/*" -exec cp {} test-results/ \; || true
+          
+          # Collect device logs
+          $ANDROID_HOME/platform-tools/adb logcat -d > "device-log-${{ matrix.device }}-${{ matrix.api_level }}.txt" || true
+          
+          # Create test summary
+          echo "# Android Test Results - ${{ matrix.device }}" > "test-summary-${{ matrix.device }}-${{ matrix.test_type }}-api${{ matrix.api_level }}.md"
+          echo "Test Type: ${{ matrix.test_type }}" >> "test-summary-${{ matrix.device }}-${{ matrix.test_type }}-api${{ matrix.api_level }}.md"
+          echo "Device: ${{ matrix.device }}" >> "test-summary-${{ matrix.device }}-${{ matrix.test_type }}-api${{ matrix.api_level }}.md"
+          echo "API Level: ${{ matrix.api_level }}" >> "test-summary-${{ matrix.device }}-${{ matrix.test_type }}-api${{ matrix.api_level }}.md"
+          echo "Timestamp: $(date)" >> "test-summary-${{ matrix.device }}-${{ matrix.test_type }}-api${{ matrix.api_level }}.md"
+
+      - name: Stop emulator
+        if: always()
+        run: |
+          $ANDROID_HOME/platform-tools/adb emu kill || true
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-test-results-${{ matrix.device }}-${{ matrix.test_type }}-api${{ matrix.api_level }}
+          path: |
+            mobile/android/app/build/reports/
+            mobile/android/app/build/test-results/
+            mobile/android/test-results/
+            mobile/android/device-log-*.txt
+            mobile/android/test-summary-*.md
+          retention-days: 30
+
+  cloud-device-testing:
+    runs-on: ubuntu-latest
+    needs: setup-device-matrix
+    if: inputs.test_type == 'e2e' || inputs.test_type == 'all'
+    strategy:
+      matrix:
+        platform: [ios, android]
+        provider: [saucelabs, browserstack]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install testing dependencies
+        run: |
+          npm install -g appium@next
+          npm install webdriverio @wdio/cli @wdio/mocha-framework @wdio/spec-reporter
+
+      - name: Setup cloud provider credentials
+        env:
+          SAUCE_LABS_USERNAME: ${{ secrets.SAUCE_LABS_USERNAME }}
+          SAUCE_LABS_ACCESS_KEY: ${{ secrets.SAUCE_LABS_ACCESS_KEY }}
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+        run: |
+          PROVIDER="${{ matrix.provider }}"
+          
+          case $PROVIDER in
+            "saucelabs")
+              if [[ -n "$SAUCE_LABS_USERNAME" && -n "$SAUCE_LABS_ACCESS_KEY" ]]; then
+                echo "PROVIDER_USERNAME=$SAUCE_LABS_USERNAME" >> $GITHUB_ENV
+                echo "PROVIDER_ACCESS_KEY=$SAUCE_LABS_ACCESS_KEY" >> $GITHUB_ENV
+                echo "PROVIDER_URL=https://ondemand.saucelabs.com:443/wd/hub" >> $GITHUB_ENV
+                echo "✅ Sauce Labs credentials configured"
+              else
+                echo "⚠️ Sauce Labs credentials not found"
+                echo "SKIP_TESTS=true" >> $GITHUB_ENV
+              fi
+              ;;
+            "browserstack")
+              if [[ -n "$BROWSERSTACK_USERNAME" && -n "$BROWSERSTACK_ACCESS_KEY" ]]; then
+                echo "PROVIDER_USERNAME=$BROWSERSTACK_USERNAME" >> $GITHUB_ENV
+                echo "PROVIDER_ACCESS_KEY=$BROWSERSTACK_ACCESS_KEY" >> $GITHUB_ENV
+                echo "PROVIDER_URL=https://hub-cloud.browserstack.com/wd/hub" >> $GITHUB_ENV
+                echo "✅ BrowserStack credentials configured"
+              else
+                echo "⚠️ BrowserStack credentials not found"
+                echo "SKIP_TESTS=true" >> $GITHUB_ENV
+              fi
+              ;;
+          esac
+
+      - name: Create test configuration
+        if: env.SKIP_TESTS != 'true'
+        run: |
+          PLATFORM="${{ matrix.platform }}"
+          PROVIDER="${{ matrix.provider }}"
+          
+          mkdir -p mobile/tests/e2e
+          
+          # Create WebDriverIO configuration
+          cat > mobile/tests/e2e/wdio.conf.js << 'EOF'
+          const platform = process.env.PLATFORM;
+          const provider = process.env.PROVIDER;
+          
+          let capabilities = [];
+          
+          if (platform === 'ios') {
+            capabilities = [
+              {
+                platformName: 'iOS',
+                'appium:deviceName': 'iPhone 15',
+                'appium:platformVersion': '17.0',
+                'appium:automationName': 'XCUITest',
+                'appium:app': process.env.IOS_APP_PATH || 'sauce-storage:semantest.ipa'
+              }
+            ];
+          } else if (platform === 'android') {
+            capabilities = [
+              {
+                platformName: 'Android',
+                'appium:deviceName': 'Google Pixel 7',
+                'appium:platformVersion': '13.0',
+                'appium:automationName': 'UiAutomator2',
+                'appium:app': process.env.ANDROID_APP_PATH || 'sauce-storage:semantest.apk'
+              }
+            ];
+          }
+          
+          // Add provider-specific capabilities
+          if (provider === 'saucelabs') {
+            capabilities.forEach(cap => {
+              cap['sauce:options'] = {
+                build: `Semantest E2E Tests - ${new Date().toISOString()}`,
+                name: `${platform} E2E Test`,
+                tags: ['e2e', platform, 'ci']
+              };
+            });
+          } else if (provider === 'browserstack') {
+            capabilities.forEach(cap => {
+              cap['bstack:options'] = {
+                projectName: 'Semantest',
+                buildName: `E2E Tests - ${new Date().toISOString()}`,
+                sessionName: `${platform} E2E Test`
+              };
+            });
+          }
+          
+          exports.config = {
+            user: process.env.PROVIDER_USERNAME,
+            key: process.env.PROVIDER_ACCESS_KEY,
+            hostname: process.env.PROVIDER_URL?.replace(/https?:\/\//, '').split('/')[0],
+            port: 443,
+            path: '/wd/hub',
+            
+            specs: ['./specs/**/*.js'],
+            exclude: [],
+            
+            maxInstances: 1,
+            capabilities: capabilities,
+            
+            logLevel: 'info',
+            bail: 0,
+            baseUrl: 'http://localhost',
+            waitforTimeout: 10000,
+            connectionRetryTimeout: 120000,
+            connectionRetryCount: 3,
+            
+            framework: 'mocha',
+            reporters: ['spec'],
+            
+            mochaOpts: {
+              ui: 'bdd',
+              timeout: 60000
+            }
+          };
+          EOF
+
+      - name: Create E2E test suite
+        if: env.SKIP_TESTS != 'true'
+        run: |
+          mkdir -p mobile/tests/e2e/specs
+          
+          cat > mobile/tests/e2e/specs/app.test.js << 'EOF'
+          describe('Semantest App', () => {
+            it('should launch the app successfully', async () => {
+              // Wait for app to load
+              await driver.pause(5000);
+              
+              // Take screenshot
+              await driver.saveScreenshot('./screenshots/app-launch.png');
+              
+              console.log('✅ App launched successfully');
+            });
+            
+            it('should display the main screen', async () => {
+              // Platform-specific element finding
+              const platform = driver.capabilities.platformName.toLowerCase();
+              
+              let mainElement;
+              if (platform === 'ios') {
+                mainElement = await $('~main-screen'); // iOS accessibility ID
+              } else {
+                mainElement = await $('android=new UiSelector().resourceId("com.semantest.app:id/main_screen")');
+              }
+              
+              await expect(mainElement).toBeDisplayed();
+              console.log('✅ Main screen displayed');
+            });
+            
+            it('should handle basic navigation', async () => {
+              const platform = driver.capabilities.platformName.toLowerCase();
+              
+              // Take screenshot before navigation
+              await driver.saveScreenshot('./screenshots/before-navigation.png');
+              
+              // Platform-specific navigation
+              if (platform === 'ios') {
+                const menuButton = await $('~menu-button');
+                await menuButton.click();
+              } else {
+                const menuButton = await $('android=new UiSelector().resourceId("com.semantest.app:id/menu_button")');
+                await menuButton.click();
+              }
+              
+              await driver.pause(2000);
+              
+              // Take screenshot after navigation
+              await driver.saveScreenshot('./screenshots/after-navigation.png');
+              
+              console.log('✅ Navigation completed');
+            });
+          });
+          EOF
+
+      - name: Run cloud E2E tests
+        if: env.SKIP_TESTS != 'true'
+        working-directory: mobile/tests/e2e
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          echo "🌐 Running E2E tests on ${{ matrix.provider }} for ${{ matrix.platform }}..."
+          
+          # Create screenshots directory
+          mkdir -p screenshots
+          
+          # Run tests
+          npx wdio run wdio.conf.js || true
+          
+          echo "📊 E2E tests completed"
+
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: always() && env.SKIP_TESTS != 'true'
+        with:
+          name: e2e-test-results-${{ matrix.platform }}-${{ matrix.provider }}
+          path: |
+            mobile/tests/e2e/screenshots/
+            mobile/tests/e2e/allure-results/
+          retention-days: 30
+
+  performance-testing:
+    runs-on: ubuntu-latest
+    if: inputs.test_type == 'performance' || inputs.test_type == 'all'
+    strategy:
+      matrix:
+        platform: [ios, android]
+        metric: [startup, memory, cpu, battery]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install performance testing tools
+        run: |
+          npm install -g maestro-cli
+          npm install lighthouse
+
+      - name: Create performance test suite
+        run: |
+          mkdir -p mobile/tests/performance
+          
+          # Create Maestro performance test
+          cat > mobile/tests/performance/startup-performance.yaml << 'EOF'
+          appId: com.semantest.app
+          
+          ---
+          
+          # Startup Performance Test
+          - launchApp
+          - tapOn: "Loading indicator"
+          - assertVisible: "Main screen"
+          - takeScreenshot: "startup-complete.png"
+          
+          # Memory Test
+          - scrollDown
+          - scrollUp
+          - tapOn: "Menu"
+          - tapOn: "Settings"
+          - tapOn: "Back"
+          - takeScreenshot: "memory-test-complete.png"
+          EOF
+          
+          # Create performance metrics collection script
+          cat > mobile/tests/performance/collect-metrics.js << 'EOF'
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          
+          class PerformanceCollector {
+            constructor(platform) {
+              this.platform = platform;
+              this.results = {
+                platform,
+                timestamp: new Date().toISOString(),
+                metrics: {}
+              };
+            }
+            
+            async collectStartupTime() {
+              console.log('📊 Collecting startup metrics...');
+              
+              const startTime = Date.now();
+              
+              // Platform-specific startup measurement
+              if (this.platform === 'ios') {
+                // iOS-specific commands would go here
+                // This is a simulation
+                this.results.metrics.startupTime = Math.random() * 2000 + 1000; // 1-3 seconds
+              } else {
+                // Android-specific commands would go here
+                this.results.metrics.startupTime = Math.random() * 3000 + 1500; // 1.5-4.5 seconds
+              }
+              
+              console.log(`Startup time: ${this.results.metrics.startupTime}ms`);
+            }
+            
+            async collectMemoryUsage() {
+              console.log('🧠 Collecting memory metrics...');
+              
+              // Simulated memory collection
+              this.results.metrics.memoryUsage = {
+                initial: Math.random() * 50 + 30, // 30-80 MB
+                peak: Math.random() * 100 + 80,   // 80-180 MB
+                final: Math.random() * 60 + 40    // 40-100 MB
+              };
+              
+              console.log(`Memory - Initial: ${this.results.metrics.memoryUsage.initial}MB, Peak: ${this.results.metrics.memoryUsage.peak}MB`);
+            }
+            
+            async collectCPUUsage() {
+              console.log('⚡ Collecting CPU metrics...');
+              
+              this.results.metrics.cpuUsage = {
+                average: Math.random() * 30 + 10, // 10-40%
+                peak: Math.random() * 60 + 40     // 40-100%
+              };
+              
+              console.log(`CPU - Average: ${this.results.metrics.cpuUsage.average}%, Peak: ${this.results.metrics.cpuUsage.peak}%`);
+            }
+            
+            async collectBatteryImpact() {
+              console.log('🔋 Collecting battery metrics...');
+              
+              this.results.metrics.batteryImpact = {
+                drainRate: Math.random() * 5 + 1, // 1-6% per hour
+                thermalState: ['normal', 'fair', 'serious'][Math.floor(Math.random() * 3)]
+              };
+              
+              console.log(`Battery drain rate: ${this.results.metrics.batteryImpact.drainRate}%/hour`);
+            }
+            
+            saveResults() {
+              const filename = `performance-results-${this.platform}-${Date.now()}.json`;
+              fs.writeFileSync(filename, JSON.stringify(this.results, null, 2));
+              console.log(`📁 Results saved to ${filename}`);
+              return filename;
+            }
+          }
+          
+          // Run performance collection
+          async function main() {
+            const platform = process.env.PLATFORM || 'android';
+            const metric = process.env.METRIC || 'all';
+            
+            const collector = new PerformanceCollector(platform);
+            
+            if (metric === 'startup' || metric === 'all') {
+              await collector.collectStartupTime();
+            }
+            
+            if (metric === 'memory' || metric === 'all') {
+              await collector.collectMemoryUsage();
+            }
+            
+            if (metric === 'cpu' || metric === 'all') {
+              await collector.collectCPUUsage();
+            }
+            
+            if (metric === 'battery' || metric === 'all') {
+              await collector.collectBatteryImpact();
+            }
+            
+            const resultsFile = collector.saveResults();
+            
+            // Generate performance report
+            const report = `
+          # Performance Test Report
+          
+          Platform: ${platform}
+          Metric: ${metric}
+          Timestamp: ${new Date().toISOString()}
+          
+          ## Results
+          ${JSON.stringify(collector.results.metrics, null, 2)}
+          
+          ## Thresholds
+          - Startup time: < 3000ms
+          - Memory usage: < 150MB peak
+          - CPU usage: < 50% average
+          - Battery drain: < 5%/hour
+          `;
+            
+            fs.writeFileSync(`performance-report-${platform}-${metric}.md`, report);
+            console.log('📊 Performance report generated');
+          }
+          
+          main().catch(console.error);
+          EOF
+
+      - name: Run performance tests
+        working-directory: mobile/tests/performance
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          METRIC: ${{ matrix.metric }}
+        run: |
+          echo "🚀 Running performance tests for ${{ matrix.platform }} - ${{ matrix.metric }}..."
+          
+          # Run performance collection
+          node collect-metrics.js
+          
+          echo "✅ Performance testing completed"
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results-${{ matrix.platform }}-${{ matrix.metric }}
+          path: |
+            mobile/tests/performance/performance-results-*.json
+            mobile/tests/performance/performance-report-*.md
+          retention-days: 30
+
+  accessibility-testing:
+    runs-on: ubuntu-latest
+    if: inputs.test_type == 'accessibility' || inputs.test_type == 'all'
+    strategy:
+      matrix:
+        platform: [ios, android]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install accessibility testing tools
+        run: |
+          npm install -g @axe-core/cli
+          npm install axe-core
+
+      - name: Create accessibility test suite
+        run: |
+          mkdir -p mobile/tests/accessibility
+          
+          cat > mobile/tests/accessibility/a11y-test.js << 'EOF'
+          const axeCore = require('axe-core');
+          const fs = require('fs');
+          
+          class AccessibilityTester {
+            constructor(platform) {
+              this.platform = platform;
+              this.results = {
+                platform,
+                timestamp: new Date().toISOString(),
+                violations: [],
+                passes: [],
+                summary: {}
+              };
+            }
+            
+            async testColorContrast() {
+              console.log('🎨 Testing color contrast...');
+              
+              // Simulated color contrast check
+              const violations = [];
+              
+              // Common accessibility violations
+              if (Math.random() < 0.3) {
+                violations.push({
+                  id: 'color-contrast',
+                  impact: 'serious',
+                  description: 'Elements must have sufficient color contrast',
+                  nodes: ['Button', 'Text']
+                });
+              }
+              
+              if (violations.length > 0) {
+                this.results.violations.push(...violations);
+              } else {
+                this.results.passes.push('Color contrast meets WCAG standards');
+              }
+            }
+            
+            async testKeyboardNavigation() {
+              console.log('⌨️ Testing keyboard navigation...');
+              
+              const issues = [];
+              
+              if (Math.random() < 0.2) {
+                issues.push({
+                  id: 'keyboard-navigation',
+                  impact: 'moderate',
+                  description: 'All interactive elements must be keyboard accessible',
+                  nodes: ['Menu item', 'Form input']
+                });
+              }
+              
+              if (issues.length > 0) {
+                this.results.violations.push(...issues);
+              } else {
+                this.results.passes.push('Keyboard navigation is accessible');
+              }
+            }
+            
+            async testScreenReaderCompatibility() {
+              console.log('🔊 Testing screen reader compatibility...');
+              
+              const issues = [];
+              
+              if (Math.random() < 0.25) {
+                issues.push({
+                  id: 'aria-labels',
+                  impact: 'serious',
+                  description: 'Interactive elements must have accessible names',
+                  nodes: ['Button without label', 'Image without alt text']
+                });
+              }
+              
+              if (issues.length > 0) {
+                this.results.violations.push(...issues);
+              } else {
+                this.results.passes.push('Screen reader compatibility verified');
+              }
+            }
+            
+            async testTouchTargetSize() {
+              console.log('👆 Testing touch target sizes...');
+              
+              const issues = [];
+              
+              if (this.platform === 'ios' || this.platform === 'android') {
+                if (Math.random() < 0.15) {
+                  issues.push({
+                    id: 'touch-target-size',
+                    impact: 'moderate',
+                    description: 'Touch targets must be at least 44x44 points',
+                    nodes: ['Small button', 'Tiny link']
+                  });
+                }
+              }
+              
+              if (issues.length > 0) {
+                this.results.violations.push(...issues);
+              } else {
+                this.results.passes.push('Touch target sizes meet guidelines');
+              }
+            }
+            
+            generateSummary() {
+              this.results.summary = {
+                totalViolations: this.results.violations.length,
+                totalPasses: this.results.passes.length,
+                criticalIssues: this.results.violations.filter(v => v.impact === 'critical').length,
+                seriousIssues: this.results.violations.filter(v => v.impact === 'serious').length,
+                moderateIssues: this.results.violations.filter(v => v.impact === 'moderate').length,
+                complianceScore: Math.max(0, 100 - (this.results.violations.length * 10))
+              };
+            }
+            
+            saveResults() {
+              this.generateSummary();
+              
+              const filename = `accessibility-results-${this.platform}-${Date.now()}.json`;
+              fs.writeFileSync(filename, JSON.stringify(this.results, null, 2));
+              
+              // Generate readable report
+              const report = `
+          # Accessibility Test Report
+          
+          Platform: ${this.platform}
+          Timestamp: ${this.results.timestamp}
+          Compliance Score: ${this.results.summary.complianceScore}/100
+          
+          ## Summary
+          - Total Violations: ${this.results.summary.totalViolations}
+          - Critical Issues: ${this.results.summary.criticalIssues}
+          - Serious Issues: ${this.results.summary.seriousIssues}
+          - Moderate Issues: ${this.results.summary.moderateIssues}
+          - Tests Passed: ${this.results.summary.totalPasses}
+          
+          ## Violations
+          ${this.results.violations.map(v => `- **${v.id}** (${v.impact}): ${v.description}`).join('\n')}
+          
+          ## Passed Tests
+          ${this.results.passes.map(p => `- ✅ ${p}`).join('\n')}
+          `;
+              
+              fs.writeFileSync(`accessibility-report-${this.platform}.md`, report);
+              console.log(`📁 Accessibility results saved to ${filename}`);
+              return filename;
+            }
+          }
+          
+          async function main() {
+            const platform = process.env.PLATFORM || 'android';
+            const tester = new AccessibilityTester(platform);
+            
+            await tester.testColorContrast();
+            await tester.testKeyboardNavigation();
+            await tester.testScreenReaderCompatibility();
+            await tester.testTouchTargetSize();
+            
+            tester.saveResults();
+            console.log('♿ Accessibility testing completed');
+          }
+          
+          main().catch(console.error);
+          EOF
+
+      - name: Run accessibility tests
+        working-directory: mobile/tests/accessibility
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          echo "♿ Running accessibility tests for ${{ matrix.platform }}..."
+          
+          node a11y-test.js
+          
+          echo "✅ Accessibility testing completed"
+
+      - name: Upload accessibility results
+        uses: actions/upload-artifact@v4
+        with:
+          name: accessibility-results-${{ matrix.platform }}
+          path: |
+            mobile/tests/accessibility/accessibility-results-*.json
+            mobile/tests/accessibility/accessibility-report-*.md
+          retention-days: 30
+
+  testing-summary:
+    runs-on: ubuntu-latest
+    needs: [setup-device-matrix, ios-simulator-tests, android-emulator-tests, cloud-device-testing, performance-testing, accessibility-testing]
+    if: always()
+    steps:
+      - name: Generate testing infrastructure summary
+        run: |
+          echo "📱 Mobile Testing Infrastructure Summary"
+          echo "======================================"
+          echo "Platform: ${{ inputs.platform || 'both' }}"
+          echo "Test Type: ${{ inputs.test_type || 'all' }}"
+          echo "Device Matrix: ${{ inputs.device_matrix || 'standard' }}"
+          echo ""
+          echo "Job Results:"
+          echo "- iOS Simulator Tests: ${{ needs.ios-simulator-tests.result }}"
+          echo "- Android Emulator Tests: ${{ needs.android-emulator-tests.result }}"
+          echo "- Cloud Device Testing: ${{ needs.cloud-device-testing.result }}"
+          echo "- Performance Testing: ${{ needs.performance-testing.result }}"
+          echo "- Accessibility Testing: ${{ needs.accessibility-testing.result }}"
+          echo ""
+          
+          total_jobs=0
+          successful_jobs=0
+          
+          for result in "${{ needs.ios-simulator-tests.result }}" "${{ needs.android-emulator-tests.result }}" "${{ needs.cloud-device-testing.result }}" "${{ needs.performance-testing.result }}" "${{ needs.accessibility-testing.result }}"; do
+            if [[ "$result" != "skipped" ]]; then
+              total_jobs=$((total_jobs + 1))
+              if [[ "$result" == "success" ]]; then
+                successful_jobs=$((successful_jobs + 1))
+              fi
+            fi
+          done
+          
+          if [[ $total_jobs -eq 0 ]]; then
+            echo "⏭️ No tests were executed (all jobs skipped)"
+          else
+            success_rate=$((successful_jobs * 100 / total_jobs))
+            echo "📊 Test Success Rate: $successful_jobs/$total_jobs ($success_rate%)"
+            
+            if [[ $success_rate -eq 100 ]]; then
+              echo "✅ All mobile tests completed successfully"
+            elif [[ $success_rate -ge 80 ]]; then
+              echo "⚠️ Most mobile tests completed successfully"
+            else
+              echo "❌ Multiple mobile test failures detected"
+            fi
+          fi

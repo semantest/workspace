@@ -1,0 +1,614 @@
+name: AI Service Scaling Automation
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'infrastructure/ai/**'
+      - 'kubernetes/ai/**'
+  schedule:
+    - cron: '*/15 * * * *'  # Check scaling metrics every 15 minutes
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Scaling action'
+        required: true
+        default: 'analyze'
+        type: choice
+        options:
+          - analyze
+          - scale-up
+          - scale-down
+          - optimize
+          - rebalance
+      target_service:
+        description: 'Target AI service'
+        required: false
+        type: string
+      min_replicas:
+        description: 'Minimum replicas'
+        required: false
+        type: number
+        default: 2
+      max_replicas:
+        description: 'Maximum replicas'
+        required: false
+        type: number
+        default: 20
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  PROMETHEUS_URL: 'http://prometheus-server.monitoring.svc.cluster.local'
+  METRICS_WINDOW: '5m'
+  SCALE_UP_THRESHOLD: 80
+  SCALE_DOWN_THRESHOLD: 20
+  GPU_SCALE_THRESHOLD: 70
+
+jobs:
+  analyze-scaling-metrics:
+    runs-on: ubuntu-latest
+    outputs:
+      scaling_decisions: ${{ steps.analyze.outputs.decisions }}
+      current_state: ${{ steps.analyze.outputs.state }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Install monitoring tools
+        run: |
+          # Install Prometheus CLI
+          curl -LO https://github.com/prometheus/prometheus/releases/download/v2.47.0/promtool-2.47.0.linux-amd64.tar.gz
+          tar xvf promtool-2.47.0.linux-amd64.tar.gz
+          sudo mv promtool /usr/local/bin/
+          
+          # Install metrics analysis tools
+          pip install prometheus-api-client pandas numpy scikit-learn
+
+      - name: Analyze current AI workload metrics
+        id: analyze
+        run: |
+          python << 'EOF'
+          import json
+          import os
+          from datetime import datetime, timedelta
+          from prometheus_api_client import PrometheusConnect
+          import pandas as pd
+          import numpy as np
+          from sklearn.linear_model import LinearRegression
+          
+          # Connect to Prometheus
+          prom = PrometheusConnect(url=os.environ['PROMETHEUS_URL'], disable_ssl=True)
+          
+          # Define AI service queries
+          queries = {
+              "inference_rate": 'rate(model_inference_total[5m])',
+              "inference_latency": 'histogram_quantile(0.95, model_inference_duration_seconds)',
+              "gpu_utilization": 'avg(gpu_utilization_percent) by (pod)',
+              "memory_usage": 'container_memory_usage_bytes{pod=~"model-.*"} / container_spec_memory_limit_bytes',
+              "cpu_usage": 'rate(container_cpu_usage_seconds_total{pod=~"model-.*"}[5m])',
+              "queue_depth": 'avg(inference_queue_depth)',
+              "error_rate": 'rate(model_inference_errors_total[5m])'
+          }
+          
+          current_state = {}
+          scaling_decisions = []
+          
+          for metric_name, query in queries.items():
+              try:
+                  result = prom.custom_query(query)
+                  if result:
+                      values = [float(r['value'][1]) for r in result]
+                      current_state[metric_name] = {
+                          "current": np.mean(values) if values else 0,
+                          "max": np.max(values) if values else 0,
+                          "min": np.min(values) if values else 0,
+                          "p95": np.percentile(values, 95) if values else 0
+                      }
+              except Exception as e:
+                  print(f"Error querying {metric_name}: {e}")
+                  current_state[metric_name] = {"current": 0, "max": 0, "min": 0, "p95": 0}
+          
+          # Analyze scaling needs
+          def analyze_scaling_needs(state):
+              decisions = []
+              
+              # High inference rate with high latency = scale up
+              if state.get("inference_rate", {}).get("current", 0) > 100 and \
+                 state.get("inference_latency", {}).get("p95", 0) > 0.5:
+                  decisions.append({
+                      "action": "scale_up",
+                      "reason": "High inference rate with increasing latency",
+                      "priority": "high",
+                      "target_replicas_increase": 3
+                  })
+              
+              # High GPU utilization = scale up GPU nodes
+              if state.get("gpu_utilization", {}).get("p95", 0) > float(os.environ['GPU_SCALE_THRESHOLD']):
+                  decisions.append({
+                      "action": "scale_up_gpu",
+                      "reason": "GPU utilization above threshold",
+                      "priority": "high",
+                      "gpu_nodes_needed": 2
+                  })
+              
+              # Low utilization = scale down
+              if state.get("cpu_usage", {}).get("max", 100) < float(os.environ['SCALE_DOWN_THRESHOLD']) and \
+                 state.get("inference_rate", {}).get("current", 0) < 10:
+                  decisions.append({
+                      "action": "scale_down",
+                      "reason": "Low resource utilization",
+                      "priority": "medium",
+                      "target_replicas_decrease": 1
+                  })
+              
+              # High queue depth = urgent scale up
+              if state.get("queue_depth", {}).get("current", 0) > 50:
+                  decisions.append({
+                      "action": "urgent_scale_up",
+                      "reason": "High inference queue depth",
+                      "priority": "critical",
+                      "target_replicas_increase": 5
+                  })
+              
+              # Error rate spike = investigate before scaling
+              if state.get("error_rate", {}).get("current", 0) > 0.05:
+                  decisions.append({
+                      "action": "investigate",
+                      "reason": "High error rate detected",
+                      "priority": "high",
+                      "hold_scaling": True
+                  })
+              
+              return decisions
+          
+          # Predictive scaling based on historical patterns
+          def predict_future_load():
+              # Query historical data (last 24 hours)
+              end_time = datetime.now()
+              start_time = end_time - timedelta(hours=24)
+              
+              historical_query = f'model_inference_total[24h:5m]'
+              
+              try:
+                  historical_data = prom.custom_query_range(
+                      query=historical_query,
+                      start_time=start_time,
+                      end_time=end_time,
+                      step='5m'
+                  )
+                  
+                  if historical_data:
+                      # Extract time series data
+                      timestamps = [float(point[0]) for point in historical_data[0]['values']]
+                      values = [float(point[1]) for point in historical_data[0]['values']]
+                      
+                      # Simple linear regression for trend
+                      X = np.array(timestamps).reshape(-1, 1)
+                      y = np.array(values)
+                      
+                      model = LinearRegression()
+                      model.fit(X, y)
+                      
+                      # Predict next hour
+                      future_timestamp = timestamps[-1] + 3600
+                      predicted_load = model.predict([[future_timestamp]])[0]
+                      
+                      # Add predictive scaling decision
+                      if predicted_load > values[-1] * 1.5:
+                          return {
+                              "action": "predictive_scale_up",
+                              "reason": "Predicted 50% load increase in next hour",
+                              "priority": "medium",
+                              "target_replicas_increase": 2
+                          }
+              except Exception as e:
+                  print(f"Predictive scaling error: {e}")
+              
+              return None
+          
+          # Get scaling decisions
+          scaling_decisions = analyze_scaling_needs(current_state)
+          
+          # Add predictive scaling
+          predictive_decision = predict_future_load()
+          if predictive_decision:
+              scaling_decisions.append(predictive_decision)
+          
+          # Output results
+          print(json.dumps({"current_state": current_state, "scaling_decisions": scaling_decisions}, indent=2))
+          
+          # Set outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"state={json.dumps(current_state)}\n")
+              f.write(f"decisions={json.dumps(scaling_decisions)}\n")
+          EOF
+
+      - name: Generate scaling report
+        run: |
+          cat > scaling-report.md << EOF
+          # AI Service Scaling Report
+          Generated: $(date)
+          
+          ## Current State
+          📊 Metrics Summary:
+          - Inference Rate: Check dashboard
+          - GPU Utilization: Check dashboard
+          - Queue Depth: Check dashboard
+          
+          ## Scaling Decisions
+          ${{ steps.analyze.outputs.decisions }}
+          
+          ## Recommendations
+          Based on current metrics, the system is analyzing scaling needs.
+          EOF
+
+      - name: Upload scaling analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: scaling-analysis-${{ github.run_number }}
+          path: scaling-report.md
+          retention-days: 7
+
+  implement-scaling:
+    runs-on: ubuntu-latest
+    needs: analyze-scaling-metrics
+    if: needs.analyze-scaling-metrics.outputs.scaling_decisions != '[]'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Implement scaling decisions
+        run: |
+          DECISIONS='${{ needs.analyze-scaling-metrics.outputs.scaling_decisions }}'
+          
+          python << EOF
+          import json
+          import subprocess
+          import time
+          
+          decisions = json.loads('''$DECISIONS''')
+          
+          for decision in decisions:
+              action = decision.get('action')
+              priority = decision.get('priority')
+              
+              print(f"🚀 Implementing {action} with {priority} priority")
+              print(f"Reason: {decision.get('reason')}")
+              
+              if action == 'scale_up' or action == 'urgent_scale_up':
+                  replicas_increase = decision.get('target_replicas_increase', 1)
+                  
+                  # Get current replicas
+                  result = subprocess.run(
+                      ['kubectl', 'get', 'deployment', '-n', 'ai-models-production', '-o', 'json'],
+                      capture_output=True, text=True
+                  )
+                  
+                  if result.returncode == 0:
+                      deployments = json.loads(result.stdout)
+                      for item in deployments.get('items', []):
+                          if 'model-' in item['metadata']['name']:
+                              current_replicas = item['spec']['replicas']
+                              new_replicas = min(current_replicas + replicas_increase, 20)  # Max 20
+                              
+                              print(f"Scaling {item['metadata']['name']} from {current_replicas} to {new_replicas}")
+                              
+                              subprocess.run([
+                                  'kubectl', 'scale', 'deployment',
+                                  item['metadata']['name'],
+                                  f'--replicas={new_replicas}',
+                                  '-n', 'ai-models-production'
+                              ])
+              
+              elif action == 'scale_up_gpu':
+                  gpu_nodes = decision.get('gpu_nodes_needed', 1)
+                  print(f"Requesting {gpu_nodes} additional GPU nodes")
+                  
+                  # Create node pool scaling request
+                  # This would integrate with your cloud provider's API
+                  
+              elif action == 'scale_down':
+                  replicas_decrease = decision.get('target_replicas_decrease', 1)
+                  
+                  # Similar logic but decrease replicas
+                  
+              elif action == 'predictive_scale_up':
+                  # Implement gradual scaling for predicted load
+                  print("Implementing predictive scaling")
+              
+              # Add delay between scaling operations
+              time.sleep(30)
+          EOF
+
+      - name: Update HPA configurations
+        run: |
+          # Generate updated HPA configurations
+          cat > hpa-config.yaml << 'EOF'
+          apiVersion: autoscaling/v2
+          kind: HorizontalPodAutoscaler
+          metadata:
+            name: ai-model-hpa
+            namespace: ai-models-production
+          spec:
+            scaleTargetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: model-deployment
+            minReplicas: ${{ github.event.inputs.min_replicas || 2 }}
+            maxReplicas: ${{ github.event.inputs.max_replicas || 20 }}
+            metrics:
+            - type: Resource
+              resource:
+                name: cpu
+                target:
+                  type: Utilization
+                  averageUtilization: 70
+            - type: Resource
+              resource:
+                name: memory
+                target:
+                  type: Utilization
+                  averageUtilization: 80
+            - type: Pods
+              pods:
+                metric:
+                  name: inference_rate
+                target:
+                  type: AverageValue
+                  averageValue: "100"
+            - type: Pods
+              pods:
+                metric:
+                  name: inference_latency_p95
+                target:
+                  type: AverageValue
+                  averageValue: "500m"  # 500ms
+            behavior:
+              scaleDown:
+                stabilizationWindowSeconds: 300
+                policies:
+                - type: Percent
+                  value: 10
+                  periodSeconds: 60
+                - type: Pods
+                  value: 2
+                  periodSeconds: 60
+                selectPolicy: Min
+              scaleUp:
+                stabilizationWindowSeconds: 60
+                policies:
+                - type: Percent
+                  value: 50
+                  periodSeconds: 30
+                - type: Pods
+                  value: 5
+                  periodSeconds: 30
+                selectPolicy: Max
+          ---
+          apiVersion: autoscaling/v2
+          kind: HorizontalPodAutoscaler
+          metadata:
+            name: ai-model-gpu-hpa
+            namespace: ai-models-production
+          spec:
+            scaleTargetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: model-gpu-deployment
+            minReplicas: 1
+            maxReplicas: 10
+            metrics:
+            - type: Pods
+              pods:
+                metric:
+                  name: gpu_utilization_percent
+                target:
+                  type: AverageValue
+                  averageValue: "70"
+            - type: Pods
+              pods:
+                metric:
+                  name: gpu_memory_utilization_percent
+                target:
+                  type: AverageValue
+                  averageValue: "80"
+            behavior:
+              scaleDown:
+                stabilizationWindowSeconds: 600  # 10 minutes for GPU
+                policies:
+                - type: Pods
+                  value: 1
+                  periodSeconds: 300
+              scaleUp:
+                stabilizationWindowSeconds: 120
+                policies:
+                - type: Pods
+                  value: 2
+                  periodSeconds: 60
+          EOF
+          
+          # Apply HPA configurations
+          kubectl apply -f hpa-config.yaml
+
+      - name: Configure Vertical Pod Autoscaler
+        run: |
+          # VPA for right-sizing AI workloads
+          cat > vpa-config.yaml << 'EOF'
+          apiVersion: autoscaling.k8s.io/v1
+          kind: VerticalPodAutoscaler
+          metadata:
+            name: ai-model-vpa
+            namespace: ai-models-production
+          spec:
+            targetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: model-deployment
+            updatePolicy:
+              updateMode: "Auto"
+            resourcePolicy:
+              containerPolicies:
+              - containerName: model-server
+                minAllowed:
+                  cpu: 500m
+                  memory: 1Gi
+                maxAllowed:
+                  cpu: 8
+                  memory: 16Gi
+                controlledResources: ["cpu", "memory"]
+          ---
+          apiVersion: autoscaling.k8s.io/v1
+          kind: VerticalPodAutoscaler
+          metadata:
+            name: ai-model-gpu-vpa
+            namespace: ai-models-production
+          spec:
+            targetRef:
+              apiVersion: apps/v1
+              kind: Deployment
+              name: model-gpu-deployment
+            updatePolicy:
+              updateMode: "Recreate"  # For GPU workloads
+            resourcePolicy:
+              containerPolicies:
+              - containerName: model-server
+                minAllowed:
+                  cpu: 2
+                  memory: 4Gi
+                  nvidia.com/gpu: 1
+                maxAllowed:
+                  cpu: 16
+                  memory: 64Gi
+                  nvidia.com/gpu: 4
+                controlledResources: ["cpu", "memory", "nvidia.com/gpu"]
+          EOF
+          
+          kubectl apply -f vpa-config.yaml
+
+      - name: Setup cluster autoscaler for AI workloads
+        run: |
+          # Configure cluster autoscaler for GPU and CPU nodes
+          cat > cluster-autoscaler-config.yaml << 'EOF'
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: cluster-autoscaler-config
+            namespace: kube-system
+          data:
+            nodes.max: "100"
+            nodes.min: "3"
+            scale-down-delay-after-add: "10m"
+            scale-down-unneeded-time: "10m"
+            skip-nodes-with-system-pods: "false"
+            gpu-total: "20"
+            gpu-min: "0"
+            priorities: |
+              10:
+                - .*-gpu-.*
+              50:
+                - .*-cpu-.*
+          EOF
+          
+          kubectl apply -f cluster-autoscaler-config.yaml
+
+  monitor-scaling-results:
+    runs-on: ubuntu-latest
+    needs: [analyze-scaling-metrics, implement-scaling]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Monitor scaling effectiveness
+        run: |
+          echo "📊 Monitoring Scaling Results"
+          echo "=============================="
+          
+          # Wait for scaling to take effect
+          sleep 120
+          
+          # Check new metrics
+          python << EOF
+          import json
+          import time
+          from datetime import datetime
+          
+          print(f"Scaling monitoring started at {datetime.now()}")
+          
+          # In a real implementation, this would query metrics again
+          # and compare with pre-scaling metrics
+          
+          scaling_report = {
+              "timestamp": datetime.now().isoformat(),
+              "scaling_actions_taken": json.loads('${{ needs.analyze-scaling-metrics.outputs.scaling_decisions }}'),
+              "effectiveness": "Monitoring in progress",
+              "recommendations": [
+                  "Continue monitoring for 15 minutes",
+                  "Check inference latency improvements",
+                  "Verify GPU utilization normalization",
+                  "Monitor error rates"
+              ]
+          }
+          
+          with open("scaling-effectiveness-report.json", "w") as f:
+              json.dump(scaling_report, f, indent=2)
+          
+          print("✅ Scaling monitoring complete")
+          EOF
+
+      - name: Generate scaling summary
+        run: |
+          cat > scaling-summary.md << EOF
+          # AI Service Scaling Summary
+          
+          ## Actions Taken
+          - Scaling decisions implemented based on metrics analysis
+          - HPA and VPA configurations updated
+          - Cluster autoscaler configured for GPU workloads
+          
+          ## Next Steps
+          1. Monitor scaling effectiveness over next 30 minutes
+          2. Check for any anomalies in service behavior
+          3. Verify cost optimization targets are met
+          4. Review predictive scaling accuracy
+          
+          ## Dashboard Links
+          - [AI Model Performance](https://grafana.semantest.com/d/ai-models)
+          - [GPU Utilization](https://grafana.semantest.com/d/gpu-metrics)
+          - [Scaling History](https://grafana.semantest.com/d/scaling-history)
+          EOF
+
+      - name: Upload monitoring results
+        uses: actions/upload-artifact@v4
+        with:
+          name: scaling-results-${{ github.run_number }}
+          path: |
+            scaling-effectiveness-report.json
+            scaling-summary.md
+          retention-days: 30

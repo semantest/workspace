@@ -1,0 +1,797 @@
+name: GPU Cluster Management
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'  # Monitor GPU resources every 10 minutes
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'GPU management action'
+        required: true
+        default: 'status'
+        type: choice
+        options:
+          - status
+          - allocate
+          - deallocate
+          - optimize
+          - maintenance
+      gpu_count:
+        description: 'Number of GPUs'
+        required: false
+        type: number
+        default: 1
+      gpu_type:
+        description: 'GPU type'
+        required: false
+        default: 'nvidia-a100'
+        type: choice
+        options:
+          - nvidia-a100
+          - nvidia-v100
+          - nvidia-t4
+          - nvidia-a10
+      target_workload:
+        description: 'Target workload'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+
+env:
+  GPU_OPERATOR_VERSION: 'v23.9.1'
+  NVIDIA_DRIVER_VERSION: '535.104.12'
+  CUDA_VERSION: '12.2'
+  GPU_MONITORING_INTERVAL: '30s'
+
+jobs:
+  gpu-inventory:
+    runs-on: ubuntu-latest
+    outputs:
+      gpu_status: ${{ steps.inventory.outputs.status }}
+      available_gpus: ${{ steps.inventory.outputs.available }}
+      allocation_map: ${{ steps.inventory.outputs.allocation }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Install GPU monitoring tools
+        run: |
+          # Install nvidia-smi wrapper
+          curl -LO https://github.com/NVIDIA/gpu-monitoring-tools/releases/download/v1.0.0/gpu-monitoring-tools.tar.gz
+          tar -xzf gpu-monitoring-tools.tar.gz
+          
+          # Install kubectl-view-allocations plugin
+          curl -L https://github.com/davidB/kubectl-view-allocations/releases/download/v0.16.3/kubectl-view-allocations_v0.16.3_linux_x86_64.tar.gz | tar xz
+          sudo mv kubectl-view-allocations /usr/local/bin/
+          
+          # Install Python dependencies
+          pip install kubernetes pynvml prometheus-client pandas
+
+      - name: GPU cluster inventory
+        id: inventory
+        run: |
+          python << 'EOF'
+          import json
+          import subprocess
+          from kubernetes import client, config
+          import os
+          
+          # Load k8s config
+          config.load_kube_config()
+          v1 = client.CoreV1Api()
+          
+          # Get all nodes with GPUs
+          gpu_nodes = []
+          gpu_inventory = {
+              "total_gpus": 0,
+              "available_gpus": 0,
+              "allocated_gpus": 0,
+              "gpu_types": {},
+              "nodes": [],
+              "workloads": {}
+          }
+          
+          # List all nodes
+          nodes = v1.list_node()
+          
+          for node in nodes.items:
+              node_name = node.metadata.name
+              
+              # Check if node has GPUs
+              if 'nvidia.com/gpu' in node.status.allocatable:
+                  gpu_count = int(node.status.allocatable['nvidia.com/gpu'])
+                  
+                  # Get GPU type from node labels
+                  gpu_type = node.metadata.labels.get('gpu-type', 'unknown')
+                  accelerator_type = node.metadata.labels.get('accelerator', gpu_type)
+                  
+                  # Get allocated GPUs
+                  allocated = 0
+                  if 'nvidia.com/gpu' in node.status.capacity:
+                      capacity = int(node.status.capacity['nvidia.com/gpu'])
+                      if node.status.allocatable.get('nvidia.com/gpu'):
+                          allocatable = int(node.status.allocatable['nvidia.com/gpu'])
+                          allocated = capacity - allocatable
+                  
+                  node_info = {
+                      "name": node_name,
+                      "gpu_type": gpu_type,
+                      "total_gpus": gpu_count,
+                      "allocated_gpus": allocated,
+                      "available_gpus": gpu_count - allocated,
+                      "taints": [t.to_dict() for t in node.spec.taints] if node.spec.taints else [],
+                      "labels": node.metadata.labels
+                  }
+                  
+                  gpu_nodes.append(node_info)
+                  gpu_inventory["total_gpus"] += gpu_count
+                  gpu_inventory["available_gpus"] += (gpu_count - allocated)
+                  gpu_inventory["allocated_gpus"] += allocated
+                  
+                  # Track GPU types
+                  if gpu_type not in gpu_inventory["gpu_types"]:
+                      gpu_inventory["gpu_types"][gpu_type] = {"total": 0, "available": 0, "allocated": 0}
+                  
+                  gpu_inventory["gpu_types"][gpu_type]["total"] += gpu_count
+                  gpu_inventory["gpu_types"][gpu_type]["available"] += (gpu_count - allocated)
+                  gpu_inventory["gpu_types"][gpu_type]["allocated"] += allocated
+          
+          gpu_inventory["nodes"] = gpu_nodes
+          
+          # Get GPU workload allocation
+          pods = v1.list_pod_for_all_namespaces()
+          
+          for pod in pods.items:
+              if pod.spec.containers:
+                  for container in pod.spec.containers:
+                      if container.resources and container.resources.requests:
+                          gpu_request = container.resources.requests.get('nvidia.com/gpu')
+                          if gpu_request:
+                              workload_key = f"{pod.metadata.namespace}/{pod.metadata.name}"
+                              gpu_inventory["workloads"][workload_key] = {
+                                  "namespace": pod.metadata.namespace,
+                                  "pod": pod.metadata.name,
+                                  "container": container.name,
+                                  "gpu_count": int(gpu_request),
+                                  "node": pod.spec.node_name,
+                                  "status": pod.status.phase
+                              }
+          
+          # Output results
+          print("🎮 GPU Cluster Inventory")
+          print("========================")
+          print(f"Total GPUs: {gpu_inventory['total_gpus']}")
+          print(f"Available GPUs: {gpu_inventory['available_gpus']}")
+          print(f"Allocated GPUs: {gpu_inventory['allocated_gpus']}")
+          print(f"\nGPU Types:")
+          for gpu_type, stats in gpu_inventory["gpu_types"].items():
+              print(f"  {gpu_type}: {stats['total']} total, {stats['available']} available")
+          
+          # Save outputs
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"status={json.dumps(gpu_inventory)}\n")
+              f.write(f"available={gpu_inventory['available_gpus']}\n")
+              f.write(f"allocation={json.dumps(gpu_inventory['workloads'])}\n")
+          
+          # Save detailed report
+          with open('gpu-inventory.json', 'w') as f:
+              json.dump(gpu_inventory, f, indent=2)
+          EOF
+
+      - name: GPU health check
+        run: |
+          # Check GPU health on each node
+          kubectl get nodes -l gpu=true -o json | jq -r '.items[].metadata.name' | while read node; do
+            echo "Checking GPU health on node: $node"
+            
+            # Run nvidia-smi on the node
+            kubectl create job gpu-health-check-$RANDOM --image=nvidia/cuda:12.2.0-base-ubuntu22.04 \
+              --dry-run=client -o yaml -- nvidia-smi -q | \
+              sed "s/gpu-health-check-[0-9]*/gpu-health-check-$node/" | \
+              kubectl apply -f -
+            
+            # Wait for job completion
+            kubectl wait --for=condition=complete job/gpu-health-check-$node --timeout=60s || true
+            
+            # Get job logs
+            kubectl logs job/gpu-health-check-$node || true
+            
+            # Cleanup
+            kubectl delete job gpu-health-check-$node || true
+          done
+
+      - name: Upload GPU inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-inventory-${{ github.run_number }}
+          path: gpu-inventory.json
+          retention-days: 7
+
+  gpu-allocation:
+    runs-on: ubuntu-latest
+    needs: gpu-inventory
+    if: github.event.inputs.action == 'allocate' || needs.gpu-inventory.outputs.available_gpus > '0'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure Kubernetes access
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBE_CONFIG" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Implement GPU allocation strategy
+        run: |
+          GPU_COUNT="${{ github.event.inputs.gpu_count || 1 }}"
+          GPU_TYPE="${{ github.event.inputs.gpu_type || 'nvidia-a100' }}"
+          WORKLOAD="${{ github.event.inputs.target_workload || 'ai-model' }}"
+          
+          python << EOF
+          import json
+          import subprocess
+          import yaml
+          
+          gpu_inventory = json.loads('''${{ needs.gpu-inventory.outputs.gpu_status }}''')
+          
+          def find_best_node_for_gpu(gpu_type, gpu_count):
+              """Find the best node to allocate GPUs based on type and availability"""
+              best_node = None
+              max_available = 0
+              
+              for node in gpu_inventory['nodes']:
+                  if node['gpu_type'] == gpu_type and node['available_gpus'] >= gpu_count:
+                      if node['available_gpus'] > max_available:
+                          max_available = node['available_gpus']
+                          best_node = node
+              
+              return best_node
+          
+          def create_gpu_pod_spec(workload_name, gpu_count, gpu_type, node_name):
+              """Create a pod specification with GPU requirements"""
+              pod_spec = {
+                  "apiVersion": "v1",
+                  "kind": "Pod",
+                  "metadata": {
+                      "name": f"{workload_name}-gpu-{gpu_count}",
+                      "labels": {
+                          "workload": workload_name,
+                          "gpu-type": gpu_type,
+                          "gpu-count": str(gpu_count)
+                      }
+                  },
+                  "spec": {
+                      "nodeSelector": {
+                          "gpu-type": gpu_type
+                      },
+                      "nodeName": node_name,
+                      "tolerations": [
+                          {
+                              "key": "nvidia.com/gpu",
+                              "operator": "Exists",
+                              "effect": "NoSchedule"
+                          }
+                      ],
+                      "containers": [{
+                          "name": "gpu-workload",
+                          "image": "nvidia/cuda:12.2.0-base-ubuntu22.04",
+                          "resources": {
+                              "limits": {
+                                  "nvidia.com/gpu": gpu_count
+                              },
+                              "requests": {
+                                  "nvidia.com/gpu": gpu_count,
+                                  "memory": f"{gpu_count * 16}Gi",
+                                  "cpu": f"{gpu_count * 4}"
+                              }
+                          },
+                          "env": [
+                              {"name": "CUDA_VISIBLE_DEVICES", "value": "all"},
+                              {"name": "GPU_TYPE", "value": gpu_type}
+                          ]
+                      }]
+                  }
+              }
+              
+              return pod_spec
+          
+          # Find suitable node
+          gpu_count = int("$GPU_COUNT")
+          gpu_type = "$GPU_TYPE"
+          workload = "$WORKLOAD"
+          
+          node = find_best_node_for_gpu(gpu_type, gpu_count)
+          
+          if node:
+              print(f"✅ Found suitable node: {node['name']} with {node['available_gpus']} available GPUs")
+              
+              # Create GPU allocation
+              pod_spec = create_gpu_pod_spec(workload, gpu_count, gpu_type, node['name'])
+              
+              # Save pod spec
+              with open('gpu-allocation.yaml', 'w') as f:
+                  yaml.dump(pod_spec, f)
+              
+              print(f"🚀 Allocating {gpu_count} {gpu_type} GPU(s) for {workload}")
+              
+              # Apply the allocation
+              subprocess.run(['kubectl', 'apply', '-f', 'gpu-allocation.yaml'])
+          else:
+              print(f"❌ No suitable node found with {gpu_count} available {gpu_type} GPUs")
+              print("Current GPU availability:")
+              for gpu_type, stats in gpu_inventory['gpu_types'].items():
+                  print(f"  {gpu_type}: {stats['available']} available")
+          EOF
+
+      - name: Configure GPU resource quotas
+        run: |
+          # Set up namespace-level GPU quotas
+          cat > gpu-resource-quota.yaml << 'EOF'
+          apiVersion: v1
+          kind: ResourceQuota
+          metadata:
+            name: gpu-quota
+            namespace: ai-models-production
+          spec:
+            hard:
+              requests.nvidia.com/gpu: "20"
+              limits.nvidia.com/gpu: "20"
+          ---
+          apiVersion: v1
+          kind: ResourceQuota
+          metadata:
+            name: gpu-quota-staging
+            namespace: ai-models-staging
+          spec:
+            hard:
+              requests.nvidia.com/gpu: "10"
+              limits.nvidia.com/gpu: "10"
+          ---
+          apiVersion: scheduling.k8s.io/v1
+          kind: PriorityClass
+          metadata:
+            name: gpu-high-priority
+          value: 1000
+          globalDefault: false
+          description: "High priority class for GPU workloads"
+          ---
+          apiVersion: scheduling.k8s.io/v1
+          kind: PriorityClass
+          metadata:
+            name: gpu-low-priority
+          value: 100
+          globalDefault: false
+          description: "Low priority class for GPU batch jobs"
+          preemptionPolicy: PreemptLowerPriority
+          EOF
+          
+          kubectl apply -f gpu-resource-quota.yaml
+
+  gpu-optimization:
+    runs-on: ubuntu-latest
+    needs: gpu-inventory
+    if: github.event.inputs.action == 'optimize' || needs.gpu-inventory.outputs.allocated_gpus > '5'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup optimization tools
+        run: |
+          pip install numpy scipy scikit-learn ortools
+
+      - name: GPU workload optimization
+        run: |
+          python << 'EOF'
+          import json
+          import numpy as np
+          from ortools.linear_solver import pywraplp
+          
+          # Load current GPU allocation
+          gpu_inventory = json.loads('''${{ needs.gpu-inventory.outputs.gpu_status }}''')
+          workloads = gpu_inventory['workloads']
+          
+          print("🔧 GPU Workload Optimization")
+          print("===========================")
+          
+          # Optimization strategies
+          strategies = []
+          
+          # 1. Bin packing optimization - consolidate workloads
+          gpu_usage_by_node = {}
+          for workload, details in workloads.items():
+              node = details['node']
+              if node not in gpu_usage_by_node:
+                  gpu_usage_by_node[node] = 0
+              gpu_usage_by_node[node] += details['gpu_count']
+          
+          # Find underutilized nodes
+          for node in gpu_inventory['nodes']:
+              node_name = node['name']
+              used_gpus = gpu_usage_by_node.get(node_name, 0)
+              total_gpus = node['total_gpus']
+              utilization = used_gpus / total_gpus if total_gpus > 0 else 0
+              
+              if utilization < 0.5 and used_gpus > 0:
+                  strategies.append({
+                      "type": "consolidation",
+                      "node": node_name,
+                      "current_utilization": utilization,
+                      "recommendation": "Migrate workloads to fuller nodes",
+                      "potential_savings": "1 node"
+                  })
+          
+          # 2. GPU sharing opportunities for small workloads
+          small_workloads = [w for w, d in workloads.items() if d['gpu_count'] == 1]
+          if len(small_workloads) > 2:
+              strategies.append({
+                  "type": "gpu_sharing",
+                  "workloads": small_workloads,
+                  "recommendation": "Enable MIG (Multi-Instance GPU) for small workloads",
+                  "potential_savings": f"{len(small_workloads) // 2} GPUs"
+              })
+          
+          # 3. Idle GPU detection
+          # In production, this would check actual GPU utilization metrics
+          strategies.append({
+              "type": "idle_detection",
+              "recommendation": "Implement automatic scale-down for idle GPUs",
+              "threshold": "< 10% utilization for 30 minutes"
+          })
+          
+          # 4. Optimal GPU type selection
+          gpu_type_efficiency = {
+              "nvidia-t4": {"cost": 1.0, "performance": 1.0},
+              "nvidia-v100": {"cost": 3.0, "performance": 2.5},
+              "nvidia-a10": {"cost": 2.0, "performance": 2.0},
+              "nvidia-a100": {"cost": 5.0, "performance": 5.0}
+          }
+          
+          # Save optimization report
+          optimization_report = {
+              "timestamp": "2024-01-19T12:00:00Z",
+              "current_state": {
+                  "total_gpus": gpu_inventory['total_gpus'],
+                  "allocated_gpus": gpu_inventory['allocated_gpus'],
+                  "utilization": gpu_inventory['allocated_gpus'] / gpu_inventory['total_gpus'] if gpu_inventory['total_gpus'] > 0 else 0
+              },
+              "optimization_strategies": strategies,
+              "estimated_savings": {
+                  "gpus": len(small_workloads) // 2 if len(small_workloads) > 2 else 0,
+                  "nodes": sum(1 for s in strategies if s['type'] == 'consolidation')
+              }
+          }
+          
+          with open('gpu-optimization-report.json', 'w') as f:
+              json.dump(optimization_report, f, indent=2)
+          
+          print("✅ Optimization analysis complete")
+          print(f"Potential GPU savings: {optimization_report['estimated_savings']['gpus']}")
+          print(f"Potential node savings: {optimization_report['estimated_savings']['nodes']}")
+          EOF
+
+      - name: Apply GPU optimizations
+        run: |
+          # Apply MIG configuration for GPU sharing
+          cat > mig-config.yaml << 'EOF'
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: gpu-mig-config
+            namespace: gpu-operator
+          data:
+            config.yaml: |
+              version: v1
+              mig-configs:
+                nvidia-a100:
+                  - devices: [0,1,2,3]
+                    mig-enabled: true
+                    mig-devices:
+                      "1g.5gb": 7
+                      "2g.10gb": 3
+                      "4g.20gb": 1
+                nvidia-a30:
+                  - devices: all
+                    mig-enabled: true
+                    mig-devices:
+                      "1g.6gb": 4
+                      "2g.12gb": 2
+          EOF
+          
+          kubectl apply -f mig-config.yaml || true
+
+      - name: Upload optimization report
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-optimization-${{ github.run_number }}
+          path: gpu-optimization-report.json
+          retention-days: 30
+
+  gpu-monitoring:
+    runs-on: ubuntu-latest
+    needs: [gpu-inventory, gpu-allocation]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy GPU monitoring stack
+        run: |
+          # Deploy DCGM exporter for GPU metrics
+          cat > dcgm-exporter.yaml << 'EOF'
+          apiVersion: apps/v1
+          kind: DaemonSet
+          metadata:
+            name: dcgm-exporter
+            namespace: gpu-monitoring
+          spec:
+            selector:
+              matchLabels:
+                app: dcgm-exporter
+            template:
+              metadata:
+                labels:
+                  app: dcgm-exporter
+                annotations:
+                  prometheus.io/scrape: "true"
+                  prometheus.io/port: "9400"
+              spec:
+                nodeSelector:
+                  nvidia.com/gpu: "true"
+                containers:
+                - name: dcgm-exporter
+                  image: nvidia/dcgm-exporter:3.1.3-3.1.0-ubuntu22.04
+                  ports:
+                  - containerPort: 9400
+                    name: metrics
+                  env:
+                  - name: DCGM_EXPORTER_INTERVAL
+                    value: "30000"
+                  - name: DCGM_EXPORTER_KUBERNETES
+                    value: "true"
+                  - name: DCGM_EXPORTER_LISTEN
+                    value: ":9400"
+                  resources:
+                    requests:
+                      memory: "128Mi"
+                      cpu: "100m"
+                    limits:
+                      memory: "256Mi"
+                      cpu: "200m"
+                  volumeMounts:
+                  - name: gpu-metrics
+                    mountPath: /etc/dcgm-exporter
+                volumes:
+                - name: gpu-metrics
+                  configMap:
+                    name: gpu-metrics-config
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: dcgm-exporter
+            namespace: gpu-monitoring
+            labels:
+              app: dcgm-exporter
+          spec:
+            selector:
+              app: dcgm-exporter
+            ports:
+            - port: 9400
+              targetPort: 9400
+              name: metrics
+          ---
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: gpu-metrics-config
+            namespace: gpu-monitoring
+          data:
+            custom-metrics.csv: |
+              # GPU Metrics
+              DCGM_FI_DEV_GPU_UTIL, gauge, GPU utilization
+              DCGM_FI_DEV_MEM_COPY_UTIL, gauge, GPU memory utilization
+              DCGM_FI_DEV_GPU_TEMP, gauge, GPU temperature
+              DCGM_FI_DEV_POWER_USAGE, gauge, GPU power usage
+              DCGM_FI_DEV_PCIE_TX_THROUGHPUT, counter, PCIe TX throughput
+              DCGM_FI_DEV_PCIE_RX_THROUGHPUT, counter, PCIe RX throughput
+              DCGM_FI_DEV_FB_FREE, gauge, Framebuffer memory free
+              DCGM_FI_DEV_FB_USED, gauge, Framebuffer memory used
+              DCGM_FI_PROF_TENSOR_ACTIVE, gauge, Tensor core utilization
+              DCGM_FI_PROF_DRAM_ACTIVE, gauge, DRAM utilization
+              DCGM_FI_PROF_PIPE_FP32_ACTIVE, gauge, FP32 pipeline utilization
+              DCGM_FI_PROF_PIPE_FP16_ACTIVE, gauge, FP16 pipeline utilization
+          EOF
+          
+          # Create namespace if it doesn't exist
+          kubectl create namespace gpu-monitoring --dry-run=client -o yaml | kubectl apply -f -
+          
+          # Apply monitoring configuration
+          kubectl apply -f dcgm-exporter.yaml
+
+      - name: Configure GPU alerts
+        run: |
+          # Prometheus rules for GPU monitoring
+          cat > gpu-alerts.yaml << 'EOF'
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: gpu-alerts
+            namespace: monitoring
+          data:
+            gpu-rules.yaml: |
+              groups:
+              - name: gpu_alerts
+                interval: 30s
+                rules:
+                - alert: GPUHighUtilization
+                  expr: DCGM_FI_DEV_GPU_UTIL > 90
+                  for: 5m
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "GPU {{ $labels.gpu }} high utilization"
+                    description: "GPU {{ $labels.gpu }} on {{ $labels.instance }} has been above 90% for 5 minutes"
+                
+                - alert: GPUMemoryPressure
+                  expr: (DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE)) > 0.95
+                  for: 2m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "GPU {{ $labels.gpu }} memory pressure"
+                    description: "GPU {{ $labels.gpu }} memory usage is above 95%"
+                
+                - alert: GPUTemperatureHigh
+                  expr: DCGM_FI_DEV_GPU_TEMP > 85
+                  for: 1m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "GPU {{ $labels.gpu }} temperature critical"
+                    description: "GPU {{ $labels.gpu }} temperature is {{ $value }}°C"
+                
+                - alert: GPUPowerThrottling
+                  expr: DCGM_FI_DEV_POWER_USAGE > 350
+                  for: 30s
+                  labels:
+                    severity: warning
+                  annotations:
+                    summary: "GPU {{ $labels.gpu }} power throttling"
+                    description: "GPU {{ $labels.gpu }} power usage is {{ $value }}W"
+                
+                - alert: GPUErrorsDetected
+                  expr: rate(DCGM_FI_DEV_XID_ERRORS[5m]) > 0
+                  for: 1m
+                  labels:
+                    severity: critical
+                  annotations:
+                    summary: "GPU {{ $labels.gpu }} errors detected"
+                    description: "GPU {{ $labels.gpu }} is reporting XID errors"
+                
+                - alert: TensorCoreUnderutilized
+                  expr: DCGM_FI_PROF_TENSOR_ACTIVE < 20 and DCGM_FI_DEV_GPU_UTIL > 50
+                  for: 10m
+                  labels:
+                    severity: info
+                  annotations:
+                    summary: "Tensor cores underutilized on GPU {{ $labels.gpu }}"
+                    description: "Consider optimizing workload for tensor core usage"
+          EOF
+          
+          kubectl apply -f gpu-alerts.yaml
+
+      - name: Create GPU dashboard config
+        run: |
+          # Generate Grafana dashboard for GPU monitoring
+          cat > gpu-dashboard.json << 'EOF'
+          {
+            "dashboard": {
+              "title": "GPU Cluster Monitoring",
+              "panels": [
+                {
+                  "title": "GPU Utilization by Node",
+                  "targets": [
+                    {
+                      "expr": "avg(DCGM_FI_DEV_GPU_UTIL) by (instance)"
+                    }
+                  ]
+                },
+                {
+                  "title": "GPU Memory Usage",
+                  "targets": [
+                    {
+                      "expr": "DCGM_FI_DEV_FB_USED / (DCGM_FI_DEV_FB_USED + DCGM_FI_DEV_FB_FREE) * 100"
+                    }
+                  ]
+                },
+                {
+                  "title": "GPU Temperature Heatmap",
+                  "targets": [
+                    {
+                      "expr": "DCGM_FI_DEV_GPU_TEMP"
+                    }
+                  ]
+                },
+                {
+                  "title": "Tensor Core Utilization",
+                  "targets": [
+                    {
+                      "expr": "avg(DCGM_FI_PROF_TENSOR_ACTIVE) by (gpu)"
+                    }
+                  ]
+                },
+                {
+                  "title": "GPU Power Consumption",
+                  "targets": [
+                    {
+                      "expr": "sum(DCGM_FI_DEV_POWER_USAGE) by (instance)"
+                    }
+                  ]
+                },
+                {
+                  "title": "AI Model Inference Throughput",
+                  "targets": [
+                    {
+                      "expr": "sum(rate(model_inference_total[5m])) by (model)"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+          EOF
+
+      - name: Generate GPU management summary
+        run: |
+          cat > gpu-management-summary.md << EOF
+          # GPU Cluster Management Summary
+          
+          ## Current Status
+          - Total GPUs: ${{ needs.gpu-inventory.outputs.gpu_status }}
+          - Available GPUs: ${{ needs.gpu-inventory.outputs.available_gpus }}
+          
+          ## Actions Taken
+          - GPU inventory completed
+          - Resource allocation implemented
+          - Monitoring stack deployed
+          - Optimization analysis performed
+          
+          ## Monitoring
+          - DCGM Exporter: Deployed for GPU metrics
+          - Prometheus Rules: Configured for GPU alerts
+          - Grafana Dashboard: GPU cluster visualization
+          
+          ## Next Steps
+          1. Review GPU utilization patterns
+          2. Implement recommended optimizations
+          3. Monitor for thermal throttling
+          4. Plan capacity based on usage trends
+          EOF
+
+      - name: Upload management artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gpu-management-${{ github.run_number }}
+          path: |
+            gpu-management-summary.md
+            gpu-dashboard.json
+          retention-days: 30

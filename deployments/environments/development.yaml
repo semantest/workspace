@@ -1,0 +1,166 @@
+# Development Environment Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: semantest-development
+  labels:
+    environment: development
+    compliance: basic
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: semantest-config
+  namespace: semantest-development
+data:
+  NODE_ENV: "development"
+  LOG_LEVEL: "debug"
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "false"
+  CACHE_TTL: "300"
+  RATE_LIMIT_WINDOW: "60000"
+  RATE_LIMIT_MAX: "100"
+  CORS_ORIGINS: "*"
+  DATABASE_POOL_SIZE: "5"
+  REDIS_POOL_SIZE: "2"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: semantest-secrets
+  namespace: semantest-development
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://semantest:devpassword@postgres-dev:5432/semantest_dev"
+  REDIS_URL: "redis://redis-dev:6379"
+  JWT_SECRET: "dev-jwt-secret-change-in-production"
+  API_ENCRYPTION_KEY: "dev-encryption-key-change-in-production"
+  SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK_DEV}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: semantest-service-account
+  namespace: semantest-development
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: semantest-development
+  name: semantest-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: semantest-rolebinding
+  namespace: semantest-development
+subjects:
+- kind: ServiceAccount
+  name: semantest-service-account
+  namespace: semantest-development
+roleRef:
+  kind: Role
+  name: semantest-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Development Service Configuration
+apiVersion: v1
+kind: Service
+metadata:
+  name: semantest-service
+  namespace: semantest-development
+  labels:
+    app: semantest
+    environment: development
+spec:
+  type: ClusterIP
+  selector:
+    app: semantest
+    slot: blue  # Default to blue slot
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+---
+# Ingress for Development
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: semantest-ingress
+  namespace: semantest-development
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  tls:
+  - hosts:
+    - dev.semantest.com
+    secretName: semantest-dev-tls
+  rules:
+  - host: dev.semantest.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: semantest-service
+            port:
+              number: 80
+---
+# Network Policy for Development (More Permissive)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: semantest-network-policy
+  namespace: semantest-development
+spec:
+  podSelector:
+    matchLabels:
+      app: semantest
+  policyTypes:
+  - Ingress
+  ingress:
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 9090
+---
+# Simple HPA for Development
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: semantest-hpa
+  namespace: semantest-development
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: semantest-blue
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80

@@ -1,0 +1,251 @@
+# Production Environment Configuration
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: semantest-production
+  labels:
+    environment: production
+    compliance: enterprise
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: semantest-config
+  namespace: semantest-production
+data:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+  CACHE_TTL: "3600"
+  RATE_LIMIT_WINDOW: "60000"
+  RATE_LIMIT_MAX: "1000"
+  CORS_ORIGINS: "https://semantest.com,https://app.semantest.com"
+  DATABASE_POOL_SIZE: "20"
+  REDIS_POOL_SIZE: "10"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: semantest-secrets
+  namespace: semantest-production
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://semantest:${DB_PASSWORD}@postgres-cluster:5432/semantest_prod"
+  REDIS_URL: "redis://redis-cluster:6379"
+  JWT_SECRET: "${JWT_SECRET}"
+  API_ENCRYPTION_KEY: "${ENCRYPTION_KEY}"
+  SLACK_WEBHOOK_URL: "${SLACK_WEBHOOK}"
+  DATADOG_API_KEY: "${DATADOG_API_KEY}"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: semantest-service-account
+  namespace: semantest-production
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::${AWS_ACCOUNT_ID}:role/SemanTestProdRole
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: semantest-production
+  name: semantest-role
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: semantest-rolebinding
+  namespace: semantest-production
+subjects:
+- kind: ServiceAccount
+  name: semantest-service-account
+  namespace: semantest-production
+roleRef:
+  kind: Role
+  name: semantest-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Production Service Configuration
+apiVersion: v1
+kind: Service
+metadata:
+  name: semantest-service
+  namespace: semantest-production
+  labels:
+    app: semantest
+    environment: production
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "${SSL_CERT_ARN}"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+spec:
+  type: LoadBalancer
+  selector:
+    app: semantest
+    slot: blue  # Default to blue slot
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP
+  - name: https
+    port: 443
+    targetPort: 3000
+    protocol: TCP
+  - name: metrics
+    port: 9090
+    targetPort: 9090
+    protocol: TCP
+---
+# Network Policy for Production Security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: semantest-network-policy
+  namespace: semantest-production
+spec:
+  podSelector:
+    matchLabels:
+      app: semantest
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring-production
+    ports:
+    - protocol: TCP
+      port: 3000
+    - protocol: TCP
+      port: 9090
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  - to: []
+    ports:
+    - protocol: TCP
+      port: 443  # HTTPS
+    - protocol: TCP
+      port: 53   # DNS
+    - protocol: UDP
+      port: 53   # DNS
+  - to:
+    - podSelector:
+        matchLabels:
+          app: postgres
+    ports:
+    - protocol: TCP
+      port: 5432
+  - to:
+    - podSelector:
+        matchLabels:
+          app: redis
+    ports:
+    - protocol: TCP
+      port: 6379
+---
+# Pod Disruption Budget for High Availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: semantest-pdb
+  namespace: semantest-production
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: semantest
+---
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: semantest-hpa
+  namespace: semantest-production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: semantest-blue
+  minReplicas: 3
+  maxReplicas: 50
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+      - type: Pods
+        value: 4
+        periodSeconds: 15
+      selectPolicy: Max
+---
+# Security Context Constraints
+apiVersion: v1
+kind: SecurityContextConstraints
+metadata:
+  name: semantest-scc
+allowHostDirVolumePlugin: false
+allowHostIPC: false
+allowHostNetwork: false
+allowHostPID: false
+allowHostPorts: false
+allowPrivilegedContainer: false
+allowedCapabilities: []
+defaultAddCapabilities: []
+fsGroup:
+  type: MustRunAs
+  ranges:
+  - min: 1001
+    max: 1001
+readOnlyRootFilesystem: true
+requiredDropCapabilities:
+- ALL
+runAsUser:
+  type: MustRunAs
+  uid: 1001
+seLinuxContext:
+  type: MustRunAs
+volumes:
+- configMap
+- downwardAPI
+- emptyDir
+- persistentVolumeClaim
+- projected
+- secret

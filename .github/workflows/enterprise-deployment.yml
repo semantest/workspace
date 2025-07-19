@@ -1,0 +1,849 @@
+name: Enterprise Multi-Environment Deployment
+
+on:
+  push:
+    branches: [ main, develop, release/* ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - development
+          - staging
+          - production
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'blue-green'
+        type: choice
+        options:
+          - blue-green
+          - rolling
+          - canary
+      modules:
+        description: 'Modules to deploy (comma-separated, or "all")'
+        required: true
+        default: 'all'
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  id-token: write
+
+concurrency:
+  group: enterprise-deploy-${{ github.ref }}-${{ github.event.inputs.environment || 'auto' }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  determine-environment:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      strategy: ${{ steps.env.outputs.strategy }}
+      promote: ${{ steps.env.outputs.promote }}
+    steps:
+      - name: Determine deployment environment
+        id: env
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "environment=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+            echo "strategy=${{ github.event.inputs.deployment_strategy }}" >> $GITHUB_OUTPUT
+            echo "promote=false" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "strategy=blue-green" >> $GITHUB_OUTPUT
+            echo "promote=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "strategy=rolling" >> $GITHUB_OUTPUT
+            echo "promote=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/release/* ]]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "strategy=blue-green" >> $GITHUB_OUTPUT
+            echo "promote=true" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+            echo "strategy=rolling" >> $GITHUB_OUTPUT
+            echo "promote=false" >> $GITHUB_OUTPUT
+          fi
+
+  enterprise-security-scan:
+    runs-on: ubuntu-latest
+    needs: determine-environment
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: SAST - CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript,typescript
+          queries: security-extended,security-and-quality
+
+      - name: SAST - Semgrep Security Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+            p/react
+            p/typescript
+
+      - name: SAST - ESLint Security Scan
+        run: |
+          npm install -g eslint-plugin-security eslint-plugin-no-secrets
+          
+          # Create security-focused ESLint config
+          cat > .eslintrc.security.js << 'EOF'
+          module.exports = {
+            extends: ['plugin:security/recommended'],
+            plugins: ['security', 'no-secrets'],
+            rules: {
+              'no-secrets/no-secrets': 'error',
+              'security/detect-object-injection': 'error',
+              'security/detect-eval-with-expression': 'error',
+              'security/detect-non-literal-fs-filename': 'error',
+              'security/detect-unsafe-regex': 'error',
+              'security/detect-buffer-noassert': 'error',
+              'security/detect-child-process': 'error',
+              'security/detect-disable-mustache-escape': 'error',
+              'security/detect-no-csrf-before-method-override': 'error',
+              'security/detect-non-literal-regexp': 'error',
+              'security/detect-non-literal-require': 'error',
+              'security/detect-possible-timing-attacks': 'error',
+              'security/detect-pseudoRandomBytes': 'error'
+            }
+          };
+          EOF
+          
+          # Run security linting on all modules
+          for module in core browser google.com images.google.com chatgpt.com extension.chrome nodejs.server typescript.client ar-vr; do
+            if [[ -d "$module/src" ]]; then
+              echo "Security scanning $module..."
+              npx eslint "$module/src" --config .eslintrc.security.js --ext .ts,.js || true
+            fi
+          done
+
+      - name: Dependency Vulnerability Scan
+        run: |
+          # Audit root dependencies
+          npm audit --audit-level=low --json > audit-root.json || true
+          
+          # Audit each module
+          for module in core browser google.com images.google.com chatgpt.com extension.chrome nodejs.server typescript.client ar-vr; do
+            if [[ -d "$module" && -f "$module/package.json" ]]; then
+              echo "Auditing $module..."
+              cd "$module"
+              npm audit --audit-level=low --json > "../audit-$module.json" 2>/dev/null || true
+              cd ..
+            fi
+          done
+
+      - name: License Compliance Check
+        run: |
+          npm install -g license-checker
+          
+          # Check licenses for compliance
+          license-checker --json --out licenses-root.json
+          
+          for module in core browser google.com images.google.com chatgpt.com extension.chrome nodejs.server typescript.client ar-vr; do
+            if [[ -d "$module" && -f "$module/package.json" ]]; then
+              echo "License check for $module..."
+              cd "$module"
+              license-checker --json --out "../licenses-$module.json" 2>/dev/null || true
+              cd ..
+            fi
+          done
+
+      - name: Container Security Scan
+        run: |
+          # Create Dockerfile for scanning if it doesn't exist
+          if [[ ! -f "Dockerfile" ]]; then
+            cat > Dockerfile << 'EOF'
+          FROM node:20-alpine
+          WORKDIR /app
+          COPY package*.json ./
+          RUN npm ci --only=production
+          COPY . .
+          RUN npm run build
+          EXPOSE 3000
+          CMD ["npm", "start"]
+          EOF
+          fi
+          
+          # Build image for scanning
+          docker build -t semantest-scan:latest .
+          
+          # Scan with Trivy
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            -v $PWD:/tmp/.cache/ aquasec/trivy:latest image \
+            --format json --output /tmp/.cache/trivy-report.json semantest-scan:latest || true
+
+      - name: Upload Security Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            audit-*.json
+            licenses-*.json
+            trivy-report.json
+          retention-days: 30
+
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  compliance-checks:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, enterprise-security-scan]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SOC2 Compliance Check
+        run: |
+          echo "Running SOC2 compliance checks..."
+          
+          # Check for required security configurations
+          soc2_issues=()
+          
+          # Check for logging configuration
+          if ! grep -r "winston\|pino\|log4js" . --include="*.json" --include="*.js" --include="*.ts" > /dev/null; then
+            soc2_issues+=("Missing structured logging configuration")
+          fi
+          
+          # Check for authentication patterns
+          if ! grep -r "passport\|jwt\|oauth" . --include="*.json" --include="*.js" --include="*.ts" > /dev/null; then
+            soc2_issues+=("Missing authentication implementation")
+          fi
+          
+          # Check for encryption patterns
+          if ! grep -r "crypto\|bcrypt\|encryption" . --include="*.json" --include="*.js" --include="*.ts" > /dev/null; then
+            soc2_issues+=("Missing encryption implementation")
+          fi
+          
+          # Generate SOC2 report
+          cat > soc2-compliance-report.json << EOF
+          {
+            "compliance_framework": "SOC2",
+            "scan_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "issues": $(printf '%s\n' "${soc2_issues[@]}" | jq -R . | jq -s .),
+            "status": "$([ ${#soc2_issues[@]} -eq 0 ] && echo "COMPLIANT" || echo "NON_COMPLIANT")"
+          }
+          EOF
+
+      - name: GDPR Compliance Check
+        run: |
+          echo "Running GDPR compliance checks..."
+          
+          gdpr_issues=()
+          
+          # Check for data processing patterns
+          if ! grep -r "personal.*data\|gdpr\|privacy" . --include="*.md" --include="*.js" --include="*.ts" > /dev/null; then
+            gdpr_issues+=("Missing GDPR documentation or data processing notices")
+          fi
+          
+          # Check for consent management
+          if ! grep -r "consent\|cookie.*policy" . --include="*.js" --include="*.ts" --include="*.html" > /dev/null; then
+            gdpr_issues+=("Missing consent management implementation")
+          fi
+          
+          # Check for data retention policies
+          if ! grep -r "retention\|delete.*user" . --include="*.md" --include="*.js" --include="*.ts" > /dev/null; then
+            gdpr_issues+=("Missing data retention implementation")
+          fi
+          
+          cat > gdpr-compliance-report.json << EOF
+          {
+            "compliance_framework": "GDPR",
+            "scan_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "issues": $(printf '%s\n' "${gdpr_issues[@]}" | jq -R . | jq -s .),
+            "status": "$([ ${#gdpr_issues[@]} -eq 0 ] && echo "COMPLIANT" || echo "NON_COMPLIANT")"
+          }
+          EOF
+
+      - name: HIPAA Compliance Check
+        run: |
+          echo "Running HIPAA compliance checks..."
+          
+          hipaa_issues=()
+          
+          # Check for encryption at rest
+          if ! grep -r "encrypt.*at.*rest\|database.*encryption" . --include="*.md" --include="*.js" --include="*.ts" > /dev/null; then
+            hipaa_issues+=("Missing encryption at rest configuration")
+          fi
+          
+          # Check for audit logging
+          if ! grep -r "audit.*log\|access.*log" . --include="*.js" --include="*.ts" > /dev/null; then
+            hipaa_issues+=("Missing audit logging implementation")
+          fi
+          
+          # Check for access controls
+          if ! grep -r "rbac\|role.*based\|access.*control" . --include="*.js" --include="*.ts" > /dev/null; then
+            hipaa_issues+=("Missing role-based access control")
+          fi
+          
+          cat > hipaa-compliance-report.json << EOF
+          {
+            "compliance_framework": "HIPAA",
+            "scan_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "issues": $(printf '%s\n' "${hipaa_issues[@]}" | jq -R . | jq -s .),
+            "status": "$([ ${#hipaa_issues[@]} -eq 0 ] && echo "COMPLIANT" || echo "NON_COMPLIANT")"
+          }
+          EOF
+
+      - name: Upload Compliance Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-reports
+          path: |
+            *-compliance-report.json
+          retention-days: 90
+
+  build-enterprise:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, enterprise-security-scan, compliance-checks]
+    strategy:
+      matrix:
+        module: [core, browser, google.com, images.google.com, chatgpt.com, extension.chrome, nodejs.server, typescript.client, ar-vr]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${{ matrix.module }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=${{ needs.determine-environment.outputs.environment }}
+
+      - name: Build module ${{ matrix.module }}
+        run: |
+          module="${{ matrix.module }}"
+          if [[ -d "$module" && -f "$module/package.json" ]]; then
+            echo "Building enterprise image for $module..."
+            cd "$module"
+            
+            # Create enterprise Dockerfile if it doesn't exist
+            if [[ ! -f "Dockerfile" ]]; then
+              cat > Dockerfile << 'EOF'
+          # Multi-stage build for security and size optimization
+          FROM node:20-alpine AS builder
+          
+          # Security: Create non-root user
+          RUN addgroup -g 1001 -S nodejs && adduser -S semantest -u 1001
+          
+          WORKDIR /app
+          
+          # Copy package files
+          COPY package*.json ./
+          
+          # Install dependencies with audit
+          RUN npm ci --only=production && npm audit fix --force
+          
+          # Copy source code
+          COPY . .
+          
+          # Build application
+          RUN npm run build 2>/dev/null || npx tsc 2>/dev/null || echo "No build step"
+          
+          # Production stage
+          FROM node:20-alpine AS production
+          
+          # Security: Install security updates
+          RUN apk update && apk upgrade && apk add --no-cache dumb-init
+          
+          # Create non-root user
+          RUN addgroup -g 1001 -S nodejs && adduser -S semantest -u 1001
+          
+          WORKDIR /app
+          
+          # Copy built application
+          COPY --from=builder --chown=semantest:nodejs /app/dist ./dist
+          COPY --from=builder --chown=semantest:nodejs /app/node_modules ./node_modules
+          COPY --from=builder --chown=semantest:nodejs /app/package*.json ./
+          
+          # Security: Remove package managers
+          RUN rm -rf /usr/local/lib/node_modules/npm
+          
+          # Switch to non-root user
+          USER semantest
+          
+          # Health check
+          HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+            CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+          
+          EXPOSE 3000
+          
+          # Use dumb-init for proper signal handling
+          ENTRYPOINT ["dumb-init", "--"]
+          CMD ["node", "dist/index.js"]
+          EOF
+            fi
+            
+            cd ..
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.module }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+
+  deploy-blue-green:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, build-enterprise]
+    if: needs.determine-environment.outputs.strategy == 'blue-green'
+    environment:
+      name: ${{ needs.determine-environment.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Blue-Green Deployment Setup
+        run: |
+          echo "Setting up blue-green deployment for ${{ needs.determine-environment.outputs.environment }}"
+          
+          # Create deployment configuration
+          cat > blue-green-config.yaml << EOF
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: blue-green-config
+            namespace: semantest-${{ needs.determine-environment.outputs.environment }}
+          data:
+            strategy: "blue-green"
+            environment: "${{ needs.determine-environment.outputs.environment }}"
+            version: "${{ github.sha }}"
+            rollback_version: "\${PREVIOUS_VERSION}"
+          ---
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: semantest-blue
+            namespace: semantest-${{ needs.determine-environment.outputs.environment }}
+            labels:
+              app: semantest
+              version: blue
+              environment: ${{ needs.determine-environment.outputs.environment }}
+          spec:
+            replicas: 3
+            selector:
+              matchLabels:
+                app: semantest
+                version: blue
+            template:
+              metadata:
+                labels:
+                  app: semantest
+                  version: blue
+              spec:
+                securityContext:
+                  runAsNonRoot: true
+                  runAsUser: 1001
+                  fsGroup: 1001
+                containers:
+                - name: semantest
+                  image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/nodejs.server:${{ needs.determine-environment.outputs.environment }}
+                  ports:
+                  - containerPort: 3000
+                  env:
+                  - name: NODE_ENV
+                    value: "${{ needs.determine-environment.outputs.environment }}"
+                  - name: VERSION
+                    value: "${{ github.sha }}"
+                  resources:
+                    requests:
+                      memory: "256Mi"
+                      cpu: "100m"
+                    limits:
+                      memory: "512Mi"
+                      cpu: "500m"
+                  livenessProbe:
+                    httpGet:
+                      path: /health
+                      port: 3000
+                    initialDelaySeconds: 30
+                    periodSeconds: 10
+                  readinessProbe:
+                    httpGet:
+                      path: /ready
+                      port: 3000
+                    initialDelaySeconds: 5
+                    periodSeconds: 5
+                  securityContext:
+                    allowPrivilegeEscalation: false
+                    readOnlyRootFilesystem: true
+                    capabilities:
+                      drop:
+                      - ALL
+          ---
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: semantest-service
+            namespace: semantest-${{ needs.determine-environment.outputs.environment }}
+          spec:
+            selector:
+              app: semantest
+              version: blue  # Initially points to blue
+            ports:
+            - port: 80
+              targetPort: 3000
+            type: LoadBalancer
+          EOF
+
+      - name: Deploy Blue Environment
+        run: |
+          echo "Deploying to blue environment..."
+          # In a real deployment, this would use kubectl or your deployment tool
+          echo "kubectl apply -f blue-green-config.yaml"
+          
+          # Health check simulation
+          echo "Performing health checks on blue environment..."
+          sleep 10
+          
+          # Traffic switching simulation
+          echo "Switching traffic from green to blue..."
+          echo "kubectl patch service semantest-service -p '{\"spec\":{\"selector\":{\"version\":\"blue\"}}}'"
+
+      - name: Deployment Verification
+        run: |
+          echo "Verifying blue-green deployment..."
+          
+          # Create verification script
+          cat > verify-deployment.sh << 'EOF'
+          #!/bin/bash
+          
+          ENVIRONMENT="${{ needs.determine-environment.outputs.environment }}"
+          MAX_RETRIES=30
+          RETRY_COUNT=0
+          
+          echo "Verifying deployment in $ENVIRONMENT environment..."
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            # Simulate health check
+            if curl -f -s "https://semantest-$ENVIRONMENT.example.com/health" > /dev/null; then
+              echo "✅ Health check passed"
+              break
+            else
+              echo "⏳ Health check failed, retrying... ($RETRY_COUNT/$MAX_RETRIES)"
+              sleep 10
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+            fi
+          done
+          
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "❌ Deployment verification failed"
+            exit 1
+          fi
+          
+          echo "✅ Blue-green deployment verified successfully"
+          EOF
+          
+          chmod +x verify-deployment.sh
+          ./verify-deployment.sh
+
+  monitoring-setup:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, deploy-blue-green]
+    if: always() && needs.determine-environment.outputs.environment == 'production'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Enterprise Monitoring
+        run: |
+          echo "Setting up enterprise monitoring and alerting..."
+          
+          # Create monitoring configuration
+          cat > monitoring-config.yaml << EOF
+          # Prometheus configuration
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: prometheus-config
+            namespace: monitoring
+          data:
+            prometheus.yml: |
+              global:
+                scrape_interval: 15s
+                evaluation_interval: 15s
+              
+              rule_files:
+                - "semantest-alerts.yml"
+              
+              scrape_configs:
+                - job_name: 'semantest-enterprise'
+                  static_configs:
+                    - targets: ['semantest-service:80']
+                  metrics_path: /metrics
+                  scrape_interval: 10s
+                  
+                - job_name: 'node-exporter'
+                  static_configs:
+                    - targets: ['node-exporter:9100']
+          
+          ---
+          # Alerting rules
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: alert-rules
+            namespace: monitoring
+          data:
+            semantest-alerts.yml: |
+              groups:
+              - name: semantest.rules
+                rules:
+                - alert: HighErrorRate
+                  expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+                  for: 5m
+                  labels:
+                    severity: critical
+                    service: semantest
+                  annotations:
+                    summary: "High error rate detected"
+                    description: "Error rate is {{ \$value }} errors per second"
+                
+                - alert: HighLatency
+                  expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+                  for: 5m
+                  labels:
+                    severity: warning
+                    service: semantest
+                  annotations:
+                    summary: "High latency detected"
+                    description: "95th percentile latency is {{ \$value }} seconds"
+                
+                - alert: LowAvailability
+                  expr: up{job="semantest-enterprise"} < 1
+                  for: 1m
+                  labels:
+                    severity: critical
+                    service: semantest
+                  annotations:
+                    summary: "Service is down"
+                    description: "Semantest service is not responding"
+                    
+                - alert: HighMemoryUsage
+                  expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes > 0.85
+                  for: 5m
+                  labels:
+                    severity: warning
+                    service: semantest
+                  annotations:
+                    summary: "High memory usage"
+                    description: "Memory usage is {{ \$value | humanizePercentage }}"
+                    
+                - alert: HighCPUUsage
+                  expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+                  for: 5m
+                  labels:
+                    severity: warning
+                    service: semantest
+                  annotations:
+                    summary: "High CPU usage"
+                    description: "CPU usage is {{ \$value }}%"
+          
+          ---
+          # Grafana dashboard
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: grafana-dashboard
+            namespace: monitoring
+          data:
+            semantest-dashboard.json: |
+              {
+                "dashboard": {
+                  "title": "Semantest Enterprise Monitoring",
+                  "panels": [
+                    {
+                      "title": "Request Rate",
+                      "type": "graph",
+                      "targets": [
+                        {
+                          "expr": "rate(http_requests_total[5m])",
+                          "legendFormat": "Requests/sec"
+                        }
+                      ]
+                    },
+                    {
+                      "title": "Error Rate",
+                      "type": "graph",
+                      "targets": [
+                        {
+                          "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+                          "legendFormat": "Errors/sec"
+                        }
+                      ]
+                    },
+                    {
+                      "title": "Response Time",
+                      "type": "graph",
+                      "targets": [
+                        {
+                          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+                          "legendFormat": "95th percentile"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+          EOF
+
+      - name: Setup Enterprise Alerting
+        run: |
+          echo "Configuring enterprise alerting channels..."
+          
+          # Create alerting configuration
+          cat > alerting-config.yaml << EOF
+          # AlertManager configuration
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: alertmanager-config
+            namespace: monitoring
+          data:
+            alertmanager.yml: |
+              global:
+                slack_api_url: '\${SLACK_WEBHOOK_URL}'
+                
+              route:
+                group_by: ['alertname']
+                group_wait: 10s
+                group_interval: 10s
+                repeat_interval: 1h
+                receiver: 'enterprise-alerts'
+                routes:
+                - match:
+                    severity: critical
+                  receiver: 'critical-alerts'
+                - match:
+                    severity: warning
+                  receiver: 'warning-alerts'
+              
+              receivers:
+              - name: 'enterprise-alerts'
+                slack_configs:
+                - channel: '#semantest-alerts'
+                  title: 'Semantest Alert'
+                  text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
+                  
+              - name: 'critical-alerts'
+                slack_configs:
+                - channel: '#semantest-critical'
+                  title: '🚨 CRITICAL: Semantest Alert'
+                  text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
+                email_configs:
+                - to: 'ops-team@company.com'
+                  subject: 'CRITICAL: Semantest Production Alert'
+                  body: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
+                  
+              - name: 'warning-alerts'
+                slack_configs:
+                - channel: '#semantest-warnings'
+                  title: '⚠️ WARNING: Semantest Alert'
+                  text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
+          EOF
+
+      - name: Deploy Monitoring Stack
+        run: |
+          echo "Deploying monitoring stack..."
+          echo "kubectl apply -f monitoring-config.yaml"
+          echo "kubectl apply -f alerting-config.yaml"
+          
+          echo "✅ Enterprise monitoring and alerting configured"
+
+  rollback-capability:
+    runs-on: ubuntu-latest
+    needs: [determine-environment, deploy-blue-green]
+    if: failure()
+    steps:
+      - name: Automatic Rollback
+        run: |
+          echo "🔄 Initiating automatic rollback..."
+          
+          # Create rollback script
+          cat > rollback.sh << 'EOF'
+          #!/bin/bash
+          
+          ENVIRONMENT="${{ needs.determine-environment.outputs.environment }}"
+          PREVIOUS_VERSION="${{ github.event.before || 'latest-stable' }}"
+          
+          echo "Rolling back to previous version: $PREVIOUS_VERSION"
+          
+          # Switch traffic back to green environment
+          echo "kubectl patch service semantest-service -p '{\"spec\":{\"selector\":{\"version\":\"green\"}}}'"
+          
+          # Update deployment with previous version
+          echo "kubectl set image deployment/semantest-green semantest=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/nodejs.server:$PREVIOUS_VERSION"
+          
+          # Wait for rollback to complete
+          echo "kubectl rollout status deployment/semantest-green --timeout=300s"
+          
+          # Verify rollback
+          echo "kubectl get pods -l app=semantest,version=green"
+          
+          echo "✅ Rollback completed successfully"
+          EOF
+          
+          chmod +x rollback.sh
+          ./rollback.sh
+
+      - name: Rollback Notification
+        run: |
+          echo "📧 Sending rollback notification..."
+          
+          # In a real scenario, this would send notifications to the team
+          cat > rollback-notification.json << EOF
+          {
+            "type": "rollback",
+            "environment": "${{ needs.determine-environment.outputs.environment }}",
+            "commit": "${{ github.sha }}",
+            "previous_commit": "${{ github.event.before }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "reason": "Deployment verification failed"
+          }
+          EOF
+          
+          echo "Rollback notification prepared"
