@@ -1,0 +1,78 @@
+# Multi-stage production Docker build
+FROM node:18-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ git
+
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Copy source code
+COPY src/ ./src/
+
+# Build TypeScript
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine AS production
+
+# Install production system dependencies
+RUN apk add --no-cache \
+    curl \
+    tini \
+    dumb-init \
+    && addgroup -g 1001 -S nodejs \
+    && adduser -S realtime -u 1001
+
+# Set working directory
+WORKDIR /app
+
+# Copy built application
+COPY --from=builder --chown=realtime:nodejs /app/dist ./dist
+COPY --from=builder --chown=realtime:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=realtime:nodejs /app/package*.json ./
+
+# Create logs directory
+RUN mkdir -p /app/logs && chown realtime:nodejs /app/logs
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=4096 --enable-source-maps"
+ENV UV_THREADPOOL_SIZE=128
+
+# Performance optimizations
+ENV MALLOC_ARENA_MAX=2
+ENV MALLOC_MMAP_THRESHOLD_=131072
+ENV MALLOC_TRIM_THRESHOLD_=131072
+ENV MALLOC_TOP_PAD_=131072
+ENV MALLOC_MMAP_MAX_=65536
+
+# Security settings
+USER realtime
+EXPOSE 8080 9090 9091
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:9090/health || exit 1
+
+# Use tini for proper signal handling
+ENTRYPOINT ["/sbin/tini", "--"]
+
+# Start application
+CMD ["node", "dist/production/main-production.js"]
+
+# Labels for metadata
+LABEL \
+    org.opencontainers.image.title="Real-Time Platform" \
+    org.opencontainers.image.description="High-performance real-time messaging platform supporting 1M+ concurrent connections" \
+    org.opencontainers.image.version="1.0.0" \
+    org.opencontainers.image.vendor="Real-Time Platform" \
+    org.opencontainers.image.source="https://github.com/realtime-platform/platform" \
+    org.opencontainers.image.documentation="https://docs.realtime-platform.com"

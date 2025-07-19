@@ -1,0 +1,67 @@
+{
+  "name": "realtime-kafka-redis-system",
+  "version": "1.0.0",
+  "description": "High-performance real-time message queue system with Kafka + Redis",
+  "main": "dist/main-kafka-redis-streaming.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main-kafka-redis-streaming.js",
+    "start:demo": "node dist/main-kafka-redis-streaming.js demo",
+    "start:test": "node dist/main-kafka-redis-streaming.js test",
+    "test": "jest",
+    "test:unit": "jest --testPathPattern=unit",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:e2e": "jest --testPathPattern=e2e",
+    "test:performance": "jest --testPathPattern=performance",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "kafkajs": "^2.2.4",
+    "redis": "^4.6.7",
+    "ws": "^8.13.0",
+    "winston": "^3.10.0",
+    "compression": "^1.7.4",
+    "helmet": "^7.0.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^6.8.1",
+    "lz4": "^0.6.5",
+    "uuid": "^9.0.0",
+    "prom-client": "^14.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.4.5",
+    "@types/jest": "^29.5.3",
+    "@types/ws": "^8.5.5",
+    "@types/compression": "^1.7.2",
+    "@types/uuid": "^9.0.2",
+    "@types/express": "^4.17.17",
+    "@typescript-eslint/eslint-plugin": "^6.2.0",
+    "@typescript-eslint/parser": "^6.2.0",
+    "eslint": "^8.45.0",
+    "jest": "^29.6.1",
+    "ts-jest": "^29.1.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.1.6",
+    "testcontainers": "^9.9.1"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/src", "<rootDir>/tests"],
+    "testMatch": ["**/__tests__/**/*.ts", "**/*.(test|spec).ts"],
+    "transform": {
+      "^.+\\.ts$": "ts-jest"
+    },
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/**/*.d.ts",
+      "!src/**/index.ts"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"],
+    "testTimeout": 30000
+  }
+}
