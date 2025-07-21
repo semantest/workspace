@@ -155,14 +155,20 @@ export class EventPersistence {
       ORDER BY timestamp ASC
     `);
 
-    const rows = stmt.all(startTime, endTime);
+    const rows = stmt.all(startTime, endTime) as Array<{
+      id: string;
+      type: string;
+      timestamp: number;
+      payload: string;
+      metadata: string | null;
+    }>;
     
     return rows.map(row => ({
-      id: row.id as string,
-      type: row.type as string,
-      timestamp: row.timestamp as number,
-      payload: JSON.parse(row.payload as string),
-      metadata: row.metadata ? JSON.parse(row.metadata as string) : undefined
+      id: row.id,
+      type: row.type,
+      timestamp: row.timestamp,
+      payload: JSON.parse(row.payload),
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined
     }));
   }
 
@@ -177,14 +183,20 @@ export class EventPersistence {
       LIMIT ?
     `);
 
-    const rows = stmt.all(type, limit);
+    const rows = stmt.all(type, limit) as Array<{
+      id: string;
+      type: string;
+      timestamp: number;
+      payload: string;
+      metadata: string | null;
+    }>;
     
     return rows.map(row => ({
-      id: row.id as string,
-      type: row.type as string,
-      timestamp: row.timestamp as number,
-      payload: JSON.parse(row.payload as string),
-      metadata: row.metadata ? JSON.parse(row.metadata as string) : undefined
+      id: row.id,
+      type: row.type,
+      timestamp: row.timestamp,
+      payload: JSON.parse(row.payload),
+      metadata: row.metadata ? JSON.parse(row.metadata) : undefined
     }));
   }
 
@@ -233,10 +245,10 @@ export class EventPersistence {
       SELECT config FROM test_runs WHERE run_id = ?
     `);
 
-    const row = stmt.get(runId);
+    const row = stmt.get(runId) as { config: string } | undefined;
     if (!row) return null;
 
-    return JSON.parse(row.config as string);
+    return JSON.parse(row.config);
   }
 
   /**
@@ -296,21 +308,32 @@ export class EventPersistence {
       SELECT * FROM test_results WHERE run_id = ?
     `);
 
-    const rows = stmt.all(runId);
+    const rows = stmt.all(runId) as Array<{
+      test_id: string;
+      status: string;
+      duration: number;
+      error: string | null;
+      retries: number;
+      assertions_passed: number;
+      assertions_failed: number;
+      assertions_total: number;
+      screenshots: string | null;
+      logs: string | null;
+    }>;
     
     return rows.map(row => ({
-      testId: row.test_id as string,
+      testId: row.test_id,
       status: row.status as any,
-      duration: row.duration as number,
-      error: row.error ? JSON.parse(row.error as string) : undefined,
-      retries: row.retries as number,
+      duration: row.duration,
+      error: row.error ? JSON.parse(row.error) : undefined,
+      retries: row.retries,
       assertions: {
-        passed: row.assertions_passed as number,
-        failed: row.assertions_failed as number,
-        total: row.assertions_total as number
+        passed: row.assertions_passed,
+        failed: row.assertions_failed,
+        total: row.assertions_total
       },
-      screenshots: row.screenshots ? JSON.parse(row.screenshots as string) : [],
-      logs: row.logs ? JSON.parse(row.logs as string) : []
+      screenshots: row.screenshots ? JSON.parse(row.screenshots) : [],
+      logs: row.logs ? JSON.parse(row.logs) : []
     }));
   }
 
@@ -322,15 +345,22 @@ export class EventPersistence {
       SELECT * FROM suite_results WHERE run_id = ?
     `);
 
-    const rows = stmt.all(runId);
+    const rows = stmt.all(runId) as Array<{
+      suite_id: string;
+      duration: number;
+      total_tests: number;
+      passed_tests: number;
+      failed_tests: number;
+      skipped_tests: number;
+    }>;
     
     return rows.map(row => ({
-      suiteId: row.suite_id as string,
-      duration: row.duration as number,
-      totalTests: row.total_tests as number,
-      passedTests: row.passed_tests as number,
-      failedTests: row.failed_tests as number,
-      skippedTests: row.skipped_tests as number,
+      suiteId: row.suite_id,
+      duration: row.duration,
+      totalTests: row.total_tests,
+      passedTests: row.passed_tests,
+      failedTests: row.failed_tests,
+      skippedTests: row.skipped_tests,
       testResults: [] // Would need to be populated separately
     }));
   }
@@ -361,8 +391,8 @@ export class EventPersistence {
       SELECT COUNT(*) as count FROM events WHERE type = ?
     `);
 
-    const row = stmt.get(type);
-    return (row?.count as number) || 0;
+    const row = stmt.get(type) as { count: number } | undefined;
+    return row?.count || 0;
   }
 
   /**

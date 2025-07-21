@@ -105,7 +105,7 @@ export class JSONReporterPlugin implements Plugin {
     }
   };
 
-  private findRunIdForTest(context: TestExecutionContext): string | undefined {
+  private findRunIdForTest(_context: TestExecutionContext): string | undefined {
     // In a real implementation, this would be tracked properly
     // For now, return the first run ID
     return Array.from(this.runResults.keys())[0];
@@ -205,7 +205,7 @@ export class PerformancePlugin implements Plugin {
       }
     },
 
-    afterTestRun: async (config: TestRunConfig, status: TestRunStatus) => {
+    afterTestRun: async (_config: TestRunConfig, status: TestRunStatus) => {
       if (status.endTime && status.startTime) {
         const duration = status.endTime - status.startTime;
         const avgTestTime = status.completedTests > 0 

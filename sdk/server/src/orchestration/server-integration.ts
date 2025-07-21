@@ -1,5 +1,12 @@
 import { BaseEvent } from '@semantest/core';
-import { TestEventTypes, SystemEventTypes } from '@semantest/contracts';
+import { 
+  TestEventTypes, 
+  SystemEventTypes,
+  TestStartPayload,
+  TestEndPayload,
+  SuiteStartPayload,
+  SuiteEndPayload
+} from '@semantest/contracts';
 import { TestOrchestrator } from './test-orchestrator';
 import { EventPersistence } from '../persistence/event-persistence';
 import { SecurityMiddleware } from '../security/security-middleware';
@@ -56,16 +63,16 @@ export class OrchestratorIntegration {
       switch (event.type) {
         // Test events
         case TestEventTypes.START_TEST:
-          await this.orchestrator.handleTestStart(event);
+          await this.orchestrator.handleTestStart(event as BaseEvent<TestStartPayload>);
           break;
         case TestEventTypes.END_TEST:
-          await this.orchestrator.handleTestEnd(event);
+          await this.orchestrator.handleTestEnd(event as BaseEvent<TestEndPayload>);
           break;
         case TestEventTypes.SUITE_START:
-          await this.orchestrator.handleSuiteStart(event);
+          await this.orchestrator.handleSuiteStart(event as BaseEvent<SuiteStartPayload>);
           break;
         case TestEventTypes.SUITE_END:
-          await this.orchestrator.handleSuiteEnd(event);
+          await this.orchestrator.handleSuiteEnd(event as BaseEvent<SuiteEndPayload>);
           break;
 
         // System events
@@ -200,6 +207,6 @@ export class OrchestratorIntegration {
 /**
  * Factory function to create orchestration integration
  */
-export function createOrchestratorIntegration(options?: Parameters<typeof OrchestratorIntegration>[0]) {
+export function createOrchestratorIntegration(options?: ConstructorParameters<typeof OrchestratorIntegration>[0]) {
   return new OrchestratorIntegration(options);
 }
