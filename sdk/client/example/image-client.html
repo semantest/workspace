@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Image Generation Client Example</title>
+  <script type="module">
+    import { createClient } from '/dist/index.js';
+    import { ImageEventTypes } from '@semantest/contracts';
+    
+    let client;
+    
+    async function connectClient() {
+      client = await createClient({
+        url: 'ws://localhost:8080'
+      });
+      
+      // Listen for image events
+      client.on(ImageEventTypes.GENERATION_STARTED, (event) => {
+        console.log('Generation started:', event);
+        document.getElementById('status').textContent = 'Generating image...';
+      });
+      
+      client.on(ImageEventTypes.DOWNLOADED, (event) => {
+        console.log('Image downloaded:', event);
+        const { path, metadata } = event.payload;
+        document.getElementById('status').textContent = `Image saved: ${path}`;
+        document.getElementById('result').innerHTML = `
+          <img src="${path}" alt="Generated image" style="max-width: 500px;">
+          <p>Size: ${metadata.size} bytes</p>
+          <p>Dimensions: ${metadata.width}x${metadata.height}</p>
+        `;
+      });
+      
+      client.on(ImageEventTypes.GENERATION_FAILED, (event) => {
+        console.error('Generation failed:', event);
+        document.getElementById('status').textContent = `Failed: ${event.payload.error}`;
+      });
+      
+      document.getElementById('status').textContent = 'Connected';
+    }
+    
+    async function requestImage() {
+      const prompt = document.getElementById('prompt').value;
+      const project = document.getElementById('project').value || null;
+      const chat = document.getElementById('chat').value || null;
+      
+      if (!prompt) {
+        alert('Please enter a prompt');
+        return;
+      }
+      
+      const requestId = `req-${Date.now()}`;
+      
+      await client.emit(ImageEventTypes.REQUEST_RECEIVED, {
+        project,
+        chat,
+        prompt,
+        metadata: { requestId }
+      });
+      
+      document.getElementById('status').textContent = 'Request sent...';
+    }
+    
+    // Connect on load
+    window.addEventListener('load', connectClient);
+    window.requestImage = requestImage;
+  </script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button { margin: 5px; padding: 8px; }
+    #status { color: blue; margin: 10px 0; }
+    #result { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Image Generation Workflow Test</h1>
+  
+  <div>
+    <label>Project (optional): <input id="project" placeholder="Leave empty to skip project"></label><br>
+    <label>Chat (optional): <input id="chat" placeholder="Leave empty to create new chat"></label><br>
+    <label>Prompt: <input id="prompt" placeholder="Describe your image" size="50"></label><br>
+    <button onclick="requestImage()">Generate Image</button>
+  </div>
+  
+  <div id="status">Connecting...</div>
+  <div id="result"></div>
+  
+  <hr>
+  <h3>Workflow Logic:</h3>
+  <ul>
+    <li>If project is null → Don't create project</li>
+    <li>If chat is null → Create new chat</li>
+    <li>Events: ImageRequestReceived → Process → ImageDownloaded</li>
+  </ul>
+</body>
+</html>
