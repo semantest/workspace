@@ -1,0 +1,179 @@
+version: '3.8'
+
+services:
+  # Semantest WebSocket Server
+  websocket-server:
+    build:
+      context: ./sdk/server
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      LOG_LEVEL: debug
+      # Database configuration
+      DB_PATH: /app/data/semantest.db
+      # Security settings (development defaults - change for production!)
+      JWT_SECRET: development-secret-change-me
+      CORS_ORIGIN: http://localhost:3000,http://localhost:5173
+      # Performance settings
+      MAX_CONNECTIONS: 1000
+      CONNECTION_TIMEOUT: 30000
+      # Health check
+      HEALTH_CHECK_ENABLED: true
+      HEALTH_CHECK_INTERVAL: 10000
+    volumes:
+      - ./sdk/server/src:/app/src:ro
+      - websocket-data:/app/data
+      - websocket-logs:/app/logs
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # Redis for session management and caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --requirepass development-password
+    volumes:
+      - redis-data:/data
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL for persistent storage (optional - can be replaced with SQLite)
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: semantest
+      POSTGRES_USER: semantest
+      POSTGRES_PASSWORD: development-password
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U semantest"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    profiles:
+      - full
+
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=15d'
+      - '--web.enable-lifecycle'
+    networks:
+      - semantest-network
+    profiles:
+      - monitoring
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+    networks:
+      - semantest-network
+    profiles:
+      - monitoring
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: 9411
+      COLLECTOR_OTLP_ENABLED: true
+    networks:
+      - semantest-network
+    profiles:
+      - tracing
+
+  # Development tools - Adminer for database management
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8081:8080"
+    networks:
+      - semantest-network
+    profiles:
+      - dev-tools
+
+  # Development CLI container
+  cli:
+    build:
+      context: ./cli
+      dockerfile: Dockerfile
+    environment:
+      WEBSOCKET_URL: ws://websocket-server:8080
+      NODE_ENV: development
+    volumes:
+      - ./cli/src:/app/src:ro
+    networks:
+      - semantest-network
+    profiles:
+      - cli
+    depends_on:
+      - websocket-server
+
+volumes:
+  websocket-data:
+  websocket-logs:
+  redis-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  semantest-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

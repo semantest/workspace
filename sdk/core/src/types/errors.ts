@@ -20,6 +20,7 @@ export class ConnectionError extends SemantestError {
   constructor(message: string, details?: unknown) {
     super(message, 'CONNECTION_ERROR', details);
     this.name = 'ConnectionError';
+    Object.setPrototypeOf(this, ConnectionError.prototype);
   }
 }
 
@@ -30,6 +31,7 @@ export class ValidationError extends SemantestError {
   constructor(message: string, details?: unknown) {
     super(message, 'VALIDATION_ERROR', details);
     this.name = 'ValidationError';
+    Object.setPrototypeOf(this, ValidationError.prototype);
   }
 }
 
@@ -40,6 +42,7 @@ export class TimeoutError extends SemantestError {
   constructor(message: string, details?: unknown) {
     super(message, 'TIMEOUT_ERROR', details);
     this.name = 'TimeoutError';
+    Object.setPrototypeOf(this, TimeoutError.prototype);
   }
 }
 
@@ -50,6 +53,7 @@ export class EventNotFoundError extends SemantestError {
   constructor(eventId: string) {
     super(`Event not found: ${eventId}`, 'EVENT_NOT_FOUND', { eventId });
     this.name = 'EventNotFoundError';
+    Object.setPrototypeOf(this, EventNotFoundError.prototype);
   }
 }
 
@@ -60,5 +64,6 @@ export class InvalidEventTypeError extends SemantestError {
   constructor(eventType: string) {
     super(`Invalid event type: ${eventType}`, 'INVALID_EVENT_TYPE', { eventType });
     this.name = 'InvalidEventTypeError';
+    Object.setPrototypeOf(this, InvalidEventTypeError.prototype);
   }
 }

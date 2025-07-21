@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket-server
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: websocket-server
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        env:
+        - name: ENABLE_DEBUG_ENDPOINTS
+          value: "true"
+        - name: CORS_ORIGIN
+          value: "*"  # Allow all origins in dev
+      # Remove anti-affinity in development
+      affinity: {}

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: websocket-server
+  labels:
+    app: websocket-server
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 8080
+    protocol: TCP
+    name: websocket
+  selector:
+    app: websocket-server
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800  # 3 hours for WebSocket connections

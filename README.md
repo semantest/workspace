@@ -1,82 +1,91 @@
-# ChatGPT Browser Extension
+# Semantest - Distributed Testing Framework
 
-Enhance your ChatGPT experience with powerful productivity features and **industry-leading privacy protection**!
+A **modular, domain-driven testing framework** for browser automation and distributed test execution with **enterprise-grade security** and **real-time WebSocket communication**.
 
 ## 🎯 Quick Links
-- 🏪 **[Install from Chrome Web Store](#installation)** (Coming Soon!)
-- 📚 **[Documentation](./chrome-store/README.md)**
-- 🔒 **[Privacy Policy](./chrome-store/PRIVACY_POLICY_SIMPLE.md)**
-- ❓ **[FAQ](./chrome-store/FAQ.md)**
+- 📚 **[API Documentation](./docs/api-reference/)**
+- 🔧 **[CLI Documentation](./docs/cli/)**
+- 🌐 **[WebSocket Protocol](./docs/protocol/)**
+- 🚀 **[Getting Started Guide](./docs/getting-started/)**
+- 🔄 **[Migration Guide](./docs/migration-guide/)**
 
-## 🚀 Latest Release: v1.0.1 (January 21, 2025)
+## 🚀 Latest Release: v2.0.0 (January 2025)
 
-### 🔒 Privacy-First Features in v1.0.1
-- **Robust Consent System** - Your privacy choice is guaranteed to be seen
-  - Automatic popup on first install
-  - Retries every 30 seconds for 5 minutes if missed
-  - Multiple fallback methods ensure you control your data
-  - Persists across all sessions
-- **Zero Default Collection** - No data collected without explicit consent
-- **Clear Privacy Choice** - Simple Accept/Decline options
-- **User Control** - Change your privacy settings anytime
+**🎉 Distributed Testing Framework** - Complete architectural transformation from browser extension to enterprise testing framework!
 
-### 🛡️ Security & Privacy
-- **Security Score**: 90/100 (Excellent) ✅
-- **Privacy Compliance**: GDPR/CCPA Ready ✅
-- **Data Protection**: Your ChatGPT conversations NEVER leave your device
-- **Telemetry**: Only with explicit consent, fully anonymous
+### 🛡️ Security & Architecture
+- **Security Score**: 95/100 (Enterprise-grade) ✅
+- **Architecture**: Domain-Driven Design with clean boundaries ✅
+- **Communication**: Real-time WebSocket protocol ✅
+- **Scalability**: Distributed test execution across multiple nodes ✅
 
 ### 🎯 Key Features
-1. **📁 Project Organization** - Keep conversations organized by topic
-2. **📝 Custom Instructions** - Personalize ChatGPT responses  
-3. **💬 Smart Chat Creation** - Start chats with context
-4. **⚡ Enhanced Prompts** - Templates and shortcuts
-5. **🖼️ Image Management** - Better control over DALL-E images
-6. **💾 Smart Downloads** - Intelligent file organization
+1. **🧩 Modular Architecture** - Domain-driven design with isolated modules
+2. **🌐 Distributed Testing** - Execute tests across multiple browser instances
+3. **📡 WebSocket Protocol** - Real-time communication and event streaming
+4. **🔧 CLI Tool** - Powerful command-line interface for test orchestration
+5. **📦 SDK Packages** - TypeScript client libraries for custom integrations
+6. **🔒 Enterprise Security** - Built-in security patterns and authentication
 
 ## 📥 Installation
 
-### From Chrome Web Store (Recommended)
-```
-1. Visit Chrome Web Store (link coming soon!)
-2. Click "Add to Chrome"
-3. Grant necessary permissions
-4. Enjoy enhanced ChatGPT!
-```
-
-### Manual Installation (Development)
+### Via NPM (Recommended)
 ```bash
-1. Clone this repository
-2. Open Chrome → Extensions → Developer Mode
-3. Click "Load unpacked"
-4. Select `extension.chrome/build/` folder
+# Install the CLI tool globally
+npm install -g @semantest/cli
+
+# Install SDK for your project
+npm install @semantest/client @semantest/core
 ```
 
-## 🔐 Your Privacy Matters
+### From Source (Development)
+```bash
+# Clone the workspace
+git clone https://github.com/semantest/workspace
+cd workspace
 
-### What We DON'T Collect:
-- ❌ Your ChatGPT conversations
-- ❌ Personal information
-- ❌ Browsing history
-- ❌ Any data without consent
+# Install all dependencies
+npm run install:all
 
-### What We Collect (Only with Consent):
-- ✅ Anonymous error reports
-- ✅ Feature usage statistics
-- ✅ Performance metrics
+# Build all packages
+npm run build:all
+```
 
-### Our Privacy Promise:
-- You'll always see the consent choice (robust retry system)
-- Your choice persists forever
-- Change your mind anytime in Settings
-- Extension works perfectly without any data collection
+## 🚀 Quick Start
 
-## 📊 Development Journey
-From critical security failure to Chrome Web Store ready in one day:
-- Morning: Security score 23/100 😱
-- Afternoon: Fixed to 90/100 🎉
-- Evening: v1.0.1 with full privacy compliance ✅
-- **Time**: 6.5 hours of legendary teamwork!
+### Using the CLI
+```bash
+# Initialize a new test project
+semantest init my-test-project
+
+# Create a test configuration
+semantest config create --name production
+
+# Run distributed tests
+semantest test run --config production --parallel 5
+
+# Monitor test execution
+semantest monitor --real-time
+```
+
+### Using the SDK
+```typescript
+import { TestClient, TestRunner } from '@semantest/client';
+import { GoogleImagesTest } from '@semantest/images.google.com';
+
+// Initialize client
+const client = new TestClient({
+  serverUrl: 'ws://localhost:3000',
+  authentication: { /* ... */ }
+});
+
+// Create and run tests
+const runner = new TestRunner(client);
+await runner.execute([
+  new GoogleImagesTest({ query: 'test automation' }),
+  // Add more tests...
+]);
+```
 
 ## 🏗️ Architecture Overview
 

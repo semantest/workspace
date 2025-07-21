@@ -5,7 +5,7 @@ import { ValidationError } from '../types/errors';
  * Validate event structure
  */
 export function validateEvent<T = unknown>(event: unknown): BaseEvent<T> {
-  if (!event || typeof event !== 'object') {
+  if (!event || typeof event !== 'object' || Array.isArray(event)) {
     throw new ValidationError('Event must be an object');
   }
   

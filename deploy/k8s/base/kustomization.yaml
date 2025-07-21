@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - ingress.yaml
+  - hpa.yaml
+  - pdb.yaml
+
+commonLabels:
+  app.kubernetes.io/name: semantest
+  app.kubernetes.io/component: websocket-server
+  app.kubernetes.io/part-of: semantest-platform
+
+images:
+  - name: ghcr.io/semantest/workspace/websocket-server
+    newTag: latest
