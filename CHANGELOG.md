@@ -5,6 +5,24 @@ All notable changes to the ChatGPT Browser Extension will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-01-21
+
+### 🐛 Fixed
+- **Critical**: Telemetry consent popup now properly triggers on extension installation
+- Implemented consent flow in `chatgpt-controller.js` and `service-worker.js`
+- User privacy choices (Accept/Decline) are now properly saved and respected
+
+### ✅ Chrome Web Store Compliance
+- Privacy consent requirement fully implemented
+- Transparent user choice before any data collection
+- Clear opt-out option available
+- Persistent storage of user consent preference
+
+### 🚀 Impact
+- Unblocks Chrome Web Store submission
+- No more manual consent verification needed
+- Full privacy compliance achieved
+
 ## [1.1.0] - 2025-01-21
 
 ### 🎉 Highlights
