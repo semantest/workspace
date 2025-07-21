@@ -1,0 +1,230 @@
+name: Chrome Extension CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ created ]
+
+env:
+  NODE_VERSION: '18'
+  EXTENSION_NAME: chatgpt-browser-extension
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run ESLint
+        run: npm run lint
+      
+      - name: Run tests
+        run: npm test -- --coverage
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+
+  build-extension:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build extension
+        run: |
+          npm run build
+          
+          # Verify manifest.json exists
+          if [ ! -f "dist/manifest.json" ]; then
+            echo "Error: manifest.json not found in dist/"
+            exit 1
+          fi
+          
+          # Verify required files
+          for file in popup.html popup.js background.js content.js; do
+            if [ ! -f "dist/$file" ]; then
+              echo "Warning: $file not found in dist/"
+            fi
+          done
+      
+      - name: Create extension ZIP
+        run: |
+          cd dist
+          zip -r ../${{ env.EXTENSION_NAME }}-${{ github.sha }}.zip .
+          cd ..
+          
+          # Create a versioned copy for releases
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            cp ${{ env.EXTENSION_NAME }}-${{ github.sha }}.zip ${{ env.EXTENSION_NAME }}-${{ github.event.release.tag_name }}.zip
+          fi
+      
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension-${{ github.sha }}
+          path: |
+            ${{ env.EXTENSION_NAME }}-*.zip
+            dist/
+          retention-days: 30
+
+  test-chrome-compatibility:
+    needs: build-extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+      
+      - name: Download extension artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension-${{ github.sha }}
+      
+      - name: Test extension loading
+        run: |
+          # Create a simple test script to verify the extension can be loaded
+          cat > test-extension.js << 'EOF'
+          const puppeteer = require('puppeteer');
+          const path = require('path');
+          
+          (async () => {
+            const pathToExtension = path.join(__dirname, 'dist');
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: [
+                `--disable-extensions-except=${pathToExtension}`,
+                `--load-extension=${pathToExtension}`,
+                '--no-sandbox'
+              ]
+            });
+            
+            // Test that extension loaded
+            const targets = await browser.targets();
+            const extensionTarget = targets.find(target => 
+              target.type() === 'service_worker' || 
+              target.type() === 'background_page'
+            );
+            
+            if (!extensionTarget) {
+              console.error('Extension failed to load');
+              process.exit(1);
+            }
+            
+            console.log('Extension loaded successfully');
+            
+            // Test popup
+            const page = await browser.newPage();
+            const extensionId = extensionTarget.url().split('/')[2];
+            await page.goto(`chrome-extension://${extensionId}/popup.html`);
+            
+            // Wait for popup to load
+            await page.waitForSelector('body', { timeout: 5000 });
+            console.log('Popup loaded successfully');
+            
+            await browser.close();
+          })();
+          EOF
+          
+          npm install puppeteer
+          node test-extension.js
+
+  security-scan:
+    needs: build-extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run security audit
+        run: npm audit --production
+      
+      - name: Check for exposed secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+      
+      - name: OWASP dependency check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: ${{ env.EXTENSION_NAME }}
+          path: '.'
+          format: 'HTML'
+
+  publish-to-chrome-store:
+    if: github.event_name == 'release' && github.event.action == 'created'
+    needs: [build-extension, test-chrome-compatibility, security-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download extension artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension-${{ github.sha }}
+      
+      - name: Publish to Chrome Web Store
+        uses: mnao305/chrome-extension-upload@v4.0.1
+        with:
+          file-path: ${{ env.EXTENSION_NAME }}-${{ github.event.release.tag_name }}.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+      
+      - name: Create GitHub Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.EXTENSION_NAME }}-${{ github.event.release.tag_name }}.zip
+          asset_name: ${{ env.EXTENSION_NAME }}-${{ github.event.release.tag_name }}.zip
+          asset_content_type: application/zip
+
+  notify-deployment:
+    if: always()
+    needs: [lint-and-test, build-extension, test-chrome-compatibility, security-scan]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Slack notification
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            Chrome Extension CI/CD Pipeline
+            Status: ${{ job.status }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}

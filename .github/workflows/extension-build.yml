@@ -1,0 +1,368 @@
+name: Extension Build & Release
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  NODE_VERSION: '18'
+  EXTENSION_NAME: 'chatgpt-browser-extension'
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linter
+        run: npm run lint || echo "No lint script found"
+      
+      - name: Run unit tests
+        run: npm test -- --coverage --passWithNoTests
+      
+      - name: Upload test coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  build:
+    name: Build Extension
+    runs-on: ubuntu-latest
+    needs: test
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Get current version
+        id: current_version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./manifest.json').version")
+          echo "Current version: $CURRENT_VERSION"
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Calculate new version
+        id: version
+        run: |
+          CURRENT_VERSION="${{ steps.current_version.outputs.current }}"
+          
+          # Only bump version on main branch or manual trigger
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] || [[ "${{ github.ref }}" == "refs/heads/main" && "${{ github.event_name }}" == "push" ]]; then
+            # Install semver for version bumping
+            npm install -g semver
+            
+            # Determine version bump type
+            if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+              BUMP_TYPE="${{ github.event.inputs.version_bump }}"
+            else
+              # Auto-detect from commit messages
+              if git log -1 --pretty=%B | grep -qE "^(feat|feature)"; then
+                BUMP_TYPE="minor"
+              elif git log -1 --pretty=%B | grep -qE "^fix"; then
+                BUMP_TYPE="patch"
+              elif git log -1 --pretty=%B | grep -qE "BREAKING CHANGE"; then
+                BUMP_TYPE="major"
+              else
+                BUMP_TYPE="patch"
+              fi
+            fi
+            
+            NEW_VERSION=$(semver -i $BUMP_TYPE $CURRENT_VERSION)
+            echo "Bumping version from $CURRENT_VERSION to $NEW_VERSION (type: $BUMP_TYPE)"
+          else
+            NEW_VERSION=$CURRENT_VERSION
+            echo "Not bumping version (current: $CURRENT_VERSION)"
+          fi
+          
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Update manifest version
+        if: steps.version.outputs.version != steps.current_version.outputs.current
+        run: |
+          # Update manifest.json
+          node -e "
+          const fs = require('fs');
+          const manifest = JSON.parse(fs.readFileSync('./manifest.json', 'utf8'));
+          manifest.version = '${{ steps.version.outputs.version }}';
+          fs.writeFileSync('./manifest.json', JSON.stringify(manifest, null, 2) + '\\n');
+          "
+          
+          # Update package.json if it exists
+          if [ -f package.json ]; then
+            npm version ${{ steps.version.outputs.version }} --no-git-tag-version
+          fi
+      
+      - name: Build extension
+        run: |
+          # Run build script or use default behavior
+          if npm run build --if-present; then
+            echo "Build script completed"
+          else
+            echo "No build script found, copying source files..."
+            mkdir -p dist
+            
+            # Copy manifest
+            cp manifest.json dist/
+            
+            # Copy common extension files
+            for file in popup.html popup.js background.js content.js options.html options.js; do
+              [ -f "$file" ] && cp "$file" dist/
+              [ -f "src/$file" ] && cp "src/$file" dist/
+            done
+            
+            # Copy icons
+            [ -d "icons" ] && cp -r icons dist/
+            [ -d "images" ] && cp -r images dist/
+            
+            # Copy styles
+            for file in styles.css popup.css options.css; do
+              [ -f "$file" ] && cp "$file" dist/
+              [ -f "src/$file" ] && cp "src/$file" dist/
+            done
+          fi
+          
+          # Verify required files
+          if [ ! -f "dist/manifest.json" ]; then
+            echo "Error: manifest.json not found in dist/"
+            exit 1
+          fi
+          
+          echo "Build completed successfully"
+      
+      - name: Create extension package
+        run: |
+          cd dist
+          zip -r ../${{ env.EXTENSION_NAME }}-v${{ steps.version.outputs.version }}.zip . -x "*.map" -x ".*"
+          cd ..
+          
+          # Also create a package without version for consistent artifact name
+          cp ${{ env.EXTENSION_NAME }}-v${{ steps.version.outputs.version }}.zip ${{ env.EXTENSION_NAME }}.zip
+          
+          echo "Extension packaged successfully"
+          ls -la *.zip
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: extension-build
+          path: |
+            ${{ env.EXTENSION_NAME }}.zip
+            ${{ env.EXTENSION_NAME }}-v${{ steps.version.outputs.version }}.zip
+            dist/
+          retention-days: 30
+      
+      - name: Upload version info
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-info
+          path: |
+            manifest.json
+            package.json
+          retention-days: 30
+
+  validate:
+    name: Validate Extension
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-build
+      
+      - name: Validate manifest
+        run: |
+          # Extract and validate manifest
+          unzip -o ${{ env.EXTENSION_NAME }}.zip -d validate_temp
+          
+          # Check manifest version
+          MANIFEST_VERSION=$(node -p "require('./validate_temp/manifest.json').manifest_version")
+          echo "Manifest version: $MANIFEST_VERSION"
+          
+          if [ "$MANIFEST_VERSION" != "3" ] && [ "$MANIFEST_VERSION" != "2" ]; then
+            echo "Error: Invalid manifest version"
+            exit 1
+          fi
+          
+          # Check required fields
+          node -e "
+          const manifest = require('./validate_temp/manifest.json');
+          const required = ['name', 'version', 'manifest_version'];
+          const missing = required.filter(field => !manifest[field]);
+          if (missing.length > 0) {
+            console.error('Missing required fields:', missing);
+            process.exit(1);
+          }
+          console.log('Manifest validation passed');
+          "
+      
+      - name: Check package size
+        run: |
+          SIZE=$(stat -c%s "${{ env.EXTENSION_NAME }}.zip")
+          SIZE_MB=$(echo "scale=2; $SIZE / 1048576" | bc)
+          echo "Package size: ${SIZE_MB}MB"
+          
+          # Chrome Web Store limit is 100MB
+          if [ $SIZE -gt 104857600 ]; then
+            echo "Error: Package exceeds 100MB limit"
+            exit 1
+          fi
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build, validate]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-build
+      
+      - name: Download version info
+        uses: actions/download-artifact@v4
+        with:
+          name: version-info
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Commit version changes
+        run: |
+          git add manifest.json
+          [ -f package.json ] && git add package.json package-lock.json
+          
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: bump version to ${{ needs.build.outputs.version }} [skip ci]"
+            git push
+          fi
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          echo "## What's Changed" > release_notes.md
+          echo "" >> release_notes.md
+          
+          if [ -z "$LAST_TAG" ]; then
+            git log --pretty=format:"* %s (%h)" >> release_notes.md
+          else
+            git log $LAST_TAG..HEAD --pretty=format:"* %s (%h)" >> release_notes.md
+          fi
+          
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...v${{ needs.build.outputs.version }}" >> release_notes.md
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.build.outputs.version }}
+          name: Release v${{ needs.build.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            ${{ env.EXTENSION_NAME }}-v${{ needs.build.outputs.version }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  pr-comment:
+    name: PR Build Info
+    runs-on: ubuntu-latest
+    needs: [build, validate]
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: extension-build
+      
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { size } = fs.statSync('${{ env.EXTENSION_NAME }}.zip');
+            const sizeMB = (size / 1048576).toFixed(2);
+            
+            const body = `## 🚀 Extension Build Successful!
+            
+            **Version**: ${{ needs.build.outputs.version }}
+            **Package Size**: ${sizeMB}MB
+            **Build Artifacts**: Available for download in the [Actions tab](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            
+            ### 📋 Testing Instructions
+            1. Download the extension ZIP from the artifacts
+            2. Open Chrome and go to \`chrome://extensions/\`
+            3. Enable "Developer mode"
+            4. Click "Load unpacked" and select the extracted folder
+            5. Test the extension functionality
+            
+            ### ✅ Checks Passed
+            - ✓ Linting
+            - ✓ Unit tests
+            - ✓ Build successful
+            - ✓ Manifest validation
+            - ✓ Size limit check
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

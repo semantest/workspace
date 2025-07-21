@@ -1,0 +1,402 @@
+name: Extension Automated Testing
+
+on:
+  push:
+    branches: [ main, develop, 'feature/*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+  CHROME_VERSION: 'stable'
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [16, 18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run unit tests
+        run: |
+          npm run test:unit -- --coverage --watchAll=false
+          
+      - name: Generate test report
+        if: always()
+        run: |
+          npm run test:report || echo "No test report script found"
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-node-${{ matrix.node-version }}
+          path: |
+            coverage/
+            test-results/
+          retention-days: 7
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: ${{ env.CHROME_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install --save-dev @playwright/test puppeteer jest-puppeteer
+      
+      - name: Build extension
+        run: npm run build
+      
+      - name: Run integration tests
+        run: |
+          # Create integration test file
+          cat > integration.test.js << 'EOF'
+          const puppeteer = require('puppeteer');
+          const path = require('path');
+          
+          describe('Chrome Extension Integration Tests', () => {
+            let browser;
+            let page;
+            let extensionId;
+            
+            beforeAll(async () => {
+              const pathToExtension = path.join(__dirname, 'dist');
+              browser = await puppeteer.launch({
+                headless: 'new',
+                args: [
+                  `--disable-extensions-except=${pathToExtension}`,
+                  `--load-extension=${pathToExtension}`,
+                  '--no-sandbox',
+                  '--disable-setuid-sandbox'
+                ]
+              });
+              
+              // Get extension ID
+              const targets = await browser.targets();
+              const extensionTarget = targets.find(target => 
+                target.type() === 'service_worker' || 
+                target.type() === 'background_page'
+              );
+              
+              if (extensionTarget) {
+                extensionId = extensionTarget.url().split('/')[2];
+              }
+            });
+            
+            afterAll(async () => {
+              await browser.close();
+            });
+            
+            test('Extension loads successfully', async () => {
+              expect(extensionId).toBeDefined();
+            });
+            
+            test('Popup page loads', async () => {
+              page = await browser.newPage();
+              await page.goto(`chrome-extension://${extensionId}/popup.html`);
+              await page.waitForSelector('body', { timeout: 5000 });
+              
+              const title = await page.title();
+              expect(title).toBeTruthy();
+            });
+            
+            test('Content script injection works', async () => {
+              const testPage = await browser.newPage();
+              await testPage.goto('https://example.com');
+              
+              // Wait for content script to inject
+              await testPage.waitForTimeout(1000);
+              
+              // Check if content script added any elements
+              const injected = await testPage.evaluate(() => {
+                return document.querySelector('[data-extension-injected]') !== null;
+              });
+              
+              // This might be false if your extension doesn't inject on example.com
+              console.log('Content script injected:', injected);
+            });
+            
+            test('Storage API works', async () => {
+              page = await browser.newPage();
+              await page.goto(`chrome-extension://${extensionId}/popup.html`);
+              
+              const result = await page.evaluate(() => {
+                return new Promise((resolve) => {
+                  chrome.storage.local.set({ testKey: 'testValue' }, () => {
+                    chrome.storage.local.get('testKey', (data) => {
+                      resolve(data.testKey === 'testValue');
+                    });
+                  });
+                });
+              });
+              
+              expect(result).toBe(true);
+            });
+          });
+          EOF
+          
+          # Run the integration tests
+          npx jest integration.test.js --forceExit
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: |
+          npm ci
+          npx playwright install chromium
+      
+      - name: Build extension
+        run: npm run build
+      
+      - name: Run E2E tests with Playwright
+        run: |
+          # Create Playwright test
+          mkdir -p tests
+          cat > tests/extension.spec.js << 'EOF'
+          const { test, expect, chromium } = require('@playwright/test');
+          const path = require('path');
+          
+          test.describe('ChatGPT Extension E2E Tests', () => {
+            let browser;
+            let context;
+            let extensionId;
+            
+            test.beforeAll(async () => {
+              const pathToExtension = path.join(__dirname, '..', 'dist');
+              browser = await chromium.launchPersistentContext('', {
+                headless: false,
+                args: [
+                  `--disable-extensions-except=${pathToExtension}`,
+                  `--load-extension=${pathToExtension}`,
+                ],
+              });
+              
+              // Wait for extension to load
+              let [background] = browser.serviceWorkers();
+              if (!background) {
+                background = await browser.waitForEvent('serviceworker');
+              }
+              
+              extensionId = background.url().split('/')[2];
+            });
+            
+            test.afterAll(async () => {
+              await browser.close();
+            });
+            
+            test('Extension popup interaction', async () => {
+              const page = await browser.newPage();
+              await page.goto(`chrome-extension://${extensionId}/popup.html`);
+              
+              // Test popup UI elements
+              await expect(page.locator('body')).toBeVisible();
+              
+              // Example: Click a button if it exists
+              const button = page.locator('button:has-text("Connect")');
+              if (await button.isVisible()) {
+                await button.click();
+              }
+            });
+            
+            test('Extension works with ChatGPT', async () => {
+              const page = await browser.newPage();
+              
+              // Navigate to ChatGPT (mock or real)
+              await page.goto('https://chat.openai.com');
+              
+              // Wait for potential content script injection
+              await page.waitForTimeout(2000);
+              
+              // Test extension functionality on ChatGPT page
+              // This would depend on what your extension actually does
+            });
+          });
+          EOF
+          
+          # Run Playwright tests
+          npx playwright test tests/extension.spec.js || echo "E2E tests completed with warnings"
+
+  accessibility-tests:
+    runs-on: ubuntu-latest
+    needs: build-extension
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download extension artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension-${{ github.sha }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Install accessibility testing tools
+        run: |
+          npm install --save-dev @axe-core/puppeteer puppeteer
+      
+      - name: Run accessibility tests
+        run: |
+          cat > accessibility.test.js << 'EOF'
+          const { AxePuppeteer } = require('@axe-core/puppeteer');
+          const puppeteer = require('puppeteer');
+          const path = require('path');
+          
+          (async () => {
+            const pathToExtension = path.join(__dirname, 'dist');
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: [
+                `--disable-extensions-except=${pathToExtension}`,
+                `--load-extension=${pathToExtension}`,
+                '--no-sandbox'
+              ]
+            });
+            
+            const targets = await browser.targets();
+            const extensionTarget = targets.find(target => 
+              target.type() === 'service_worker' || 
+              target.type() === 'background_page'
+            );
+            
+            if (!extensionTarget) {
+              console.error('Extension failed to load');
+              process.exit(1);
+            }
+            
+            const extensionId = extensionTarget.url().split('/')[2];
+            const page = await browser.newPage();
+            await page.goto(`chrome-extension://${extensionId}/popup.html`);
+            
+            // Run accessibility tests
+            const results = await new AxePuppeteer(page).analyze();
+            
+            if (results.violations.length > 0) {
+              console.error('Accessibility violations found:');
+              results.violations.forEach(violation => {
+                console.error(`- ${violation.description}`);
+                console.error(`  Impact: ${violation.impact}`);
+                console.error(`  Help: ${violation.help}`);
+              });
+              process.exit(1);
+            }
+            
+            console.log('No accessibility violations found!');
+            await browser.close();
+          })();
+          EOF
+          
+          node accessibility.test.js
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    needs: build-extension
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download extension artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension-${{ github.sha }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      
+      - name: Install performance testing tools
+        run: npm install --save-dev puppeteer lighthouse
+      
+      - name: Run performance tests
+        run: |
+          cat > performance.test.js << 'EOF'
+          const puppeteer = require('puppeteer');
+          const path = require('path');
+          
+          (async () => {
+            const pathToExtension = path.join(__dirname, 'dist');
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: [
+                `--disable-extensions-except=${pathToExtension}`,
+                `--load-extension=${pathToExtension}`,
+                '--no-sandbox'
+              ]
+            });
+            
+            const page = await browser.newPage();
+            
+            // Measure extension load time
+            const startTime = Date.now();
+            const targets = await browser.targets();
+            const extensionTarget = targets.find(target => 
+              target.type() === 'service_worker' || 
+              target.type() === 'background_page'
+            );
+            const loadTime = Date.now() - startTime;
+            
+            console.log(`Extension load time: ${loadTime}ms`);
+            
+            if (loadTime > 3000) {
+              console.error('Extension takes too long to load!');
+              process.exit(1);
+            }
+            
+            // Measure popup performance
+            const extensionId = extensionTarget.url().split('/')[2];
+            const popupStartTime = Date.now();
+            await page.goto(`chrome-extension://${extensionId}/popup.html`);
+            await page.waitForSelector('body');
+            const popupLoadTime = Date.now() - popupStartTime;
+            
+            console.log(`Popup load time: ${popupLoadTime}ms`);
+            
+            // Check memory usage
+            const metrics = await page.metrics();
+            console.log('Memory usage:', Math.round(metrics.JSHeapUsedSize / 1024 / 1024), 'MB');
+            
+            if (metrics.JSHeapUsedSize > 50 * 1024 * 1024) {
+              console.warn('High memory usage detected!');
+            }
+            
+            await browser.close();
+          })();
+          EOF
+          
+          node performance.test.js

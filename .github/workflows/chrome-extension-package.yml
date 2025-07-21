@@ -1,0 +1,326 @@
+name: Chrome Extension Build & Package
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'extension.chrome/**'
+      - '.github/workflows/chrome-extension-package.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'extension.chrome/**'
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Version for release (leave empty for auto)'
+        required: false
+        type: string
+
+env:
+  NODE_VERSION: '18'
+  EXTENSION_DIR: 'extension.chrome'
+  BUILD_DIR: 'extension.chrome/build'
+
+jobs:
+  test:
+    name: Test Extension
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.EXTENSION_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm ci
+
+      - name: Run linter
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm run lint
+
+      - name: Run type checking
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm run typecheck
+
+      - name: Run tests
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm test -- --coverage
+
+      - name: Upload test coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: ${{ env.EXTENSION_DIR }}/coverage/
+          retention-days: 7
+
+  build-and-package:
+    name: Build & Package Extension
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      filename: ${{ steps.package.outputs.filename }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.EXTENSION_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm ci
+
+      - name: Clean build directory
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm run clean
+
+      - name: Build extension
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm run build
+
+      - name: Verify build output
+        run: |
+          echo "📁 Checking build directory contents..."
+          ls -la ${{ env.BUILD_DIR }}/
+          
+          # Verify manifest exists
+          if [ ! -f "${{ env.BUILD_DIR }}/manifest.json" ]; then
+            echo "❌ Error: manifest.json not found in build directory"
+            exit 1
+          fi
+          
+          # Check for required files
+          echo "✅ Build directory contains:"
+          find ${{ env.BUILD_DIR }} -type f -name "*.js" -o -name "*.html" -o -name "*.json" | head -20
+
+      - name: Get version
+        id: version
+        run: |
+          # Use provided version or extract from manifest
+          if [ -n "${{ github.event.inputs.release_version }}" ]; then
+            VERSION="${{ github.event.inputs.release_version }}"
+          else
+            VERSION=$(jq -r '.version' ${{ env.BUILD_DIR }}/manifest.json)
+          fi
+          
+          echo "Extension version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create ZIP package
+        id: package
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          FILENAME="chatgpt-extension-v${VERSION}.zip"
+          
+          # Create the ZIP file
+          cd ${{ env.BUILD_DIR }}
+          zip -r "../$FILENAME" . \
+            -x "*.map" \
+            -x "*.ts" \
+            -x "node_modules/*" \
+            -x ".git/*" \
+            -x "*.test.js" \
+            -x "*.spec.js"
+          
+          cd ..
+          
+          # Verify ZIP contents
+          echo "📦 ZIP package contents:"
+          unzip -l "$FILENAME" | head -20
+          
+          # Check file size
+          SIZE=$(stat -c%s "$FILENAME")
+          SIZE_MB=$(echo "scale=2; $SIZE / 1048576" | bc)
+          echo "📏 Package size: ${SIZE_MB}MB"
+          
+          # Chrome Web Store limit is 100MB
+          if [ $SIZE -gt 104857600 ]; then
+            echo "❌ Error: Package exceeds 100MB limit for Chrome Web Store"
+            exit 1
+          fi
+          
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+          echo "✅ Chrome Web Store package created: $FILENAME"
+
+      - name: Upload extension package
+        uses: actions/upload-artifact@v4
+        with:
+          name: chrome-extension-package
+          path: |
+            ${{ env.EXTENSION_DIR }}/${{ steps.package.outputs.filename }}
+            ${{ env.BUILD_DIR }}/
+          retention-days: 30
+
+  validate-extension:
+    name: Validate Extension Package
+    needs: build-and-package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension-package
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+
+      - name: Validate manifest
+        run: |
+          # Extract manifest from ZIP
+          unzip -j "${{ needs.build-and-package.outputs.filename }}" manifest.json -d temp/
+          
+          # Validate manifest structure
+          echo "🔍 Validating manifest.json..."
+          
+          # Check manifest version
+          MANIFEST_VERSION=$(jq -r '.manifest_version' temp/manifest.json)
+          if [ "$MANIFEST_VERSION" != "3" ]; then
+            echo "⚠️ Warning: Using manifest version $MANIFEST_VERSION (version 3 is recommended)"
+          fi
+          
+          # Check required fields
+          jq -e '.name' temp/manifest.json > /dev/null || (echo "❌ Missing 'name' field" && exit 1)
+          jq -e '.version' temp/manifest.json > /dev/null || (echo "❌ Missing 'version' field" && exit 1)
+          jq -e '.description' temp/manifest.json > /dev/null || (echo "❌ Missing 'description' field" && exit 1)
+          
+          # Check permissions
+          echo "📋 Permissions requested:"
+          jq -r '.permissions[]?' temp/manifest.json || echo "No permissions"
+          jq -r '.host_permissions[]?' temp/manifest.json || echo "No host permissions"
+          
+          echo "✅ Manifest validation passed"
+
+      - name: Security scan
+        run: |
+          # Basic security checks on the package
+          echo "🔒 Running security checks..."
+          
+          # Check for common security issues
+          unzip -l "${{ needs.build-and-package.outputs.filename }}" | grep -E "\.(key|pem|env|secret)" && echo "⚠️ Warning: Sensitive files detected" || echo "✅ No obvious sensitive files"
+          
+          # Extract and check for eval() usage
+          unzip -o "${{ needs.build-and-package.outputs.filename }}" -d extracted/
+          grep -r "eval(" extracted/ --include="*.js" && echo "⚠️ Warning: eval() usage detected" || echo "✅ No eval() usage found"
+          
+          echo "✅ Basic security scan completed"
+
+  create-release:
+    name: Create Release
+    needs: [build-and-package, validate-extension]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name: chrome-extension-package
+
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          echo "## ChatGPT Extension v${{ needs.build-and-package.outputs.version }}" > release_notes.md
+          echo "" >> release_notes.md
+          echo "### 📦 Chrome Web Store Package" >> release_notes.md
+          echo "Ready to upload to Chrome Web Store!" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🚀 What's Changed" >> release_notes.md
+          
+          if [ -z "$LAST_TAG" ]; then
+            git log --pretty=format:"* %s (%h)" --max-count=10 >> release_notes.md
+          else
+            git log $LAST_TAG..HEAD --pretty=format:"* %s (%h)" >> release_notes.md
+          fi
+          
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 📥 Installation" >> release_notes.md
+          echo "1. Download the ZIP file below" >> release_notes.md
+          echo "2. Go to chrome://extensions/" >> release_notes.md
+          echo "3. Enable Developer mode" >> release_notes.md
+          echo "4. Click 'Load unpacked' and select the extracted folder" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🏪 Chrome Web Store" >> release_notes.md
+          echo "This package is ready for submission to the Chrome Web Store." >> release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.build-and-package.outputs.version }}
+          name: ChatGPT Extension v${{ needs.build-and-package.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            ${{ env.EXTENSION_DIR }}/${{ needs.build-and-package.outputs.filename }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-pr:
+    name: Comment on PR
+    needs: [build-and-package, validate-extension]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment build status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifactUrl = `https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            
+            const comment = `## 🚀 Chrome Extension Build Successful!
+            
+            **Version**: ${{ needs.build-and-package.outputs.version }}
+            **Package**: ${{ needs.build-and-package.outputs.filename }}
+            
+            ### ✅ Checks Passed
+            - 🧪 Tests and linting
+            - 🔨 TypeScript compilation
+            - 📦 Extension packaging
+            - 🔍 Manifest validation
+            - 🔒 Security scan
+            
+            ### 📥 Download
+            [Download extension package](${artifactUrl}) from the build artifacts.
+            
+            ### 🧪 Testing Instructions
+            1. Download the ZIP file from artifacts
+            2. Open \`chrome://extensions/\`
+            3. Enable "Developer mode"
+            4. Drag and drop the ZIP file or use "Load unpacked"
+            5. Test the extension functionality
+            
+            ---
+            *This package is ready for Chrome Web Store submission!*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

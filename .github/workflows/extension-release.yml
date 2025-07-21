@@ -1,0 +1,324 @@
+name: Chrome Extension Release Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      release_channel:
+        description: 'Release channel'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - beta
+          - dev
+
+env:
+  NODE_VERSION: '18'
+  EXTENSION_NAME: chatgpt-browser-extension
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.version.outputs.new_version }}
+      release_notes: ${{ steps.notes.outputs.release_notes }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+      
+      - name: Bump version
+        id: version
+        run: |
+          # Install semver tool
+          npm install -g semver
+          
+          # Get current version from manifest.json
+          CURRENT_VERSION=$(jq -r '.version' manifest.json)
+          echo "Current version: $CURRENT_VERSION"
+          
+          # Calculate new version
+          NEW_VERSION=$(semver -i ${{ github.event.inputs.release_type }} $CURRENT_VERSION)
+          echo "New version: $NEW_VERSION"
+          
+          # Update manifest.json
+          jq --arg version "$NEW_VERSION" '.version = $version' manifest.json > manifest.tmp.json
+          mv manifest.tmp.json manifest.json
+          
+          # Update package.json if it exists
+          if [ -f package.json ]; then
+            npm version $NEW_VERSION --no-git-tag-version
+          fi
+          
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+      
+      - name: Generate release notes
+        id: notes
+        run: |
+          # Generate release notes from commits
+          cat > release-notes.md << EOF
+          ## Version ${{ steps.version.outputs.new_version }}
+          
+          ### Release Type: ${{ github.event.inputs.release_type }}
+          ### Channel: ${{ github.event.inputs.release_channel }}
+          
+          ### Changes since last release:
+          
+          EOF
+          
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            git log --pretty=format:"- %s (%h)" >> release-notes.md
+          else
+            git log $LAST_TAG..HEAD --pretty=format:"- %s (%h)" >> release-notes.md
+          fi
+          
+          # Add footer
+          cat >> release-notes.md << EOF
+          
+          
+          ### Installation
+          
+          1. Download the extension file from the release assets
+          2. Open Chrome and navigate to \`chrome://extensions/\`
+          3. Enable "Developer mode"
+          4. Click "Load unpacked" and select the extracted extension folder
+          
+          ### Chrome Web Store
+          
+          This version will be available on the Chrome Web Store within 1-2 business days after review.
+          EOF
+          
+          # Save release notes for output
+          RELEASE_NOTES=$(cat release-notes.md | base64 -w 0)
+          echo "release_notes=$RELEASE_NOTES" >> $GITHUB_OUTPUT
+      
+      - name: Commit version bump
+        run: |
+          git add manifest.json package.json package-lock.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}"
+          git push origin ${{ github.ref }}
+
+  build-and-test:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: |
+          npm run lint
+          npm test
+      
+      - name: Build extension
+        run: |
+          npm run build
+          
+          # Create release package
+          cd dist
+          zip -r ../${{ env.EXTENSION_NAME }}-v${{ needs.prepare-release.outputs.new_version }}.zip .
+          cd ..
+          
+          # Create source code archive
+          zip -r ${{ env.EXTENSION_NAME }}-source-v${{ needs.prepare-release.outputs.new_version }}.zip . \
+            -x "*.git*" \
+            -x "node_modules/*" \
+            -x "dist/*" \
+            -x "*.zip" \
+            -x ".env*"
+      
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            ${{ env.EXTENSION_NAME }}-v${{ needs.prepare-release.outputs.new_version }}.zip
+            ${{ env.EXTENSION_NAME }}-source-v${{ needs.prepare-release.outputs.new_version }}.zip
+          retention-days: 30
+
+  create-github-release:
+    needs: [prepare-release, build-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+      
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.prepare-release.outputs.new_version }}
+          release_name: Release v${{ needs.prepare-release.outputs.new_version }}
+          body: ${{ fromBase64(needs.prepare-release.outputs.release_notes) }}
+          draft: false
+          prerelease: ${{ github.event.inputs.release_channel != 'production' }}
+      
+      - name: Upload Extension Package
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.EXTENSION_NAME }}-v${{ needs.prepare-release.outputs.new_version }}.zip
+          asset_name: ${{ env.EXTENSION_NAME }}-v${{ needs.prepare-release.outputs.new_version }}.zip
+          asset_content_type: application/zip
+      
+      - name: Upload Source Code
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ env.EXTENSION_NAME }}-source-v${{ needs.prepare-release.outputs.new_version }}.zip
+          asset_name: ${{ env.EXTENSION_NAME }}-source-v${{ needs.prepare-release.outputs.new_version }}.zip
+          asset_content_type: application/zip
+
+  deploy-to-chrome-store:
+    if: github.event.inputs.release_channel == 'production'
+    needs: [prepare-release, build-and-test, create-github-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+      
+      - name: Deploy to Chrome Web Store
+        uses: mnao305/chrome-extension-upload@v4.0.1
+        with:
+          file-path: ${{ env.EXTENSION_NAME }}-v${{ needs.prepare-release.outputs.new_version }}.zip
+          extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
+          client-id: ${{ secrets.CHROME_CLIENT_ID }}
+          client-secret: ${{ secrets.CHROME_CLIENT_SECRET }}
+          refresh-token: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          publish: true
+      
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: |
+            🚀 Chrome Extension Released!
+            Version: v${{ needs.prepare-release.outputs.new_version }}
+            Channel: ${{ github.event.inputs.release_channel }}
+            Chrome Web Store: Deployment initiated (review pending)
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+  deploy-beta-channel:
+    if: github.event.inputs.release_channel == 'beta'
+    needs: [prepare-release, build-and-test, create-github-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+      
+      - name: Deploy to Beta Testing Group
+        run: |
+          echo "📦 Beta release prepared!"
+          echo "Version: v${{ needs.prepare-release.outputs.new_version }}"
+          echo ""
+          echo "Beta testers can download from:"
+          echo "https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare-release.outputs.new_version }}"
+          echo ""
+          echo "To test:"
+          echo "1. Download the extension ZIP file"
+          echo "2. Extract to a folder"
+          echo "3. Load in Chrome via chrome://extensions/ in Developer Mode"
+      
+      - name: Create beta testing issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Beta Testing: v${{ needs.prepare-release.outputs.new_version }}`,
+              body: `## Beta Release v${{ needs.prepare-release.outputs.new_version }}
+              
+              A new beta version is available for testing!
+              
+              ### Download
+              [Download Beta Release](https://github.com/${{ github.repository }}/releases/tag/v${{ needs.prepare-release.outputs.new_version }})
+              
+              ### Testing Checklist
+              - [ ] Extension loads without errors
+              - [ ] Popup UI functions correctly
+              - [ ] Content scripts inject properly
+              - [ ] All features work as expected
+              - [ ] No console errors
+              - [ ] Performance is acceptable
+              
+              ### How to Report Issues
+              Please comment on this issue with any bugs or feedback.
+              
+              ### Beta Period
+              This beta will run for 3-5 days before production release.`,
+              labels: ['beta-testing', 'release']
+            });
+            console.log(`Beta testing issue created: ${issue.data.html_url}`);
+
+  rollback-preparation:
+    if: failure()
+    needs: [prepare-release, build-and-test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Revert version bump
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          
+          # Revert the version bump commit
+          git revert --no-edit HEAD
+          git push origin ${{ github.ref }}
+          
+          echo "⚠️ Release failed - version bump has been reverted"

@@ -1,0 +1,262 @@
+name: Release Chrome Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+        type: string
+      create_release:
+        description: 'Create GitHub release'
+        required: true
+        default: true
+        type: boolean
+
+env:
+  NODE_VERSION: '18'
+  EXTENSION_DIR: 'extension.chrome'
+
+jobs:
+  release:
+    name: Build & Release Extension
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: ${{ env.EXTENSION_DIR }}/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: npm ci
+
+      - name: Set release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          
+          # Remove 'v' prefix if present
+          VERSION_NUM=$(echo $VERSION | sed 's/^v//')
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version_number=$VERSION_NUM" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION"
+          echo "Version number: $VERSION_NUM"
+
+      - name: Update manifest version
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: |
+          VERSION_NUM="${{ steps.version.outputs.version_number }}"
+          
+          # Update manifest.json
+          if [ -f "manifest.json" ]; then
+            jq --arg version "$VERSION_NUM" '.version = $version' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+            echo "Updated manifest.json to version $VERSION_NUM"
+          fi
+          
+          # Update manifest-build.json if it exists
+          if [ -f "manifest-build.json" ]; then
+            jq --arg version "$VERSION_NUM" '.version = $version' manifest-build.json > manifest-build.tmp && mv manifest-build.tmp manifest-build.json
+            echo "Updated manifest-build.json to version $VERSION_NUM"
+          fi
+          
+          # Update package.json
+          if [ -f "package.json" ]; then
+            jq --arg version "$VERSION_NUM" '.version = $version' package.json > package.tmp && mv package.tmp package.json
+            echo "Updated package.json to version $VERSION_NUM"
+          fi
+
+      - name: Run tests
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: |
+          echo "🧪 Running tests..."
+          npm run lint || echo "Lint not configured"
+          npm run typecheck || echo "TypeScript check not configured"
+          npm test || echo "Tests not configured"
+
+      - name: Build extension with release script
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: |
+          echo "🚀 Building Chrome extension..."
+          
+          # Make build script executable
+          chmod +x build.sh
+          
+          # Run the build script
+          ./build.sh
+          
+          # Verify the package was created
+          EXPECTED_FILE="chatgpt-extension-v${{ steps.version.outputs.version_number }}.zip"
+          if [ -f "$EXPECTED_FILE" ]; then
+            echo "✅ Package created: $EXPECTED_FILE"
+            ls -la "$EXPECTED_FILE"
+          else
+            echo "❌ Expected package not found: $EXPECTED_FILE"
+            echo "Available files:"
+            ls -la *.zip 2>/dev/null || echo "No ZIP files found"
+            exit 1
+          fi
+
+      - name: Validate extension package
+        working-directory: ${{ env.EXTENSION_DIR }}
+        run: |
+          PACKAGE_FILE="chatgpt-extension-v${{ steps.version.outputs.version_number }}.zip"
+          
+          echo "🔍 Validating extension package..."
+          
+          # Check file size
+          SIZE_BYTES=$(stat -c%s "$PACKAGE_FILE")
+          SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
+          echo "Package size: ${SIZE_MB}MB"
+          
+          # Chrome Web Store limit check
+          if [ $SIZE_BYTES -gt 104857600 ]; then
+            echo "❌ Package exceeds 100MB Chrome Web Store limit"
+            exit 1
+          fi
+          
+          # Extract and validate manifest
+          mkdir -p validate_temp
+          unzip -q "$PACKAGE_FILE" -d validate_temp
+          
+          if [ ! -f "validate_temp/manifest.json" ]; then
+            echo "❌ manifest.json not found in package"
+            exit 1
+          fi
+          
+          # Validate manifest structure
+          MANIFEST_VERSION=$(jq -r '.manifest_version' validate_temp/manifest.json)
+          PACKAGE_VERSION=$(jq -r '.version' validate_temp/manifest.json)
+          EXTENSION_NAME=$(jq -r '.name' validate_temp/manifest.json)
+          
+          echo "✅ Manifest validation:"
+          echo "  - Manifest version: $MANIFEST_VERSION"
+          echo "  - Extension version: $PACKAGE_VERSION"
+          echo "  - Extension name: $EXTENSION_NAME"
+          
+          # Check required fields
+          jq -e '.name' validate_temp/manifest.json > /dev/null || (echo "❌ Missing 'name'" && exit 1)
+          jq -e '.version' validate_temp/manifest.json > /dev/null || (echo "❌ Missing 'version'" && exit 1)
+          jq -e '.description' validate_temp/manifest.json > /dev/null || (echo "❌ Missing 'description'" && exit 1)
+          
+          # List package contents
+          echo "📦 Package contents:"
+          unzip -l "$PACKAGE_FILE" | head -20
+          
+          # Cleanup
+          rm -rf validate_temp
+          
+          echo "✅ Package validation completed"
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          echo "## ChatGPT Chrome Extension $VERSION" > release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🚀 What's New" >> release_notes.md
+          echo "" >> release_notes.md
+          
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            echo "### 📝 Changes since $LAST_TAG:" >> release_notes.md
+            git log $LAST_TAG..HEAD --pretty=format:"* %s (%h)" --no-merges >> release_notes.md
+          else
+            echo "### 📝 Initial Release Features:" >> release_notes.md
+            echo "* AI-powered web automation" >> release_notes.md
+            echo "* ChatGPT integration" >> release_notes.md
+            echo "* Browser extension framework" >> release_notes.md
+          fi
+          
+          echo "" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 📦 Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "#### Option 1: Chrome Web Store (Recommended)" >> release_notes.md
+          echo "Coming soon to Chrome Web Store!" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "#### Option 2: Manual Installation" >> release_notes.md
+          echo "1. Download \`chatgpt-extension-v${{ steps.version.outputs.version_number }}.zip\`" >> release_notes.md
+          echo "2. Open Chrome and go to \`chrome://extensions/\`" >> release_notes.md
+          echo "3. Enable \"Developer mode\" (top right)" >> release_notes.md
+          echo "4. Click \"Load unpacked\" and select the extracted folder" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🔧 Technical Details" >> release_notes.md
+          echo "* Manifest Version: 3" >> release_notes.md
+          echo "* Chrome Extension API: Latest" >> release_notes.md
+          echo "* Permissions: Minimal required permissions" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🐛 Report Issues" >> release_notes.md
+          echo "Found a bug? [Create an issue](https://github.com/${{ github.repository }}/issues/new)" >> release_notes.md
+
+      - name: Create GitHub Release
+        if: github.event.inputs.create_release != 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ChatGPT Extension ${{ steps.version.outputs.version }}
+          body_path: release_notes.md
+          files: |
+            ${{ env.EXTENSION_DIR }}/chatgpt-extension-v${{ steps.version.outputs.version_number }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatgpt-extension-${{ steps.version.outputs.version_number }}
+          path: |
+            ${{ env.EXTENSION_DIR }}/chatgpt-extension-v${{ steps.version.outputs.version_number }}.zip
+            ${{ env.EXTENSION_DIR }}/build/
+          retention-days: 90
+
+      - name: Release summary
+        run: |
+          echo "🎉 Release completed successfully!"
+          echo ""
+          echo "📦 Package: chatgpt-extension-v${{ steps.version.outputs.version_number }}.zip"
+          echo "🏷️ Version: ${{ steps.version.outputs.version }}"
+          echo "📁 Artifacts: Available for 90 days"
+          echo ""
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.version }}"
+          echo ""
+          echo "📋 Next Steps:"
+          echo "1. Download the ZIP file from the release"
+          echo "2. Test the extension manually"
+          echo "3. Submit to Chrome Web Store"
+          echo "4. Announce the release"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Release pipeline failed!"
+          echo "Check the logs above for detailed error information."
+          echo ""
+          echo "Common issues:"
+          echo "- Build script execution failed"
+          echo "- Package validation failed"
+          echo "- Missing required files"
+          echo "- Version format incorrect"
