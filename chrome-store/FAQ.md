@@ -63,7 +63,14 @@ Quick answers to common questions about the ChatGPT Extension!
 **A:** All data is stored locally in your browser. If you enable sync, it's encrypted end-to-end.
 
 ### Q: Do you collect any data?
-**A:** Only anonymous error reports if you opt-in. No personal data is ever collected.
+**A:** Only anonymous error reports if you explicitly opt-in through our consent popup. No personal data is ever collected.
+
+### Q: What if I miss the privacy consent popup?
+**A:** Don't worry! Our robust system ensures you'll see it:
+- Retries every 30 seconds for up to 5 minutes
+- Always available in Settings → Privacy
+- Multiple fallback methods to show the choice
+- Extension works perfectly while waiting for your decision
 
 ### Q: Is this extension safe?
 **A:** Yes! We've passed security review with a 90/100 score and use enterprise-grade encryption.
