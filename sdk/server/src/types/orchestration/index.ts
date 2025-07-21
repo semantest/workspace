@@ -1,4 +1,4 @@
-import { TestStatus } from '@semantest/contracts';
+import { TestStatus } from '../../contracts';
 import { BaseEvent } from '@semantest/core';
 
 /**

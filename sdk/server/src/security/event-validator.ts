@@ -113,7 +113,9 @@ export class EventValidator {
     // Validate payload based on event type
     if (event.type && event.payload) {
       const payloadErrors = this.validatePayload(event.type, event.payload);
-      errors.push(...payloadErrors);
+      if (payloadErrors && payloadErrors.length > 0) {
+        errors.push(...payloadErrors);
+      }
     }
 
     // Check for potential security issues
