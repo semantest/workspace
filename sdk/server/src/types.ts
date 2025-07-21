@@ -22,6 +22,8 @@ export interface ClientInfo {
   lastPing?: number;
   metadata?: EventMetadata;
   subscriptions: Set<string>;
+  authToken?: string;
+  permissions?: string[];
 }
 
 /**

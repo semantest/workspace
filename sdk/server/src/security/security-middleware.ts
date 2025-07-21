@@ -30,6 +30,13 @@ export class SecurityMiddleware {
   }
 
   /**
+   * Check if authentication is required
+   */
+  requiresAuthentication(): boolean {
+    return this.policy.requireAuthentication;
+  }
+
+  /**
    * Validate an event
    */
   async validateEvent(event: BaseEvent): Promise<ValidationResult> {

@@ -20,6 +20,10 @@ import { ClientManager } from './client-manager';
 import { SubscriptionManager } from './subscription-manager';
 import { MessageRouter } from './message-router';
 import { RequestHandler } from './request-handler';
+import { SecurityMiddleware } from './security/security-middleware';
+import { RateLimiter } from './security/rate-limiter';
+import { AccessController } from './security/access-controller';
+import { EventValidator } from './security/event-validator';
 
 /**
  * WebSocket server for Semantest distributed testing framework
@@ -33,6 +37,12 @@ export class WebSocketServer extends EventEmitter {
   private messageRouter: MessageRouter;
   private requestHandler: RequestHandler;
   private heartbeatInterval?: NodeJS.Timeout;
+  
+  // Security components
+  private securityMiddleware: SecurityMiddleware;
+  private rateLimiter: RateLimiter;
+  private accessController: AccessController;
+  private eventValidator: EventValidator;
 
   constructor(options: WebSocketServerOptions) {
     super();
@@ -46,6 +56,16 @@ export class WebSocketServer extends EventEmitter {
       requestTimeout: options.requestTimeout || 30000,
       path: options.path || '/'
     };
+
+    // Initialize security components
+    this.rateLimiter = new RateLimiter();
+    this.accessController = new AccessController();
+    this.eventValidator = new EventValidator();
+    this.securityMiddleware = new SecurityMiddleware({
+      rateLimiter: this.rateLimiter,
+      accessController: this.accessController,
+      eventValidator: this.eventValidator
+    });
 
     // Initialize managers
     this.clientManager = new ClientManager(this.options.maxConnections);
@@ -152,7 +172,7 @@ export class WebSocketServer extends EventEmitter {
   /**
    * Handle new WebSocket connection
    */
-  private handleConnection(ws: WebSocket, request: any): void {
+  private async handleConnection(ws: WebSocket, request: any): Promise<void> {
     const clientId = uuidv4();
     const clientInfo: ClientInfo = {
       id: clientId,
@@ -167,6 +187,19 @@ export class WebSocketServer extends EventEmitter {
       } catch (error) {
         // Ignore invalid metadata
       }
+    }
+
+    // Apply authentication check
+    const authToken = request.headers['authorization'] || request.headers['x-auth-token'];
+    if (this.securityMiddleware.requiresAuthentication() && !authToken) {
+      ws.close(1008, 'Authentication required');
+      return;
+    }
+
+    // Store authentication info
+    if (authToken) {
+      clientInfo.authToken = authToken as string;
+      clientInfo.permissions = ['read', 'write']; // Default permissions
     }
 
     const client: ClientConnection = {
@@ -215,6 +248,26 @@ export class WebSocketServer extends EventEmitter {
     try {
       const message = JSON.parse(data.toString()) as TransportMessage;
       
+      // Apply rate limiting
+      const isAllowed = this.rateLimiter.checkLimit(client.id);
+      if (!isAllowed) {
+        this.sendError(client, 'Rate limit exceeded', 'RATE_LIMIT_EXCEEDED');
+        return;
+      }
+
+      // Apply access control for event types
+      if (message.type === MessageType.EVENT) {
+        const eventMessage = message as EventMessage;
+        const accessResult = await this.accessController.checkAccess(
+          client.id,
+          eventMessage.payload.type
+        );
+        if (!accessResult.allowed) {
+          this.sendError(client, 'Access denied', 'ACCESS_DENIED');
+          return;
+        }
+      }
+      
       switch (message.type) {
         case MessageType.EVENT:
           await this.handleEventMessage(client, message as EventMessage);
@@ -247,6 +300,13 @@ export class WebSocketServer extends EventEmitter {
    */
   private async handleEventMessage(client: ClientConnection, message: EventMessage): Promise<void> {
     const event = message.payload;
+    
+    // Validate event structure
+    const validationResult = await this.securityMiddleware.validateEvent(event);
+    if (!validationResult.valid) {
+      this.sendError(client, `Invalid event: ${validationResult.errors?.map(e => e.message).join(', ')}`, 'INVALID_EVENT');
+      return;
+    }
     
     // Emit event locally
     this.emit('event', event);
