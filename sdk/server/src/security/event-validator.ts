@@ -120,7 +120,9 @@ export class EventValidator {
 
     // Check for potential security issues
     const securityErrors = this.checkSecurity(event);
-    errors.push(...securityErrors);
+    if (securityErrors && securityErrors.length > 0) {
+      errors.push(...securityErrors);
+    }
 
     const valid = errors.length === 0;
     

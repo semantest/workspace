@@ -58,14 +58,17 @@ export class WebSocketServer extends EventEmitter {
     };
 
     // Initialize security components
-    this.rateLimiter = new RateLimiter();
-    this.accessController = new AccessController();
-    this.eventValidator = new EventValidator();
-    this.securityMiddleware = new SecurityMiddleware({
-      rateLimiter: this.rateLimiter,
-      accessController: this.accessController,
-      eventValidator: this.eventValidator
+    this.rateLimiter = new RateLimiter(100); // 100 events per second
+    this.accessController = new AccessController({
+      maxEventsPerSecond: 100,
+      maxEventSize: 1024 * 1024,
+      requireAuthentication: false
     });
+    this.eventValidator = new EventValidator({
+      maxEventsPerSecond: 100,
+      maxEventSize: 1024 * 1024
+    });
+    this.securityMiddleware = new SecurityMiddleware();
 
     // Initialize managers
     this.clientManager = new ClientManager(this.options.maxConnections);

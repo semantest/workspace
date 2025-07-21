@@ -33,7 +33,7 @@ export class SecurityMiddleware {
    * Check if authentication is required
    */
   requiresAuthentication(): boolean {
-    return this.policy.requireAuthentication;
+    return this.policy.requireAuthentication || false;
   }
 
   /**

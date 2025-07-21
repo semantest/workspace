@@ -115,7 +115,7 @@ export class PluginManager extends EventEmitter {
         // @ts-ignore
         const hookResult = await hook(result, ...additionalArgs);
         if (hookResult !== null && hookResult !== undefined) {
-          result = hookResult;
+          result = hookResult as T;
         }
       } catch (error) {
         console.error(`Error in filter hook ${hookName} for plugin ${pluginName}:`, error);
