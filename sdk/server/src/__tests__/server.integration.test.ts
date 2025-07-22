@@ -109,7 +109,8 @@ describe('WebSocket Server Integration Tests', () => {
       
       expect(welcomeMessage.type).toBe(MessageType.EVENT);
       expect((welcomeMessage as EventMessage).payload.type).toBe('system.connected');
-      expect((welcomeMessage as EventMessage).payload.payload.clientId).toBeDefined();
+      const eventMessage = welcomeMessage as EventMessage;
+      expect((eventMessage.payload.payload as any).clientId).toBeDefined();
     });
 
     it('should accept connection with metadata', async () => {
@@ -281,7 +282,8 @@ describe('WebSocket Server Integration Tests', () => {
       const unsubResponse = await sendAndWaitForResponse(client, unsubscribeMsg);
       expect(unsubResponse.type).toBe(MessageType.RESPONSE);
       expect((unsubResponse as ResponseMessage).success).toBe(true);
-      expect((unsubResponse as ResponseMessage).payload.unsubscribed).toEqual([TestEventTypes.START_TEST]);
+      const responseMessage = unsubResponse as ResponseMessage;
+      expect((responseMessage.payload as any).unsubscribed).toEqual([TestEventTypes.START_TEST]);
     });
   });
 
@@ -311,7 +313,7 @@ describe('WebSocket Server Integration Tests', () => {
         type: MessageType.REQUEST,
         timestamp: Date.now(),
         method: 'test.request',
-        params: { data: 'test data' }
+        payload: { data: 'test data' }
       };
 
       // Set up responder handler
@@ -345,7 +347,7 @@ describe('WebSocket Server Integration Tests', () => {
       const response = await responsePromise;
       expect(response.requestId).toBe(request.id);
       expect(response.success).toBe(true);
-      expect(response.payload.result).toBe('processed');
+      expect((response.payload as any).result).toBe('processed');
 
       // Cleanup
       responder.close();
@@ -368,7 +370,7 @@ describe('WebSocket Server Integration Tests', () => {
         type: MessageType.REQUEST,
         timestamp: Date.now(),
         method: 'test.timeout',
-        params: {}
+        payload: {}
       };
 
       const errorPromise = new Promise<TransportMessage>((resolve) => {
@@ -451,7 +453,7 @@ describe('WebSocket Server Integration Tests', () => {
 
       const error = await errorPromise;
       expect(error.type).toBe(MessageType.ERROR);
-      expect(error.payload.code).toBe('PARSE_ERROR');
+      expect((error.payload as any).code).toBe('PARSE_ERROR');
     });
 
     it('should handle unknown message types', async () => {
@@ -464,7 +466,7 @@ describe('WebSocket Server Integration Tests', () => {
 
       const error = await sendAndWaitForResponse(client, unknownMessage as any);
       expect(error.type).toBe(MessageType.ERROR);
-      expect(error.payload.code).toBe('INVALID_MESSAGE_TYPE');
+      expect((error.payload as any).code).toBe('INVALID_MESSAGE_TYPE');
     });
   });
 

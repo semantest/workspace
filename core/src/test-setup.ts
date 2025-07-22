@@ -21,17 +21,7 @@ global.console = {
     debug: jest.fn()
 };
 
-// Mock common modules for testing
-jest.mock('playwright', () => ({
-    chromium: {
-        launch: jest.fn(),
-        connect: jest.fn()
-    }
-}));
-
-jest.mock('node-fetch', () => ({
-    default: jest.fn()
-}));
+// Mock modules will be handled in individual test files as needed
 
 // Setup test environment
 beforeEach(() => {

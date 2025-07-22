@@ -346,8 +346,8 @@ describe('Validation Utilities', () => {
     it('should create events with increasing timestamps', async () => {
       const event1 = createEvent('test.event', {});
       
-      // Wait a millisecond to ensure timestamp difference
-      await new Promise(resolve => setTimeout(resolve, 1));
+      // Wait 2ms to ensure timestamp difference (Date.now() has millisecond precision)
+      await new Promise(resolve => setTimeout(resolve, 2));
       
       const event2 = createEvent('test.event', {});
 

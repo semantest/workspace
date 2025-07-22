@@ -23,7 +23,6 @@ import { RequestHandler } from './request-handler';
 import { SecurityMiddleware } from './security/security-middleware';
 import { RateLimiter } from './security/rate-limiter';
 import { AccessController } from './security/access-controller';
-import { EventValidator } from './security/event-validator';
 
 /**
  * WebSocket server for Semantest distributed testing framework
@@ -42,7 +41,6 @@ export class WebSocketServer extends EventEmitter {
   private securityMiddleware: SecurityMiddleware;
   private rateLimiter: RateLimiter;
   private accessController: AccessController;
-  private eventValidator: EventValidator;
 
   constructor(options: WebSocketServerOptions) {
     super();
@@ -63,10 +61,6 @@ export class WebSocketServer extends EventEmitter {
       maxEventsPerSecond: 100,
       maxEventSize: 1024 * 1024,
       requireAuthentication: false
-    });
-    this.eventValidator = new EventValidator({
-      maxEventsPerSecond: 100,
-      maxEventSize: 1024 * 1024
     });
     this.securityMiddleware = new SecurityMiddleware();
 
