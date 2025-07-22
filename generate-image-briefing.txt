@@ -1,0 +1,47 @@
+TEAM BRIEFING: ChatGPT Image Generation Implementation
+
+MISSION: Implement end-to-end image generation workflow using ImageRequestReceived/ImageDownloaded events
+
+KEY REQUIREMENTS:
+
+1. ImageRequestReceived Event:
+   - project?: string (optional - if null, don't create project)
+   - chat?: string (optional - if null, create new chat)
+   - prompt: string (required - the image generation prompt)
+
+2. ImageDownloaded Event:
+   - path: string (required - path where image was saved)
+
+IMPLEMENTATION TASKS:
+
+1. Event Handler Implementation
+   - Listen for ImageRequestReceived events
+   - If chat is null, create a new chat
+   - If project is provided, use it; if null, don't create project
+   - Trigger image download process
+
+2. Image Download Logic
+   - Download images to ~/Downloads/ directory
+   - Emit ImageDownloaded event with the file path
+
+3. Shell Script Wrapper
+   Create generate-image.sh with usage:
+   ./generate-image.sh 'prompt' [download-folder]
+   - Default download folder: ~/Downloads/
+   - Should trigger the ImageRequestReceived event
+
+TEAM ASSIGNMENTS:
+- Windows 1-2: Event System Implementation
+- Windows 3-4: ChatGPT Integration
+- Windows 5-6: Download Manager
+- Windows 7-8: Testing & Shell Script
+
+SUCCESS CRITERIA:
+✅ ImageRequestReceived event properly handled
+✅ Images download to ~/Downloads/
+✅ ImageDownloaded event emitted with path
+✅ Shell script works: ./generate-image.sh 'a cat' ~/Pictures/
+✅ New chat created when chat is null
+✅ Project handled correctly
+
+Please respond with READY when you receive this briefing and understand your tasks.

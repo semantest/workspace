@@ -1,0 +1,40 @@
+🎯 VISUAL LOADING GUIDE - GET THIS RIGHT!
+
+DIRECTORY STRUCTURE:
+```
+/home/chous/work/semantest/
+├── extension.chrome/          <--- 🎯 LOAD THIS DIRECTORY!
+│   ├── manifest.json         <--- Chrome looks for this
+│   ├── build/               
+│   │   └── background.js     <--- Manifest references this
+│   └── src/
+└── generate-image.sh
+```
+
+CHROME EXTENSION LOADER:
+┌─────────────────────────────────────┐
+│  Select Directory to Load:          │
+│                                     │
+│  📁 semantest/                      │
+│    └─ 📁 extension.chrome/  ← CLICK │
+│         ├─ 📄 manifest.json         │
+│         └─ 📁 build/                │
+│                                     │
+│  [Cancel]           [Select Folder] │
+└─────────────────────────────────────┘
+
+✅ CORRECT: Select "extension.chrome"
+❌ WRONG: Going into "build" subdirectory
+
+WHY?
+- manifest.json says: "build/background.js"
+- This means: look for build INSIDE my directory
+- So load the directory WITH manifest.json!
+
+TEST SUCCESS:
+1. Extension loads = ✅
+2. No errors = ✅
+3. Run: ./generate-image.sh "test"
+4. Image downloads = 🎉 GRAPHIC NOVEL TIME!
+
+ONE CLICK AWAY FROM 500 COMIC STRIPS!

@@ -1,5 +1,5 @@
 import { WebSocketServer as WSServer, WebSocket } from 'ws';
-import { createServer, Server as HTTPServer } from 'http';
+import { createServer, Server as HTTPServer, IncomingMessage, ServerResponse } from 'http';
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
 import { 
@@ -23,6 +23,7 @@ import { RequestHandler } from './request-handler';
 import { SecurityMiddleware } from './security/security-middleware';
 import { RateLimiter } from './security/rate-limiter';
 import { AccessController } from './security/access-controller';
+import { BrowserHealthCheck } from './health-checks/browser-health';
 
 /**
  * WebSocket server for Semantest distributed testing framework
@@ -41,6 +42,9 @@ export class WebSocketServer extends EventEmitter {
   private securityMiddleware: SecurityMiddleware;
   private rateLimiter: RateLimiter;
   private accessController: AccessController;
+  
+  // Health check components
+  private browserHealthCheck: BrowserHealthCheck;
 
   constructor(options: WebSocketServerOptions) {
     super();
@@ -64,6 +68,9 @@ export class WebSocketServer extends EventEmitter {
     });
     this.securityMiddleware = new SecurityMiddleware();
 
+    // Initialize health checks
+    this.browserHealthCheck = new BrowserHealthCheck();
+
     // Initialize managers
     this.clientManager = new ClientManager(this.options.maxConnections);
     this.subscriptionManager = new SubscriptionManager();
@@ -83,8 +90,27 @@ export class WebSocketServer extends EventEmitter {
   async start(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
-        // Create HTTP server
-        this.httpServer = createServer();
+        // Create HTTP server with health endpoint
+        this.httpServer = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+          if (req.url === '/health' && req.method === 'GET') {
+            try {
+              const healthStatus = await this.browserHealthCheck.getHealthStatus();
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(healthStatus));
+            } catch (error) {
+              res.writeHead(500, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ 
+                component: 'server',
+                healthy: false,
+                message: 'Health check failed',
+                error: error instanceof Error ? error.message : 'Unknown error'
+              }));
+            }
+          } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not Found');
+          }
+        });
         
         // Create WebSocket server
         this.wsServer = new WSServer({ 
@@ -111,7 +137,22 @@ export class WebSocketServer extends EventEmitter {
         this.startHeartbeat();
 
         // Start HTTP server
-        this.httpServer.listen(this.options.port, this.options.host, () => {
+        this.httpServer.listen(this.options.port, this.options.host, async () => {
+          // Check browser health on startup
+          const healthStatus = await this.browserHealthCheck.getHealthStatus();
+          console.log('✅ WebSocket server running on port', this.options.port);
+          
+          if (healthStatus.healthy) {
+            console.log('✅ Browser automation available');
+            console.log(`   ${healthStatus.message}`);
+          } else {
+            console.warn('⚠️  Browser not available for automation');
+            console.warn(`   ${healthStatus.message}`);
+            if (healthStatus.action) {
+              console.warn(`   Action: ${healthStatus.action}`);
+            }
+          }
+          
           this.emit('started', {
             port: this.options.port,
             host: this.options.host

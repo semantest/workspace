@@ -1,0 +1,18 @@
+🚨 USER ACTION REQUIRED 🚨
+
+The extension MUST be installed for ANYTHING to work!
+
+QUICK STEPS:
+1. Open Chrome/Chromium
+2. Type: chrome://extensions/
+3. Toggle: Developer mode ON (top right)
+4. Click: Load unpacked
+5. Select: /home/chous/work/semantest/extension.chrome/
+6. Done!
+
+TEST IT:
+./generate-image.sh "Test prompt"
+
+Should complete in <5 seconds, NOT timeout after 30!
+
+CURRENT STATUS: Everything ready except this one step!

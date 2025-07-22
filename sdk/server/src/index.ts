@@ -23,3 +23,7 @@ export type {
 
 // Export orchestration components
 export * from './orchestration';
+
+// Export image handling components
+export { ImageEventHandler, createImageHandler } from './handlers/image-handler';
+export { ImageHandlerIntegration, attachImageHandler } from './handlers/image-handler-integration';
