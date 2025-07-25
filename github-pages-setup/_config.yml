@@ -1,0 +1,117 @@
+# Jekyll configuration for semantest.github.io
+# Site settings
+title: Semantest Documentation
+email: docs@semantest.io
+description: >-
+  Official documentation for Semantest - A modular, domain-driven testing framework 
+  for browser automation and distributed test execution.
+baseurl: ""
+url: "https://semantest.github.io"
+twitter_username: semantest
+github_username: semantest
+
+# Build settings
+theme: just-the-docs
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+  - jekyll-sitemap
+  - jekyll-redirect-from
+  - jekyll-github-metadata
+
+# Just the Docs theme configuration
+search_enabled: true
+search:
+  heading_level: 2
+  previews: 3
+  preview_words_before: 5
+  preview_words_after: 10
+  tokenizer_separator: /[\s/]+/
+  rel_url: true
+  button: false
+
+# Aux links for the upper right navigation
+aux_links:
+  "Semantest on GitHub":
+    - "//github.com/semantest/workspace"
+  "API Reference":
+    - "/api"
+
+# Footer content
+footer_content: "Copyright &copy; 2024-2025 Semantest. Distributed under MIT license."
+
+# Collections for different doc types
+collections:
+  docs:
+    permalink: "/:collection/:path/"
+    output: true
+  api:
+    permalink: "/api/:path/"
+    output: true
+  guides:
+    permalink: "/guides/:path/"
+    output: true
+  tutorials:
+    permalink: "/tutorials/:path/"
+    output: true
+
+# Default values
+defaults:
+  - scope:
+      path: ""
+      type: "docs"
+    values:
+      layout: "default"
+      nav_order: 1
+  - scope:
+      path: ""
+      type: "api"
+    values:
+      layout: "default"
+      parent: "API Reference"
+  - scope:
+      path: ""
+      type: "guides"
+    values:
+      layout: "default"
+      parent: "Guides"
+
+# Exclude from processing
+exclude:
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+  - Gemfile
+  - Gemfile.lock
+  - node_modules/
+  - vendor/
+  - .github/
+  - scripts/
+  - README.md
+  - CONTRIBUTING.md
+  - CODE_OF_CONDUCT.md
+
+# Markdown settings
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+  syntax_highlighter_opts:
+    css_class: 'highlight'
+    span:
+      line_numbers: false
+    block:
+      line_numbers: true
+      start_line: 1
+
+# Permalinks
+permalink: pretty
+
+# Compress HTML output
+compress_html:
+  clippings: all
+  comments: all
+  endings: all
+  startings: []
+  blanklines: false
+  profile: false
