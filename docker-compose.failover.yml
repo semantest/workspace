@@ -1,0 +1,97 @@
+version: '3.8'
+
+# Failover overlay configuration for docker-compose
+services:
+  # HAProxy for load balancing and failover
+  haproxy:
+    image: haproxy:2.9-alpine
+    ports:
+      - "80:80"
+      - "8404:8404"  # Stats page
+    volumes:
+      - ./deploy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    depends_on:
+      - websocket-server
+    networks:
+      - semantest-network
+    healthcheck:
+      test: ["CMD", "haproxy", "-c", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Redis with persistence for queue recovery
+  redis:
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-development-password} --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+      - ./deploy/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    environment:
+      REDIS_REPLICATION_MODE: master
+
+  # Enhanced websocket server with failover support
+  websocket-server:
+    environment:
+      # Failover configuration
+      FAILOVER_ENABLED: "true"
+      FAILOVER_CONFIG_PATH: /app/config/failover-config.yaml
+      
+      # Rate limiting
+      RATE_LIMIT_ENABLED: "true"
+      RATE_LIMIT_LOCAL_RPS: "10"
+      RATE_LIMIT_CLOUD_RPM: "100"
+      
+      # Queue configuration
+      QUEUE_BACKEND: "redis"
+      QUEUE_PERSISTENCE_ENABLED: "true"
+      QUEUE_MAX_SIZE: "10000"
+      QUEUE_TTL: "3600"
+      
+      # Health check configuration
+      HEALTH_CHECK_DETAILED: "true"
+      HEALTH_CHECK_INCLUDE_DEPENDENCIES: "true"
+    volumes:
+      - ./deploy/failover-config.yaml:/app/config/failover-config.yaml:ro
+    deploy:
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  # Prometheus with failover metrics
+  prometheus:
+    volumes:
+      - ./monitoring/prometheus-failover.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts/failover-alerts.yml:/etc/prometheus/alerts/failover-alerts.yml:ro
+    profiles:
+      - monitoring
+      - failover
+
+  # Grafana with failover dashboard
+  grafana:
+    volumes:
+      - ./monitoring/grafana/dashboards/failover-dashboard.json:/etc/grafana/provisioning/dashboards/failover-dashboard.json:ro
+    profiles:
+      - monitoring
+      - failover
+
+  # Alert manager for failover notifications
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - semantest-network
+    profiles:
+      - monitoring
+      - failover
+
+volumes:
+  alertmanager-data:

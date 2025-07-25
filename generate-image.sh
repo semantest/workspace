@@ -10,12 +10,12 @@
 # 4. Waits for the ImageDownloaded response
 #
 # Health check validates that:
-# - Server is responsive at http://localhost:8080/health
+# - Server is responsive at http://localhost:3004/health
 # - Browser executable is available for automation
 # - System is ready for image generation
 
 # Configuration
-WS_URL="ws://localhost:8080"
+WS_URL="ws://localhost:3004"
 TIMEOUT=30  # seconds to wait for response
 
 # Color codes for better UX
@@ -61,7 +61,7 @@ fi
 
 # Function to check if server is running
 check_server() {
-    nc -z localhost 8080 2>/dev/null
+    nc -z localhost 3004 2>/dev/null
     return $?
 }
 
@@ -96,7 +96,7 @@ start_server() {
         local spinner=('⠋' '⠙' '⠹' '⠸' '⠼' '⠴' '⠦' '⠧' '⠇' '⠏')
         for i in {1..10}; do
             if check_server; then
-                echo -e "\r${GREEN}✅ Server is now running on ws://localhost:8080${NC}"
+                echo -e "\r${GREEN}✅ Server is now running on ws://localhost:3004${NC}"
                 return 0
             fi
             printf "\r${YELLOW}${spinner[$((i % 10))]} Starting server... ($i/10)${NC}"
@@ -113,7 +113,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # Check if server is running, start if not
 if ! check_server; then
-    echo "⚠️  Semantest server is not running on localhost:8080"
+    echo "⚠️  Semantest server is not running on localhost:3004"
     start_server || {
         echo "❌ Failed to start server automatically"
         echo "Please start it manually with:"
@@ -122,7 +122,7 @@ if ! check_server; then
         exit 1
     }
 else
-    echo "✅ Semantest server is already running on ws://localhost:8080"
+    echo "✅ Semantest server is already running on ws://localhost:3004"
 fi
 
 # Function to check server health
@@ -133,7 +133,7 @@ check_health() {
         return 0  # Continue anyway
     fi
     
-    local health_response=$(curl -s -m 5 http://localhost:8080/health 2>/dev/null)
+    local health_response=$(curl -s -m 5 http://localhost:3004/health 2>/dev/null)
     
     if [ -z "$health_response" ]; then
         echo "❌ Health check failed: No response from server"
@@ -168,7 +168,7 @@ for attempt in {1..3}; do
     if check_health; then
         echo -e "\r${GREEN}✅ Server health check passed - browser automation available${NC}"
         # Show browser info if available
-        browser_info=$(curl -s http://localhost:8080/health 2>/dev/null | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
+        browser_info=$(curl -s http://localhost:3004/health 2>/dev/null | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
         if [ ! -z "$browser_info" ]; then
             echo -e "${GREEN}   └─ $browser_info${NC}"
         fi
@@ -300,7 +300,7 @@ echo ""
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${PURPLE}📊 System Status Summary${NC}"
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}✓ Server:${NC} Running on localhost:8080"
+echo -e "${GREEN}✓ Server:${NC} Running on localhost:3004"
 echo -e "${GREEN}✓ Health:${NC} Browser automation ready"
 echo -e "${GREEN}✓ Request:${NC} Image generation initialized"
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

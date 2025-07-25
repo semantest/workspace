@@ -1,0 +1,156 @@
+{
+  "dashboard": {
+    "title": "Semantest Failover Monitoring",
+    "uid": "semantest-failover",
+    "version": 1,
+    "tags": ["failover", "monitoring", "semantest"],
+    "timezone": "browser",
+    "refresh": "10s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "title": "Current Active Backend",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "haproxy_backend_current_backend",
+            "legendFormat": "{{ backend }}"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "none",
+          "justifyMode": "center",
+          "orientation": "horizontal",
+          "reduceOptions": {
+            "calcs": ["lastNotNull"],
+            "fields": "",
+            "values": false
+          }
+        }
+      },
+      {
+        "title": "Failover Events (24h)",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "increase(haproxy_failover_total[24h])"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "center"
+        }
+      },
+      {
+        "title": "Queue Size",
+        "type": "gauge",
+        "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "redis_list_length{list=\"websocket_queue\"}"
+          }
+        ],
+        "options": {
+          "showThresholdLabels": true,
+          "showThresholdMarkers": true
+        },
+        "fieldConfig": {
+          "defaults": {
+            "max": 10000,
+            "min": 0,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 5000 },
+                { "color": "red", "value": 8000 }
+              ]
+            },
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "title": "Rate Limit Status",
+        "type": "graph",
+        "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+        "targets": [
+          {
+            "expr": "rate(haproxy_http_requests_total[1m])",
+            "legendFormat": "Requests/sec"
+          },
+          {
+            "expr": "10",
+            "legendFormat": "Local Limit"
+          },
+          {
+            "expr": "100/60",
+            "legendFormat": "Cloud Limit"
+          }
+        ]
+      },
+      {
+        "title": "Backend Health Status",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+        "targets": [
+          {
+            "expr": "up{backend=\"local\"}",
+            "legendFormat": "Local Backend"
+          },
+          {
+            "expr": "up{backend=\"cloud\"}",
+            "legendFormat": "Cloud Backend"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "max": 1.5,
+            "min": -0.5
+          }
+        ]
+      },
+      {
+        "title": "Response Times by Backend",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, haproxy_http_response_time_bucket)",
+            "legendFormat": "p95 {{ backend }}"
+          },
+          {
+            "expr": "histogram_quantile(0.99, haproxy_http_response_time_bucket)",
+            "legendFormat": "p99 {{ backend }}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ms",
+            "label": "Response Time"
+          }
+        ]
+      },
+      {
+        "title": "Queue Recovery Status",
+        "type": "table",
+        "gridPos": { "h": 6, "w": 24, "x": 0, "y": 14 },
+        "targets": [
+          {
+            "expr": "websocket_queue_recovery_status",
+            "format": "table",
+            "instant": true
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,87 @@
+# Semantest Failover Configuration
+# Local -> Cloud automatic switching based on health checks
+
+failover:
+  # Health check configuration
+  health_check:
+    interval: 5s
+    timeout: 3s
+    failure_threshold: 3
+    success_threshold: 2
+    endpoints:
+      - path: /health
+        expected_status: 200
+      - path: /api/v1/status
+        expected_status: 200
+        
+  # Primary (Local) configuration
+  primary:
+    name: local
+    endpoints:
+      - url: http://localhost:8080
+        weight: 100
+    rate_limits:
+      requests_per_second: 10
+      burst: 20
+    
+  # Secondary (Cloud) configuration
+  secondary:
+    name: cloud
+    endpoints:
+      - url: https://api.semantest.com
+        weight: 100
+      - url: https://api-backup.semantest.com
+        weight: 50
+    rate_limits:
+      requests_per_minute: 100
+      burst: 200
+    
+  # Failover policies
+  policies:
+    # Switch to cloud when local fails
+    switch_to_cloud:
+      trigger:
+        - condition: health_check_failures
+          threshold: 3
+        - condition: response_time_ms
+          threshold: 5000
+        - condition: error_rate_percent
+          threshold: 50
+      cooldown: 30s
+      
+    # Switch back to local when recovered
+    switch_to_local:
+      trigger:
+        - condition: health_check_success
+          threshold: 10
+        - condition: time_since_switch
+          threshold: 5m
+      require_manual_approval: false
+      
+  # Queue persistence configuration
+  queue:
+    backend: redis
+    persistence:
+      enabled: true
+      max_size: 10000
+      ttl: 3600s
+    recovery:
+      enabled: true
+      retry_interval: 5s
+      max_retries: 3
+      
+  # Monitoring and alerting
+  monitoring:
+    metrics:
+      - failover_events_total
+      - current_backend
+      - health_check_failures
+      - queue_size
+      - rate_limit_hits
+    alerts:
+      - name: failover_triggered
+        severity: warning
+        channels: ["slack", "email"]
+      - name: both_backends_down
+        severity: critical
+        channels: ["pagerduty", "slack", "email"]

@@ -1,0 +1,40 @@
+{
+  "hooks": [
+    {
+      "name": "Send All Responses to Scribe",
+      "description": "Automatically forwards all agent responses (except Scribe's own) to the Scribe for journaling",
+      "event": "Stop",
+      "enabled": true,
+      "command": "/home/chous/work/tmux-orchestrator/hooks/all-to-scribe-hook.sh"
+    },
+    {
+      "name": "Send Subagent Results to Scribe",
+      "description": "Forwards sub-agent task results to Scribe for documentation",
+      "event": "SubagentStop",
+      "enabled": true,
+      "command": "/home/chous/work/tmux-orchestrator/hooks/all-to-scribe-hook.sh"
+    },
+    {
+      "name": "Document Tool Usage",
+      "description": "Sends important tool usage to Scribe for activity tracking",
+      "event": "PostToolUse",
+      "enabled": true,
+      "matchers": ["Write", "Edit", "MultiEdit", "Bash", "TodoWrite"],
+      "command": "/home/chous/work/tmux-orchestrator/hooks/tool-usage-to-scribe.sh"
+    },
+    {
+      "name": "Document Blockers",
+      "description": "Ensures blockers are documented in the journal",
+      "event": "Stop",
+      "enabled": true,
+      "command": "/home/chous/work/tmux-orchestrator/hooks/blocker-to-scribe.sh"
+    },
+    {
+      "name": "Document Decisions",
+      "description": "Captures architectural and technical decisions for the journal",
+      "event": "Stop",
+      "enabled": true,
+      "command": "/home/chous/work/tmux-orchestrator/hooks/decision-to-scribe.sh"
+    }
+  ]
+}

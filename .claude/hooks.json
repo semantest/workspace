@@ -1,0 +1,33 @@
+{
+  "hooks": [
+    {
+      "name": "Send Agent Responses to PM",
+      "description": "Automatically forwards all agent responses to the Project Manager",
+      "event": "Stop",
+      "enabled": true,
+      "command": "/home/chous/work/tmux-orchestrator/hooks/agent-to-pm-hook.sh"
+    },
+    {
+      "name": "Send Subagent Responses to PM",
+      "description": "Forwards sub-agent task results to PM",
+      "event": "SubagentStop",
+      "enabled": true,
+      "command": "/home/chous/work/tmux-orchestrator/hooks/agent-to-pm-hook.sh"
+    },
+    {
+      "name": "Log Tool Usage to PM",
+      "description": "Notifies PM when agents use important tools",
+      "event": "PostToolUse",
+      "enabled": true,
+      "matchers": ["Write", "Edit", "MultiEdit", "Bash"],
+      "command": "/home/chous/work/tmux-orchestrator/hooks/tool-usage-to-pm.sh"
+    },
+    {
+      "name": "Forward Blockers to PM",
+      "description": "Detects blocker messages and ensures PM is notified",
+      "event": "Stop",
+      "enabled": true,
+      "command": "/home/chous/work/tmux-orchestrator/hooks/blocker-detection-hook.sh"
+    }
+  ]
+}

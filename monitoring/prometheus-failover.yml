@@ -1,0 +1,66 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    environment: 'production'
+    project: 'semantest'
+    component: 'failover'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+rule_files:
+  - "alerts/failover-alerts.yml"
+
+scrape_configs:
+  # HAProxy metrics
+  - job_name: 'haproxy'
+    static_configs:
+      - targets: ['haproxy:8404']
+        labels:
+          service: 'haproxy'
+          component: 'loadbalancer'
+    metrics_path: '/stats;csv'
+    
+  # Enhanced WebSocket server metrics
+  - job_name: 'websocket-server-failover'
+    static_configs:
+      - targets: ['websocket-server:8080']
+        labels:
+          service: 'websocket-server'
+          component: 'backend'
+          backend: 'local'
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+    
+  # Cloud backend health checks
+  - job_name: 'cloud-backend-health'
+    static_configs:
+      - targets: 
+          - 'api.semantest.com:443'
+          - 'api-backup.semantest.com:443'
+        labels:
+          service: 'websocket-server'
+          component: 'backend'
+          backend: 'cloud'
+    scheme: https
+    metrics_path: '/health/metrics'
+    scrape_interval: 30s
+    
+  # Redis metrics for queue monitoring
+  - job_name: 'redis-queue'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+          component: 'queue'
+    
+  # Failover exporter (custom metrics)
+  - job_name: 'failover-exporter'
+    static_configs:
+      - targets: ['websocket-server:9100']
+        labels:
+          service: 'failover-exporter'
+          component: 'monitoring'

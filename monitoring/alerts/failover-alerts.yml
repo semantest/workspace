@@ -1,0 +1,69 @@
+groups:
+  - name: failover_alerts
+    interval: 30s
+    rules:
+      # Alert when failover to cloud occurs
+      - alert: FailoverToCloudTriggered
+        expr: increase(haproxy_backend_current_sessions{backend="cloud_backend"}[1m]) > 0 and haproxy_backend_current_sessions{backend="local_backend"} == 0
+        for: 1m
+        labels:
+          severity: warning
+          component: failover
+        annotations:
+          summary: "Failover to cloud backend triggered"
+          description: "Local backend is down, traffic switched to cloud backend"
+          
+      # Alert when both backends are down
+      - alert: AllBackendsDown
+        expr: haproxy_backend_up{backend="local_backend"} == 0 and haproxy_backend_up{backend="cloud_backend"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          component: failover
+        annotations:
+          summary: "All backends are down"
+          description: "Both local and cloud backends are unavailable"
+          
+      # Alert on high queue size
+      - alert: HighQueueSize
+        expr: redis_list_length{list="websocket_queue"} > 5000
+        for: 5m
+        labels:
+          severity: warning
+          component: queue
+        annotations:
+          summary: "Queue size is high"
+          description: "Queue size is {{ $value }}, may indicate processing issues"
+          
+      # Alert on rate limit violations
+      - alert: RateLimitExceeded
+        expr: rate(haproxy_http_rate_limit_exceeded_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          component: ratelimit
+        annotations:
+          summary: "High rate of rate limit violations"
+          description: "{{ $value }} rate limit violations per second"
+          
+      # Alert on health check failures
+      - alert: HealthCheckFailures
+        expr: up{job="websocket-server-failover"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          component: health
+        annotations:
+          summary: "Health check failures detected"
+          description: "Health checks failing for {{ $labels.instance }}"
+          
+      # Alert on failover flapping
+      - alert: FailoverFlapping
+        expr: changes(haproxy_backend_current_backend[10m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          component: failover
+        annotations:
+          summary: "Failover is flapping between backends"
+          description: "Backend switched {{ $value }} times in last 10 minutes"

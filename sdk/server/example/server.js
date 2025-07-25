@@ -1,12 +1,10 @@
 const { WebSocketServer } = require('../dist');
+const config = require('./server-config');
 
-// Create server instance
-const server = new WebSocketServer({
-  port: 8080,
-  heartbeatInterval: 30000,
-  requestTimeout: 10000,
-  maxConnections: 100
-});
+// Create server instance with configuration
+const server = new WebSocketServer(config);
+
+console.log(`Configuring WebSocket server on port ${config.port}...`);
 
 // Handle server events
 server.on('started', ({ port, host }) => {
