@@ -1,0 +1,79 @@
+# 🔒 SECURE GIT COMMIT COMMANDS FOR v1.0.2 MILESTONE
+
+## ⚠️ CRITICAL: ALL COMMITS MUST BE GPG SIGNED!
+
+### 1. Stage All Changes:
+```bash
+cd /home/chous/work/semantest
+git add -A
+```
+
+### 2. Commit WITH GPG SIGNATURE:
+```bash
+git commit -S -m "🎉 Release v1.0.2 - First working version confirmed by rydnr!
+
+Major achievements:
+- Extension successfully automates ChatGPT
+- Image generation pipeline fully functional
+- All 5 critical blockers resolved
+- Ready for 500-strip graphic novel generation
+
+Key components:
+- Service worker with retry logic
+- Direct ChatGPT prompt submission
+- Health check monitoring
+- CSP-compliant implementation
+
+This milestone enables rydnr's creative vision!
+
+🤖 Generated with Claude Code
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+### 3. Tag WITH GPG SIGNATURE:
+```bash
+git tag -s v1.0.2 -m "First working version - Extension validated by rydnr"
+```
+
+### 4. Push Everything:
+```bash
+git push origin main
+git push origin v1.0.2
+```
+
+## ⚠️ IF YOU GET GPG SIGNING ERRORS:
+
+**STOP IMMEDIATELY and create GitHub issue with:**
+```
+Title: GPG Signing Error - v1.0.2 Commit Blocked
+Body:
+- Error message: [paste exact error]
+- Command attempted: [exact command]
+- Git version: $(git --version)
+- GPG version: $(gpg --version)
+```
+
+## NEVER USE:
+- ❌ `git commit` (without -S)
+- ❌ `git tag` (without -s)
+- ❌ `--no-gpg-sign`
+- ❌ Any unsigned commits
+
+## GPG TROUBLESHOOTING:
+```bash
+# Check GPG is configured
+git config --get user.signingkey
+
+# List GPG keys
+gpg --list-secret-keys
+
+# Test GPG signing
+echo "test" | gpg --clearsign
+```
+
+---
+
+## 🔒 SECURITY IS NON-NEGOTIABLE! 
+
+Every commit must be signed to protect the integrity of our v1.0.2 milestone!

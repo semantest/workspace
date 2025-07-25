@@ -1,0 +1,19 @@
+{
+  "name": "semantest-qa-tests",
+  "version": "1.0.0",
+  "description": "Automated testing suite for Semantest Chrome extension",
+  "main": "extension-integration-test-suite.js",
+  "scripts": {
+    "test": "node extension-integration-test-suite.js",
+    "test:basic": "node automated-extension-test.js",
+    "test:production": "./run-automated-test.sh",
+    "install-chrome": "npx playwright install chromium"
+  },
+  "dependencies": {
+    "playwright": "^1.40.0",
+    "ws": "^8.14.0"
+  },
+  "devDependencies": {},
+  "author": "Carol (QA Engineer)",
+  "license": "MIT"
+}

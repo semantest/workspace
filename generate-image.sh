@@ -84,7 +84,7 @@ start_server() {
         fi
         
         # Fix NODE_PATH to ensure modules are found
-        export NODE_PATH="/home/chous/work/semantest/sdk/server/node_modules:$NODE_PATH"
+        export NODE_PATH="$SCRIPT_DIR/sdk/node_modules:$NODE_PATH"
         
         # Start server in background, redirect output to log file
         nohup npm run dev > /tmp/semantest-server.log 2>&1 &
@@ -272,18 +272,14 @@ ws.on('close', () => {
 });
 EOF
 
+# Set NODE_PATH to include sdk's node_modules
+export NODE_PATH="$SCRIPT_DIR/sdk/node_modules:$NODE_PATH"
+
 # Check if ws module is available
 if ! node -e "require('ws')" 2>/dev/null; then
     echo "📦 Installing WebSocket client..."
-    npm install -g ws 2>/dev/null || {
-        echo "❌ Failed to install ws module. Trying local installation..."
-        mkdir -p /tmp/semantest-ws-tmp
-        cd /tmp/semantest-ws-tmp
-        npm init -y >/dev/null 2>&1
-        npm install ws >/dev/null 2>&1
-        cd - >/dev/null
-        export NODE_PATH="/tmp/semantest-ws-tmp/node_modules:$NODE_PATH"
-    }
+    cd "$SCRIPT_DIR/sdk" && npm install ws
+    export NODE_PATH="$SCRIPT_DIR/sdk/node_modules:$NODE_PATH"
 fi
 
 # Create payload
@@ -313,7 +309,7 @@ echo ""
 # Execute the WebSocket client
 echo -e "${CYAN}🔌 Connecting to Semantest server at $WS_URL...${NC}"
 # Fix NODE_PATH to ensure ws module is found
-export NODE_PATH="/home/chous/work/semantest/sdk/server/node_modules:$NODE_PATH"
+export NODE_PATH="$SCRIPT_DIR/sdk/node_modules:$NODE_PATH"
 node "$TMP_SCRIPT" "$WS_URL" "semantest/custom/image/request/received" "$PAYLOAD" "$TIMEOUT"
 
 # Cleanup
