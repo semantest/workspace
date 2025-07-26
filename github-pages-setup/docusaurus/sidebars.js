@@ -25,20 +25,13 @@ const sidebars = {
       label: 'Architecture',
       items: [
         'architecture/introduction',
-        'architecture/domain-driven-design',
-        'architecture/module-structure',
-        'architecture/event-system',
-        'architecture/security',
       ],
     },
     {
       type: 'category',
       label: 'Getting Started',
       items: [
-        'getting-started/installation',
         'getting-started/quick-start',
-        'getting-started/first-test',
-        'getting-started/configuration',
       ],
     },
     {
@@ -50,16 +43,12 @@ const sidebars = {
           label: 'Core',
           items: [
             'components/core/overview',
-            'components/core/events',
-            'components/core/utilities',
           ],
         },
         {
           type: 'category',
           label: 'Browser',
           items: [
-            'components/browser/overview',
-            'components/browser/automation',
             'components/browser/websocket',
           ],
         },
@@ -68,17 +57,20 @@ const sidebars = {
           label: 'Extensions',
           items: [
             'components/extensions/chrome',
-            'components/extensions/firefox',
-            'components/extensions/edge',
           ],
         },
         {
           type: 'category',
           label: 'Domains',
           items: [
-            'components/domains/google-images',
-            'components/domains/chatgpt',
-            'components/domains/custom',
+            'components/domains/image-download',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'SDK',
+          items: [
+            'components/sdk/client',
           ],
         },
       ],
@@ -99,9 +91,7 @@ const sidebars = {
       label: 'API Reference',
       items: [
         'api/client',
-        'api/server',
-        'api/events',
-        'api/websocket-protocol',
+        'api/backend',
       ],
     },
     {
@@ -109,21 +99,6 @@ const sidebars = {
       label: 'Deployment',
       items: [
         'deployment/docker',
-        'deployment/kubernetes',
-        'deployment/ci-cd',
-        'deployment/monitoring',
-        'deployment/scaling',
-      ],
-    },
-    {
-      type: 'category',
-      label: 'Resources',
-      items: [
-        'resources/examples',
-        'resources/tutorials',
-        'resources/faq',
-        'resources/troubleshooting',
-        'resources/changelog',
       ],
     },
   ],
