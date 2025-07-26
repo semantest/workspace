@@ -1,0 +1,33 @@
+{
+  "extends": "@tsconfig/docusaurus/tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "strict": true,
+    "jsx": "react",
+    "lib": ["DOM", "ESNext"],
+    "types": ["node", "@docusaurus/module-type-aliases"],
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "@site/*": ["./src/*"],
+      "@docs/*": ["./docs/*"],
+      "@blog/*": ["./blog/*"],
+      "@theme/*": ["./src/theme/*"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "docs/**/*",
+    "blog/**/*",
+    "docusaurus.config.js",
+    "sidebars.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    ".docusaurus"
+  ]
+}
