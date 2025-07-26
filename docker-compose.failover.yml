@@ -22,6 +22,7 @@ services:
 
   # Redis with persistence for queue recovery
   redis:
+    image: redis:7-alpine
     command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-development-password} --maxmemory 512mb --maxmemory-policy allkeys-lru
     volumes:
       - redis-data:/data
