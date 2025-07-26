@@ -42,7 +42,7 @@ jobs:
         uses: actions/configure-pages@v4
 
       - name: Install dependencies
-        working-directory: ./github-pages-setup
+        working-directory: ./github-pages-setup/docusaurus
         run: |
           if [ -f "package-lock.json" ]; then
             npm ci
@@ -51,12 +51,12 @@ jobs:
           fi
 
       - name: Build documentation
-        working-directory: ./github-pages-setup
+        working-directory: ./github-pages-setup/docusaurus
         run: |
           npm run build
           # Copy built files to _site for GitHub Pages
-          mkdir -p ../_site
-          cp -r build/* ../_site/
+          mkdir -p ../../_site
+          cp -r build/* ../../_site/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
