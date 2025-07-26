@@ -1,0 +1,66 @@
+# Deployment Protection Configuration
+# Enforces quality gates before allowing deployments
+
+protection_rules:
+  coverage:
+    enabled: true
+    threshold: 50  # Minimum 50% test coverage
+    enforcement: strict  # Block all deployments below threshold
+    
+  type_safety:
+    enabled: true
+    typescript_strict: true
+    no_any_types: true
+    
+  security:
+    enabled: true
+    vulnerability_scan: true
+    dependency_audit: true
+    
+  performance:
+    enabled: true
+    build_size_limit: "5MB"
+    lighthouse_score: 80
+    
+environments:
+  development:
+    coverage_threshold: 30  # Lower for dev
+    allow_override: true
+    
+  staging:
+    coverage_threshold: 50
+    allow_override: false
+    
+  production:
+    coverage_threshold: 50
+    allow_override: false
+    require_approvals: 2
+    
+gates:
+  - name: "Test Coverage Gate"
+    type: coverage
+    threshold: 50
+    blocker: true
+    message: "Cannot deploy with test coverage below 50%"
+    
+  - name: "TypeScript Compilation Gate"
+    type: build
+    command: "npm run typecheck"
+    blocker: true
+    message: "Cannot deploy with TypeScript errors"
+    
+  - name: "Security Vulnerability Gate"
+    type: security
+    command: "npm audit --production"
+    max_vulnerabilities:
+      critical: 0
+      high: 0
+      moderate: 5
+    blocker: true
+    
+  - name: "Performance Gate"
+    type: performance
+    metrics:
+      bundle_size: "5MB"
+      initial_load: "3s"
+    blocker: false  # Warning only for now
