@@ -1,8 +1,9 @@
 // @ts-check
 // Note: type annotations allow type checking and IDEs autocompletion
 
-const lightCodeTheme = require('prism-react-renderer/themes/github');
-const darkCodeTheme = require('prism-react-renderer/themes/dracula');
+const {themes} = require('prism-react-renderer');
+const lightCodeTheme = themes.github;
+const darkCodeTheme = themes.dracula;
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
@@ -12,11 +13,11 @@ const config = {
 
   // Set the production url of your site here
   url: 'https://semantest.github.io',
-  baseUrl: '/',
+  baseUrl: '/workspace/',
 
   // GitHub pages deployment config
   organizationName: 'semantest',
-  projectName: 'semantest.github.io',
+  projectName: 'workspace',
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
 
