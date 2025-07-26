@@ -10,7 +10,7 @@
     (at your option) any later version.
 */
 
-import { Result, Option, Maybe, Either } from './types';
+import { Result, Option, Either } from './types';
 
 /**
  * Utility functions for common operations
@@ -74,10 +74,12 @@ export class Utils {
                 const sourceValue = source[key];
                 const targetValue = result[key];
                 
-                if (this.isObject(sourceValue) && this.isObject(targetValue)) {
-                    result[key] = this.deepMerge(targetValue, sourceValue);
-                } else {
-                    result[key] = sourceValue as any;
+                if (sourceValue !== undefined) {
+                    if (this.isObject(sourceValue) && this.isObject(targetValue)) {
+                        result[key] = this.deepMerge(targetValue, sourceValue);
+                    } else {
+                        result[key] = sourceValue as any;
+                    }
                 }
             }
         }

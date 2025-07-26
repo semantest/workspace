@@ -344,7 +344,7 @@ export class ErrorUtils {
     /**
      * Wrap error in BaseError
      */
-    static wrap(error: Error, type: ErrorType = ErrorType.INTERNAL): BaseError {
+    static wrap(error: Error): BaseError {
         if (error instanceof BaseError) {
             return error;
         }
@@ -357,10 +357,12 @@ export class ErrorUtils {
      */
     static chain(originalError: Error, newError: Error): Error {
         if (newError instanceof BaseError) {
-            newError.details = {
+            // Create a new error with the chained details instead of mutating
+            const ErrorClass = newError.constructor as typeof BaseError;
+            return new (ErrorClass as any)(newError.message, {
                 ...newError.details,
                 originalError: originalError
-            };
+            });
         }
 
         return newError;
