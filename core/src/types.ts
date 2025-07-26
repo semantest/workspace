@@ -11,25 +11,26 @@
 */
 
 // Import types from other modules
-import { Entity, AggregateRoot, TimestampedEntity, BaseEntityProps } from './entities';
-import { DomainEvent, IntegrationEvent, EventHandler, EventBus } from './events';
-import { ValueObject, Id, Email, Url, Timestamp, Name, Version } from './value-objects';
-import { 
-    Adapter, 
-    HttpAdapter, 
-    StorageAdapter, 
-    CacheAdapter, 
-    CommunicationAdapter,
-    DomAdapter,
-    BrowserAdapter,
-    FileSystemAdapter,
-    DatabaseAdapter,
-    LoggingAdapter,
-    MetricsAdapter,
-    Repository,
-    QueryHandler,
-    CommandHandler
-} from './adapters';
+// TODO: Re-enable when these types are used in this file
+// import { Entity, AggregateRoot, TimestampedEntity, BaseEntityProps } from './entities';
+// import { DomainEvent, IntegrationEvent, EventHandler, EventBus } from './events';
+// import { ValueObject, Id, Email, Url, Timestamp, Name, Version } from './value-objects';
+// import { 
+//     Adapter, 
+//     HttpAdapter, 
+//     StorageAdapter, 
+//     CacheAdapter, 
+//     CommunicationAdapter,
+//     DomAdapter,
+//     BrowserAdapter,
+//     FileSystemAdapter,
+//     DatabaseAdapter,
+//     LoggingAdapter,
+//     MetricsAdapter,
+//     Repository,
+//     QueryHandler,
+//     CommandHandler
+// } from './adapters';
 
 /**
  * Generic Result type for operations
