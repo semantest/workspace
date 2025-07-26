@@ -37,69 +37,26 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
       - name: Install dependencies
-        run: npm ci
+        working-directory: ./github-pages-setup
+        run: |
+          if [ -f "package-lock.json" ]; then
+            npm ci
+          else
+            npm install
+          fi
 
       - name: Build documentation
+        working-directory: ./github-pages-setup
         run: |
-          # Create documentation build directory
-          mkdir -p _site
-          
-          # Copy main documentation
-          cp -r docs/* _site/ 2>/dev/null || true
-          
-          # Copy README files as index pages for modules
-          find . -name "README.md" -not -path "./node_modules/*" -not -path "./_site/*" | while read readme; do
-            dir_path=$(dirname "$readme")
-            module_name=$(basename "$dir_path")
-            if [ "$dir_path" != "." ]; then
-              mkdir -p "_site/$module_name"
-              cp "$readme" "_site/$module_name/index.md"
-            fi
-          done
-          
-          # Generate API documentation if TypeScript files exist
-          if [ -f "tsconfig.json" ]; then
-            npx typedoc --out _site/api --entryPointStrategy expand ./*/src/index.ts 2>/dev/null || true
-          fi
-          
-          # Create main index.html if it doesn't exist
-          if [ ! -f "_site/index.html" ]; then
-            cat > _site/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html>
-          <head>
-            <title>Semantest Documentation</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 40px; }
-              .module { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
-              a { color: #0366d6; text-decoration: none; }
-              a:hover { text-decoration: underline; }
-            </style>
-          </head>
-          <body>
-            <h1>Semantest Framework Documentation</h1>
-            <div class="module">
-              <h2><a href="./README.html">Main Documentation</a></h2>
-              <p>Framework overview and getting started guide</p>
-            </div>
-            <div class="module">
-              <h2><a href="./api/">API Reference</a></h2>
-              <p>Complete API documentation</p>
-            </div>
-            <div class="module">
-              <h2><a href="./architecture/">Architecture Guide</a></h2>
-              <p>System architecture and design patterns</p>
-            </div>
-          </body>
-          </html>
-          EOF
-          fi
+          npm run build
+          # Copy built files to _site for GitHub Pages
+          mkdir -p ../_site
+          cp -r build/* ../_site/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
