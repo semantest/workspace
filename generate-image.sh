@@ -16,7 +16,7 @@
 
 # Configuration
 WS_URL="ws://localhost:3004"
-TIMEOUT=30  # seconds to wait for response
+TIMEOUT=60  # seconds to wait for response (increased for image generation)
 
 # Color codes for better UX
 RED='\033[0;31m'
