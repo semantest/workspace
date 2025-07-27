@@ -318,13 +318,24 @@ ws.on('message', (data) => {
     try {
         const message = JSON.parse(data.toString());
         
-        if (message.type === 'semantest/custom/image/downloaded') {
+        // Handle nested event structure
+        if (message.type === 'event' && message.payload) {
+            const eventType = message.payload.type;
+            const eventData = message.payload.payload;
+            
+            if (eventType === 'semantest/custom/image/downloaded') {
+                clearTimeout(timeoutId);
+                console.log('\n🎉 SUCCESS! Image downloaded');
+                console.log('📍 File path:', eventData.path || eventData.filename);
+                console.log('📏 File size:', eventData.size || 'Unknown');
+                ws.close();
+                process.exit(0);
+            }
+        } else if (message.type === 'semantest/custom/image/downloaded') {
+            // Direct format (backward compatibility)
             clearTimeout(timeoutId);
             console.log('\n🎉 SUCCESS! Image downloaded');
-            console.log('📍 File path:', message.payload.path || message.payload.imagePath);
-            if (message.payload.metadata) {
-                console.log('📊 Metadata:', JSON.stringify(message.payload.metadata, null, 2));
-            }
+            console.log('📍 File path:', message.payload?.path || message.payload?.filename || message.data?.path);
             ws.close();
             process.exit(0);
         } else if (message.type === 'error') {
