@@ -16,7 +16,7 @@
 
 # Configuration
 WS_URL="ws://localhost:3004"
-TIMEOUT=60  # seconds to wait for response (increased for image generation)
+TIMEOUT=120  # seconds to wait for response (2 minutes for slow image generation)
 
 # Color codes for better UX
 RED='\033[0;31m'
@@ -196,6 +196,85 @@ if [ "$health_check_passed" = false ]; then
     echo "Continuing despite health check failure..."
 fi
 
+# Function to check ChatGPT tab responsiveness
+check_chatgpt_tab() {
+    echo -e "${BLUE}🔍 Checking ChatGPT tab responsiveness...${NC}"
+    
+    # Create a simple test script to check tab
+    local CHECK_SCRIPT="/tmp/check-chatgpt-$$.js"
+    cat > "$CHECK_SCRIPT" << 'EOF'
+const http = require('http');
+
+const options = {
+    hostname: 'localhost',
+    port: 3004,
+    path: '/tab-check',
+    method: 'GET',
+    timeout: 5000
+};
+
+const req = http.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => { data += chunk; });
+    res.on('end', () => {
+        try {
+            const result = JSON.parse(data);
+            if (result.chatgptTabFound && result.responsive) {
+                console.log('SUCCESS');
+                process.exit(0);
+            } else if (result.chatgptTabFound && !result.responsive) {
+                console.log('UNRESPONSIVE');
+                process.exit(1);
+            } else {
+                console.log('NOT_FOUND');
+                process.exit(2);
+            }
+        } catch (e) {
+            console.log('ERROR');
+            process.exit(3);
+        }
+    });
+});
+
+req.on('error', () => {
+    console.log('ERROR');
+    process.exit(3);
+});
+
+req.on('timeout', () => {
+    console.log('TIMEOUT');
+    process.exit(4);
+});
+
+req.end();
+EOF
+
+    # Run the check
+    local result=$(node "$CHECK_SCRIPT" 2>/dev/null)
+    rm -f "$CHECK_SCRIPT"
+    
+    case "$result" in
+        "SUCCESS")
+            echo -e "${GREEN}✅ ChatGPT tab is responsive and ready${NC}"
+            return 0
+            ;;
+        "UNRESPONSIVE")
+            echo -e "${YELLOW}⚠️  ChatGPT tab found but unresponsive${NC}"
+            echo -e "${YELLOW}💡 Please reload the ChatGPT tab and try again${NC}"
+            return 1
+            ;;
+        "NOT_FOUND")
+            echo -e "${RED}❌ No ChatGPT tab found${NC}"
+            echo -e "${YELLOW}💡 Please open ChatGPT (chat.openai.com) in a browser tab${NC}"
+            return 2
+            ;;
+        *)
+            echo -e "${YELLOW}⚠️  Could not check tab status, proceeding anyway...${NC}"
+            return 0
+            ;;
+    esac
+}
+
 # Create temporary Node.js WebSocket client script
 TMP_SCRIPT="/tmp/semantest-image-client-$$.js"
 cat > "$TMP_SCRIPT" << 'EOF'
@@ -225,7 +304,7 @@ ws.on('open', () => {
         }
     };
     
-    console.log('📤 Sending ImageRequestReceived event...');
+    console.log('📤 Sending ImageDownloadRequested event...');
     ws.send(JSON.stringify(message));
     
     // Set timeout
@@ -295,6 +374,18 @@ PAYLOAD=$(cat <<EOF
 EOF
 )
 
+# Check ChatGPT tab before proceeding
+echo ""
+if ! check_chatgpt_tab; then
+    echo ""
+    echo "⚠️  ChatGPT tab check failed. Would you like to continue anyway? (y/N)"
+    read -r response
+    if [[ ! "$response" =~ ^[Yy]$ ]]; then
+        echo "Exiting..."
+        exit 1
+    fi
+fi
+
 # Show final status summary
 echo ""
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
@@ -302,7 +393,8 @@ echo -e "${PURPLE}📊 System Status Summary${NC}"
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}✓ Server:${NC} Running on localhost:3004"
 echo -e "${GREEN}✓ Health:${NC} Browser automation ready"
-echo -e "${GREEN}✓ Request:${NC} Image generation initialized"
+echo -e "${GREEN}✓ ChatGPT:${NC} Tab responsive and ready"
+echo -e "${GREEN}✓ Request:${NC} Image download initialized"
 echo -e "${PURPLE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo ""
 
@@ -310,7 +402,7 @@ echo ""
 echo -e "${CYAN}🔌 Connecting to Semantest server at $WS_URL...${NC}"
 # Fix NODE_PATH to ensure ws module is found
 export NODE_PATH="$SCRIPT_DIR/sdk/node_modules:$NODE_PATH"
-node "$TMP_SCRIPT" "$WS_URL" "semantest/custom/image/request/received" "$PAYLOAD" "$TIMEOUT"
+node "$TMP_SCRIPT" "$WS_URL" "semantest/custom/image/download/requested" "$PAYLOAD" "$TIMEOUT"
 
 # Cleanup
 rm -f "$TMP_SCRIPT"
