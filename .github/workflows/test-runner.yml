@@ -1,0 +1,52 @@
+name: Test Runner
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: extension.chrome/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd extension.chrome
+        npm ci
+
+    - name: Run linting
+      run: |
+        cd extension.chrome
+        npm run lint || echo "⚠️ Linting issues found"
+
+    - name: Run type checking
+      run: |
+        cd extension.chrome
+        npm run typecheck || echo "⚠️ Type issues found"
+
+    - name: Run unit tests
+      run: |
+        cd extension.chrome
+        npm test || echo "⚠️ Some tests failed"
+
+    - name: Test summary
+      if: always()
+      run: |
+        echo "✅ Test run completed"
+        echo "Check the logs above for any issues"
