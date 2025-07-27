@@ -12,7 +12,7 @@ const config = {
 
   // Set the production url of your site here
   url: 'https://semantest.github.io',
-  baseUrl: '/',
+  baseUrl: '/workspace/',
 
   // GitHub pages deployment config
   organizationName: 'semantest',
