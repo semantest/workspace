@@ -26,31 +26,23 @@
       {
         "hooks": [
           {
-            "type": "command", 
+            "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/all-to-scribe.sh"
           },
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agent-to-pm.sh"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/notify-architect.sh"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit|Bash",
+        "tools": ["MultiEdit", "Edit", "Write"],
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tool-usage-to-scribe.sh"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tool-usage-to-pm.sh"
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/all-to-scribe.sh"
           }
         ]
       }
