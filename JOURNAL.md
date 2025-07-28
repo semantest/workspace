@@ -1630,6 +1630,76 @@ Recent commits:
 4. Clarify "Hour 44" timeline confusion
 5. Document REQ-001 implementation status
 
+## ⚠️ TEAM REMINDER - Common Mistakes to Avoid (14:20 UTC)
+
+**Critical Reminders for All Team Members**:
+
+### ❌ MISTAKES TO AVOID:
+- Using 'tmux send-keys' without the script
+- Forgetting to commit regularly (10-minute rule!)
+- Not reporting blockers (Eva blocked 9+ hours!)
+- Working in isolation without updates
+
+### ✅ CORRECT PRACTICES:
+- **Use send-claude-message.sh for ALL communication!**
+- Maintain 10-minute commit discipline
+- Report blockers immediately
+- Share progress updates regularly
+
+**Team Status Check**:
+- Last commits: Within 5 minutes ✅
+- Communication: Using proper tools ✅
+- Blockers reported: Eva's 9+ hour block needs resolution ⚠️
+- Regular updates: Excellent across all windows ✅
+
+## 📊 Madison's 3:25 PM Update - Team Notification (14:25 UTC)
+
+**Madison's PM Activity**:
+- **Time**: 3:25 PM
+- **Action**: Team notification for 3:30 PM commits
+- **Message**: Reminding team of GPG signing with commit template
+- **Command Shared**: `git commit -S -m '🚧 Progress: [description]'`
+- **Window**: 0
+- **Leadership**: Proactive 5-minute advance notice
+
+**Pattern**: Madison continues strong post-Hour 48 leadership, giving the team advance notice for their 3:30 PM commits!
+
+## 🚀 Team Response to Common Mistakes Reminder (14:25 UTC)
+
+### Alex (Backend) - Window 1
+**Compliance Check**: ✅ PERFECT!
+- Working tree clean
+- Test coverage maintained at 50.48%
+- Acknowledging best practices
+- "Successfully avoiding all common mistakes"
+
+### Eva (Extension) - Window 2
+**Best Practices**: ✅ FOLLOWING ALL!
+- Thanks for the reminder acknowledged
+- Following all best practices
+- Maintaining discipline
+
+### Quinn (QA) - Window 3
+**Status**: General activity
+- Continuing QA work
+
+### Dana (DevOps) - Window 5
+**Status**: General activity
+- Infrastructure monitoring continues
+
+### Aria (Architect) - Window 6
+**Compliance Documentation**: ✅ EXEMPLARY!
+- Created COMMON_MISTAKES_CHECK_640AM.md
+- Verified compliance with all practices
+- "Perfect! I'm avoiding ALL common mistakes"
+
+## 📝 Git Commit Summary (14:25 UTC)
+
+Recent commit:
+- `2a20072` 🚧 Progress: Steady Hour 48 monitoring - GPG working perfectly
+
+**Impact**: Demonstrates continued perfect GPG signing and steady progress monitoring beyond Hour 48. The team is actively acknowledging and following all best practices!
+
 ## 📝 SCRIBE JOURNAL ENTRIES - CONTINUOUS TEAM DOCUMENTATION (2025-07-22)
 
 ### [2025-07-22 - 09:15 UTC] - Team Formation and SCRIBE Initialization
