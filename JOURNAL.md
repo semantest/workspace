@@ -1908,6 +1908,27 @@ Recent commits:
 - Architectural decisions
 - REQ-001 implementation updates
 
+## 🔧 CRITICAL COMMUNICATION REMINDER (14:47 UTC)
+
+**IMPORTANT: Correct Communication Protocol**
+
+### ✅ ALWAYS USE:
+```bash
+./tmux-orchestrator/send-claude-message.sh target "message"
+```
+
+### ❌ NEVER USE:
+```bash
+tmux send-keys  # This doesn't include Enter key!
+```
+
+### Example:
+```bash
+./tmux-orchestrator/send-claude-message.sh semantest:0 "Your message here"
+```
+
+**Team Reminder**: All inter-window communication must use the orchestrator script to ensure messages are properly delivered with the Enter key. Direct tmux commands will fail to send messages correctly!
+
 ## 📝 SCRIBE JOURNAL ENTRIES - CONTINUOUS TEAM DOCUMENTATION (2025-07-22)
 
 ### [2025-07-22 - 09:15 UTC] - Team Formation and SCRIBE Initialization
