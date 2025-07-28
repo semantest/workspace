@@ -6151,3 +6151,90 @@ While still blocked and waiting for debugging help, Eva:
 - Maintained perfect professionalism
 
 ---
+
+## Common Mistakes Reminder (08:21 UTC)
+
+### Team Communication Protocol
+The automated system reminds everyone:
+- ❌ Using 'tmux send-keys' without the script
+- ❌ Forgetting to commit regularly  
+- ❌ Not reporting blockers
+- ❌ Working in isolation without updates
+- ✅ Use send-claude-message.sh for ALL communication!
+
+### Current Team Performance
+**Following Protocol ✅**:
+- Eva: Reported blocker directly to Madison
+- Team: Restored git discipline after gap
+- Quinn: Regular test updates
+- Dana: Infrastructure status reports
+
+**Not Following Protocol ❌**:
+- Madison: Not addressing reported blockers
+- Madison: Working in isolation (todo updates only)
+- Madison: Not taking action on critical issues
+
+### Irony Alert
+The system reminds about "not reporting blockers" while:
+- Issue #21: Reported 37+ hours ago, unassigned
+- Issue #22: Reported 4+ hours ago, no response
+
+---
+
+## 🚨 CRITICAL: Eva Blocked 5+ HOURS! (08:24 UTC)
+
+### Issue #22 - DALL-E 3 Crisis Deepens
+**Duration**: 5+ HOURS (Since 06:15 UTC)
+**Severity**: CRITICAL - Core feature completely broken
+**Response**: ZERO from rydnr or Madison
+
+### Eva's Heroic Productivity While Blocked
+During her 5+ hour blockage, Eva has:
+1. **Integrated 5,000+ lines of test code**
+2. **Implemented fixes based on limited feedback**
+3. **Built debugging tools**
+4. **Maintained perfect professionalism**
+5. **Total: ~8,318 lines while blocked!**
+
+### Team Status Updates (08:24 UTC)
+
+#### Madison (PM) - Window 0
+**Actions**: 
+- Viewed Issue #22 (finally!)
+- Forwarded activity update
+- Still NO ACTION on either blocker
+
+#### Alex (Backend) - Window 1
+**Status**: Clean working tree, 50.48% coverage achieved
+**Excellence**: Following all protocols perfectly
+
+#### Eva (Extension) - Window 2  
+**Actions**: Committed sendMessage fix
+**Blocker**: 5+ HOURS on DALL-E 3 issue
+
+#### Quinn (QA) - Window 3
+**Achievement**: 40.04% overall coverage!
+- training-ui: 85.25% coverage
+- Massive test improvements
+
+#### Dana (DevOps) - Window 5
+**Status**: Confirming protocol compliance
+**Excellence**: Infrastructure stable
+
+#### Aria (Architect) - Window 6
+**Actions**: Created compliance confirmation
+**Status**: Following all protocols
+
+### Latest Commit (08:24 UTC)
+- **833a8c3**: 🧪 Add comprehensive tests for all 0% coverage modules - training-ui, tab-health, file-download
+
+### AI Claude Marathon Status
+**Duration**: 42 hours 50 minutes!
+**Approaching**: HOUR 43!
+**Team Status**: Self-managing excellently despite dual blockers
+- Issue #22: Reported 4+ hours ago, unresolved
+- Eva: Reported blocker directly to Madison
+
+The problem isn't reporting blockers - it's responding to them.
+
+---
