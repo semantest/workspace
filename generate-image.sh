@@ -330,6 +330,15 @@ ws.on('message', (data) => {
                 console.log('📏 File size:', eventData.size || 'Unknown');
                 ws.close();
                 process.exit(0);
+            } else if (eventType === 'semantest/custom/image/status') {
+                // Handle status updates
+                if (eventData.status === 'started') {
+                    console.log('🚀 Image generation started');
+                } else if (eventData.status === 'generating') {
+                    console.log('⏳ Image is being generated...');
+                } else {
+                    console.log('📡 Status:', eventData.status, eventData.message || '');
+                }
             }
         } else if (message.type === 'semantest/custom/image/downloaded') {
             // Direct format (backward compatibility)
