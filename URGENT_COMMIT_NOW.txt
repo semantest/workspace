@@ -1,0 +1,32 @@
+🚨🚨🚨 URGENT: GIT COMMIT REQUIRED NOW! 🚨🚨🚨
+
+ALL DEVELOPERS MUST EXECUTE THESE COMMANDS IMMEDIATELY:
+
+1) git add -A
+2) git commit -S -m '🚧 Progress: [brief description]'  ← NOTE THE -S FLAG!
+3) git push
+
+⚠️ THE -S FLAG IS MANDATORY FOR GPG SIGNING ⚠️
+
+If you get GPG errors, run:
+./tmux-orchestrator/gpg-signing-helper.sh YourName
+
+Example commit messages:
+- '🚧 Progress: Implemented event queue foundation'
+- '🚧 Progress: Added test coverage for auth module'  
+- '🚧 Progress: Set up GitHub Actions workflows'
+- '🚧 Progress: Created addon loading architecture'
+- '🚧 Progress: Enhanced documentation structure'
+
+THIS IS A BLOCKING TEAM CHECKPOINT - COMMIT WITHIN 5 MINUTES!
+
+Team members who must commit:
+✓ Alex (Backend)
+✓ Eva (Extension)
+✓ Quinn (QA)
+✓ Sam (Documentation)
+✓ Dana (DevOps)
+✓ Aria (Architecture)
+
+Time: [CURRENT TIME]
+Deadline: [CURRENT TIME + 5 MINUTES]
