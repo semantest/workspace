@@ -30,11 +30,12 @@ NC='\033[0m' # No Color
 # Arguments
 PROMPT="${1:-A futuristic robot coding at a holographic terminal}"
 DOWNLOAD_FOLDER="${2:-$HOME/Downloads}"
+CUSTOM_FILENAME="${3:-}"  # Optional custom filename
 
 # Display usage if no arguments
 if [ -z "$1" ]; then
-    echo "Usage: $0 \"image prompt\" [download-folder]"
-    echo "Example: $0 \"A beautiful sunset over mountains\" ~/Pictures"
+    echo "Usage: $0 \"image prompt\" [download-folder] [filename]"
+    echo "Example: $0 \"A beautiful sunset over mountains\" ~/Pictures sunset.png"
     echo ""
     echo "Using default prompt: $PROMPT"
 fi
@@ -49,6 +50,9 @@ echo -e "${PURPLE}🎨 ChatGPT Image Generator${NC}"
 echo -e "${PURPLE}=========================${NC}"
 echo -e "${CYAN}Prompt:${NC} $PROMPT"
 echo -e "${CYAN}Download folder:${NC} $DOWNLOAD_FOLDER"
+if [ ! -z "$CUSTOM_FILENAME" ]; then
+    echo -e "${CYAN}Filename:${NC} $CUSTOM_FILENAME"
+fi
 echo -e "${CYAN}Request ID:${NC} $REQUEST_ID"
 echo ""
 
@@ -382,7 +386,8 @@ if ! node -e "require('ws')" 2>/dev/null; then
 fi
 
 # Create payload
-PAYLOAD=$(cat <<EOF
+if [ -z "$CUSTOM_FILENAME" ]; then
+    PAYLOAD=$(cat <<EOF
 {
     "prompt": "$PROMPT",
     "metadata": {
@@ -393,6 +398,20 @@ PAYLOAD=$(cat <<EOF
 }
 EOF
 )
+else
+    PAYLOAD=$(cat <<EOF
+{
+    "prompt": "$PROMPT",
+    "metadata": {
+        "requestId": "$REQUEST_ID",
+        "downloadFolder": "$DOWNLOAD_FOLDER",
+        "filename": "$CUSTOM_FILENAME",
+        "timestamp": $(date +%s)000
+    }
+}
+EOF
+)
+fi
 
 # Check ChatGPT tab before proceeding
 echo ""
