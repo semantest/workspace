@@ -1,48 +1,12 @@
 {
+  "description": "Standby mode - minimal hooks enabled",
   "hooks": {
     "Stop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/all-to-scribe.sh"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agent-to-pm.sh"
-          },
-          {
-            "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/blocker-detection.sh"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/notify-architect.sh"
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/all-to-scribe.sh"
-          },
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agent-to-pm.sh"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "tools": ["MultiEdit", "Edit", "Write"],
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/all-to-scribe.sh"
           }
         ]
       }
