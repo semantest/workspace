@@ -22,16 +22,32 @@ const sidebars = {
     },
     {
       type: 'category',
-      label: 'Architecture',
+      label: '🚀 Getting Started',
+      collapsed: false,
       items: [
-        'architecture/introduction',
+        'getting-started/getting-started',
+        'getting-started/quick-start',
       ],
     },
     {
       type: 'category',
-      label: 'Getting Started',
+      label: '📚 Tutorials',
       items: [
-        'getting-started/quick-start',
+        'tutorials/amazon-shopping',
+      ],
+    },
+    {
+      type: 'category',
+      label: '🌟 Success Stories',
+      items: [
+        'success-stories/success-stories',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Architecture',
+      items: [
+        'architecture/introduction',
       ],
     },
     {

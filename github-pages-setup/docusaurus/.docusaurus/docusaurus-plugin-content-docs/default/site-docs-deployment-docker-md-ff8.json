@@ -1,0 +1,27 @@
+{
+  "id": "deployment/docker",
+  "title": "Docker Deployment",
+  "description": "Deploy Semantest using Docker for consistent, reproducible environments across development, staging, and production.",
+  "source": "@site/docs/deployment/docker.md",
+  "sourceDirName": "deployment",
+  "slug": "/deployment/docker",
+  "permalink": "/workspace/docs/deployment/docker",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/deployment/docker.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753488092,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "docker",
+    "title": "Docker Deployment",
+    "sidebar_label": "Docker"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Backend API",
+    "permalink": "/workspace/docs/api/backend"
+  }
+}

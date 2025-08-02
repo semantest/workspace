@@ -1,0 +1,38 @@
+{
+  "id": "tutorials/amazon-shopping",
+  "title": "Real-World Tutorial - Testing Amazon's Shopping Flow",
+  "description": "Learn Semantest by testing one of the web's most complex UIs - Amazon's shopping flow. A practical, hands-on tutorial.",
+  "source": "@site/docs/tutorials/amazon-shopping.md",
+  "sourceDirName": "tutorials",
+  "slug": "/tutorials/amazon-shopping",
+  "permalink": "/workspace/docs/tutorials/amazon-shopping",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/tutorials/amazon-shopping.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "id": "amazon-shopping",
+    "title": "Real-World Tutorial - Testing Amazon's Shopping Flow",
+    "sidebar_label": "Amazon Shopping Test",
+    "sidebar_position": 1,
+    "description": "Learn Semantest by testing one of the web's most complex UIs - Amazon's shopping flow. A practical, hands-on tutorial.",
+    "keywords": [
+      "semantest",
+      "tutorial",
+      "amazon",
+      "e-commerce testing",
+      "real-world example"
+    ]
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Quick Start",
+    "permalink": "/workspace/docs/getting-started/quick-start"
+  },
+  "next": {
+    "title": "Success Stories",
+    "permalink": "/workspace/docs/success-stories/"
+  }
+}

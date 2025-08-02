@@ -1,0 +1,123 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/workspace/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Latest",
+          "isLast": true,
+          "path": "/workspace/docs/",
+          "mainDocId": "overview",
+          "docs": [
+            {
+              "id": "api/backend",
+              "path": "/workspace/docs/api/backend",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/client",
+              "path": "/workspace/docs/api/client",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "architecture/introduction",
+              "path": "/workspace/docs/architecture/introduction",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/browser/websocket",
+              "path": "/workspace/docs/components/browser/websocket",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/core/overview",
+              "path": "/workspace/docs/components/core/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/domains/image-download",
+              "path": "/workspace/docs/components/domains/image-download",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/extensions/chrome",
+              "path": "/workspace/docs/components/extensions/chrome",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/sdk/client",
+              "path": "/workspace/docs/components/sdk/client",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "deployment/docker",
+              "path": "/workspace/docs/deployment/docker",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/best-practices",
+              "path": "/workspace/docs/developer-guide/best-practices",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/contributing",
+              "path": "/workspace/docs/developer-guide/contributing",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/debugging",
+              "path": "/workspace/docs/developer-guide/debugging",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/style-guide",
+              "path": "/workspace/docs/developer-guide/style-guide",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/testing",
+              "path": "/workspace/docs/developer-guide/testing",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "getting-started/getting-started",
+              "path": "/workspace/docs/getting-started/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "getting-started/quick-start",
+              "path": "/workspace/docs/getting-started/quick-start",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "overview",
+              "path": "/workspace/docs/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "success-stories/success-stories",
+              "path": "/workspace/docs/success-stories/",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "tutorials/amazon-shopping",
+              "path": "/workspace/docs/tutorials/amazon-shopping",
+              "sidebar": "tutorialSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/workspace/docs/",
+                "label": "Overview"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

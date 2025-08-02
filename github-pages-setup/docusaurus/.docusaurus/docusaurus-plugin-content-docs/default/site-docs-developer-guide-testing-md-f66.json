@@ -1,0 +1,31 @@
+{
+  "id": "developer-guide/testing",
+  "title": "Testing Guide",
+  "description": "This guide covers testing practices, patterns, and tools used in the Semantest project. We follow Test-Driven Development (TDD) principles and maintain high test coverage standards.",
+  "source": "@site/docs/developer-guide/testing.md",
+  "sourceDirName": "developer-guide",
+  "slug": "/developer-guide/testing",
+  "permalink": "/workspace/docs/developer-guide/testing",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/developer-guide/testing.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753490319,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "testing",
+    "title": "Testing Guide",
+    "sidebar_label": "Testing"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Contributing",
+    "permalink": "/workspace/docs/developer-guide/contributing"
+  },
+  "next": {
+    "title": "Debugging",
+    "permalink": "/workspace/docs/developer-guide/debugging"
+  }
+}

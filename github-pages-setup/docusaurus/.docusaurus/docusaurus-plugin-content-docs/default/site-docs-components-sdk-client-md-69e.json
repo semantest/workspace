@@ -1,0 +1,31 @@
+{
+  "id": "components/sdk/client",
+  "title": "Client SDK",
+  "description": "The Semantest Client SDK provides a comprehensive TypeScript/JavaScript interface for automating web interactions through semantic commands. It enables developers to integrate Semantest's powerful automation capabilities into their applications.",
+  "source": "@site/docs/components/sdk/client.md",
+  "sourceDirName": "components/sdk",
+  "slug": "/components/sdk/client",
+  "permalink": "/workspace/docs/components/sdk/client",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/sdk/client.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753498932,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "client",
+    "title": "Client SDK",
+    "sidebar_label": "Client SDK"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Image Download",
+    "permalink": "/workspace/docs/components/domains/image-download"
+  },
+  "next": {
+    "title": "Contributing",
+    "permalink": "/workspace/docs/developer-guide/contributing"
+  }
+}

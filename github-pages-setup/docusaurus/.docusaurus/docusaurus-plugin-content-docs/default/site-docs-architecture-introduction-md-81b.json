@@ -1,0 +1,31 @@
+{
+  "id": "architecture/introduction",
+  "title": "Architecture Introduction",
+  "description": "Semantest is built on a foundation of modern software architecture principles, combining Domain-Driven Design (DDD), Event-Driven Architecture (EDA), and microservices patterns to create a robust, scalable, and maintainable testing framework.",
+  "source": "@site/docs/architecture/introduction.md",
+  "sourceDirName": "architecture",
+  "slug": "/architecture/introduction",
+  "permalink": "/workspace/docs/architecture/introduction",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/architecture/introduction.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753480840,
+  "formattedLastUpdatedAt": "Jul 25, 2025",
+  "frontMatter": {
+    "id": "introduction",
+    "title": "Architecture Introduction",
+    "sidebar_label": "Introduction"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Success Stories",
+    "permalink": "/workspace/docs/success-stories/"
+  },
+  "next": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/core/overview"
+  }
+}

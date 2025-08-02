@@ -1,0 +1,104 @@
+{
+  "/workspace/search-d2e": {
+    "__comp": "1a4e3797",
+    "__context": {
+      "plugin": "35f4b4cb"
+    }
+  },
+  "/workspace/docs-d8e": {
+    "__comp": "5e95c892",
+    "__context": {
+      "plugin": "6d23e19b"
+    }
+  },
+  "/workspace/docs-b7f": {
+    "__comp": "a7bd4aaa",
+    "version": "935f2afb"
+  },
+  "/workspace/docs-941": {
+    "__comp": "a94703ab"
+  },
+  "/workspace/docs-e62": {
+    "__comp": "17896441",
+    "content": "1db64337"
+  },
+  "/workspace/docs/api/backend-78e": {
+    "__comp": "17896441",
+    "content": "be2f45d3"
+  },
+  "/workspace/docs/api/client-b92": {
+    "__comp": "17896441",
+    "content": "c1bcbd07"
+  },
+  "/workspace/docs/architecture/introduction-568": {
+    "__comp": "17896441",
+    "content": "81b5bb5f"
+  },
+  "/workspace/docs/components/browser/websocket-3c7": {
+    "__comp": "17896441",
+    "content": "ab72b1ca"
+  },
+  "/workspace/docs/components/core/overview-64d": {
+    "__comp": "17896441",
+    "content": "0cb0c330"
+  },
+  "/workspace/docs/components/domains/image-download-137": {
+    "__comp": "17896441",
+    "content": "0169f797"
+  },
+  "/workspace/docs/components/extensions/chrome-9ca": {
+    "__comp": "17896441",
+    "content": "9d205fe9"
+  },
+  "/workspace/docs/components/sdk/client-968": {
+    "__comp": "17896441",
+    "content": "69e0df31"
+  },
+  "/workspace/docs/deployment/docker-b8c": {
+    "__comp": "17896441",
+    "content": "ff8b1e34"
+  },
+  "/workspace/docs/developer-guide/best-practices-ae6": {
+    "__comp": "17896441",
+    "content": "6fa3391e"
+  },
+  "/workspace/docs/developer-guide/contributing-df5": {
+    "__comp": "17896441",
+    "content": "2ccec619"
+  },
+  "/workspace/docs/developer-guide/debugging-c10": {
+    "__comp": "17896441",
+    "content": "071fc0ea"
+  },
+  "/workspace/docs/developer-guide/style-guide-266": {
+    "__comp": "17896441",
+    "content": "a611a6fa"
+  },
+  "/workspace/docs/developer-guide/testing-22a": {
+    "__comp": "17896441",
+    "content": "f6668fb4"
+  },
+  "/workspace/docs/getting-started-74c": {
+    "__comp": "17896441",
+    "content": "63384ed2"
+  },
+  "/workspace/docs/getting-started/quick-start-b65": {
+    "__comp": "17896441",
+    "content": "588bd741"
+  },
+  "/workspace/docs/success-stories-d76": {
+    "__comp": "17896441",
+    "content": "07a1f370"
+  },
+  "/workspace/docs/tutorials/amazon-shopping-140": {
+    "__comp": "17896441",
+    "content": "f9ae21d8"
+  },
+  "/workspace/-a8e": {
+    "__comp": "1df93b7f",
+    "__context": {
+      "plugin": "dfd05168"
+    },
+    "config": "5e9f5e1a"
+  }
+}

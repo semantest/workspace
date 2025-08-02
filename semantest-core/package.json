@@ -1,0 +1,43 @@
+{
+  "name": "@semantest/core",
+  "version": "1.0.0",
+  "description": "Core library for Semantest-powered browser extensions",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "jest",
+    "lint": "eslint src",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "semantest",
+    "browser-extension",
+    "automation",
+    "websocket"
+  ],
+  "author": "Semantest Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "@types/chrome": "^0.0.240",
+    "@typescript-eslint/eslint-plugin": "^5.60.0",
+    "@typescript-eslint/parser": "^5.60.0",
+    "eslint": "^8.42.0",
+    "jest": "^29.5.0",
+    "rollup": "^3.25.0",
+    "typescript": "^5.1.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/semantest/core.git"
+  }
+}

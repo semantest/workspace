@@ -1,0 +1,31 @@
+{
+  "id": "components/extensions/chrome",
+  "title": "Chrome Extension",
+  "description": "The Semantest Chrome Extension is the core component that enables browser automation through semantic commands. It acts as the bridge between your automation scripts and the web pages you want to interact with.",
+  "source": "@site/docs/components/extensions/chrome.md",
+  "sourceDirName": "components/extensions",
+  "slug": "/components/extensions/chrome",
+  "permalink": "/workspace/docs/components/extensions/chrome",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/extensions/chrome.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753484449,
+  "formattedLastUpdatedAt": "Jul 25, 2025",
+  "frontMatter": {
+    "id": "chrome",
+    "title": "Chrome Extension",
+    "sidebar_label": "Chrome Extension"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "WebSocket Server",
+    "permalink": "/workspace/docs/components/browser/websocket"
+  },
+  "next": {
+    "title": "Image Download",
+    "permalink": "/workspace/docs/components/domains/image-download"
+  }
+}

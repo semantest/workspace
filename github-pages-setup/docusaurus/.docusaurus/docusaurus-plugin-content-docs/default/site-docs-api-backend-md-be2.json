@@ -1,0 +1,31 @@
+{
+  "id": "api/backend",
+  "title": "Backend REST API",
+  "description": "The Semantest Backend API provides RESTful endpoints for managing image downloads, sessions, and automation workflows. It complements the WebSocket server by offering traditional HTTP-based interactions.",
+  "source": "@site/docs/api/backend.md",
+  "sourceDirName": "api",
+  "slug": "/api/backend",
+  "permalink": "/workspace/docs/api/backend",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/api/backend.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753499146,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "backend",
+    "title": "Backend REST API",
+    "sidebar_label": "Backend API"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Client SDK",
+    "permalink": "/workspace/docs/api/client"
+  },
+  "next": {
+    "title": "Docker",
+    "permalink": "/workspace/docs/deployment/docker"
+  }
+}

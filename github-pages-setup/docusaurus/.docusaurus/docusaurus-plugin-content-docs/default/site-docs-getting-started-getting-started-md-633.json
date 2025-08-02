@@ -1,0 +1,38 @@
+{
+  "id": "getting-started/getting-started",
+  "title": "Getting Started with Semantest - A Developer's Journey",
+  "description": "Write browser tests like you'd explain them to a colleague. Learn how Semantest transforms frustrating test automation into intuitive, AI-powered testing.",
+  "source": "@site/docs/getting-started/getting-started.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/",
+  "permalink": "/workspace/docs/getting-started/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/getting-started/getting-started.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "id": "getting-started",
+    "title": "Getting Started with Semantest - A Developer's Journey",
+    "sidebar_label": "Getting Started",
+    "sidebar_position": 1,
+    "description": "Write browser tests like you'd explain them to a colleague. Learn how Semantest transforms frustrating test automation into intuitive, AI-powered testing.",
+    "keywords": [
+      "semantest",
+      "getting started",
+      "browser testing",
+      "ai testing",
+      "natural language testing"
+    ]
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/"
+  },
+  "next": {
+    "title": "Quick Start",
+    "permalink": "/workspace/docs/getting-started/quick-start"
+  }
+}

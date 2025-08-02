@@ -1,0 +1,38 @@
+{
+  "id": "success-stories/success-stories",
+  "title": "Semantest Success Stories - Real Teams, Real Results",
+  "description": "Discover how teams transformed their testing from maintenance nightmares to productive automation with Semantest.",
+  "source": "@site/docs/success-stories/success-stories.md",
+  "sourceDirName": "success-stories",
+  "slug": "/success-stories/",
+  "permalink": "/workspace/docs/success-stories/",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/success-stories/success-stories.md",
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "id": "success-stories",
+    "title": "Semantest Success Stories - Real Teams, Real Results",
+    "sidebar_label": "Success Stories",
+    "sidebar_position": 1,
+    "description": "Discover how teams transformed their testing from maintenance nightmares to productive automation with Semantest.",
+    "keywords": [
+      "semantest",
+      "success stories",
+      "case studies",
+      "testimonials",
+      "test automation"
+    ]
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Amazon Shopping Test",
+    "permalink": "/workspace/docs/tutorials/amazon-shopping"
+  },
+  "next": {
+    "title": "Introduction",
+    "permalink": "/workspace/docs/architecture/introduction"
+  }
+}

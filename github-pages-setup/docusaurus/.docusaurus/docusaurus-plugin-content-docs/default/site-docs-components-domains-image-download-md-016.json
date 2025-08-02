@@ -1,0 +1,31 @@
+{
+  "id": "components/domains/image-download",
+  "title": "Image Download Domain",
+  "description": "The Image Download domain encapsulates all business logic related to discovering, selecting, and downloading images from web sources. It implements Domain-Driven Design principles to provide a clean, maintainable solution for semantic image acquisition.",
+  "source": "@site/docs/components/domains/image-download.md",
+  "sourceDirName": "components/domains",
+  "slug": "/components/domains/image-download",
+  "permalink": "/workspace/docs/components/domains/image-download",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/domains/image-download.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753499052,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "image-download",
+    "title": "Image Download Domain",
+    "sidebar_label": "Image Download"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Chrome Extension",
+    "permalink": "/workspace/docs/components/extensions/chrome"
+  },
+  "next": {
+    "title": "Client SDK",
+    "permalink": "/workspace/docs/components/sdk/client"
+  }
+}

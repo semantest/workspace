@@ -1,0 +1,31 @@
+{
+  "id": "components/browser/websocket",
+  "title": "WebSocket Server",
+  "description": "The Semantest WebSocket Server is the central communication hub that orchestrates all automation activities. It provides real-time, bidirectional communication between clients and browser extensions.",
+  "source": "@site/docs/components/browser/websocket.md",
+  "sourceDirName": "components/browser",
+  "slug": "/components/browser/websocket",
+  "permalink": "/workspace/docs/components/browser/websocket",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/browser/websocket.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753484514,
+  "formattedLastUpdatedAt": "Jul 25, 2025",
+  "frontMatter": {
+    "id": "websocket",
+    "title": "WebSocket Server",
+    "sidebar_label": "WebSocket Server"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/core/overview"
+  },
+  "next": {
+    "title": "Chrome Extension",
+    "permalink": "/workspace/docs/components/extensions/chrome"
+  }
+}
