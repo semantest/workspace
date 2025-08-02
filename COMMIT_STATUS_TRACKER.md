@@ -22,4 +22,5 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Team broadcast sent at 12:25 AM CEST
+- Latest broadcast sent at 1:30 AM CEST
+- Alex's Claude instance experiencing repeated crashes
