@@ -1,6 +1,6 @@
 # Git Commit Status Tracker
 
-**Last Update**: Sun Aug 03 01:50:00 AM CEST 2025
+**Last Update**: Sun Aug 03 02:00:00 AM CEST 2025
 
 ## Team Commit Status
 
@@ -22,5 +22,6 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Latest broadcast sent at 1:45 AM CEST
-- Alex's Claude instance experiencing repeated crashes (restarted again)
+- Latest broadcast sent at 2:00 AM CEST
+- Alex's Claude instance experiencing repeated crashes (restarted multiple times)
+- 5 team members have not confirmed commits - CRITICAL
