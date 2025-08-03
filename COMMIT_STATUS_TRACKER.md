@@ -24,9 +24,9 @@
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
 - Latest broadcast sent at 9:15 AM CEST Sunday
-- Alex moved to new session 'alex:1' (no longer semantest:1)
-- Alex fully briefed on API architecture (4 endpoints, async, webhooks)
-- Alex actively working on API schema for Issue #23
-- Team notified of Alex's return and API design work
+- Alex properly configured in semantest:1 (window: alex-backend)
+- Alex fully briefed on backend role and API requirements
+- Working on Issue #23: NewChatRequested endpoint (critical path)
+- Technical specs: TypeScript, OpenAPI 3.0, async processing
 - 5 team members have not confirmed commits - CRITICAL OVERDUE
 - Time: 9:15 AM Sunday - commits critically needed
