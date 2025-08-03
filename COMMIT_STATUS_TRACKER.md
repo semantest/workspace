@@ -23,7 +23,7 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Latest broadcast sent at 11:25 AM CEST Sunday
+- Latest broadcast sent at 11:36 AM CEST Sunday
 - Team ready to tackle BLOCKERS!
 - Quinn: Taking on Issue #21 (Test Coverage Crisis)
 - Sam: Supporting Issue #22 (DALL-E 3 URL Detection)
