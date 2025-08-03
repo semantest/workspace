@@ -23,7 +23,7 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Latest broadcast sent at 3:43 PM CEST Sunday
+- Latest broadcast sent at 3:40 PM CEST Sunday
 - CRITICAL: Metaphysical integration is KEY priority!
 - Alex: Share API design with Metaphysical team
 - Eva: Expose browser extension endpoints
