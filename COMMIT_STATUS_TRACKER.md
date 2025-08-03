@@ -23,6 +23,6 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Latest broadcast sent at 2:00 AM CEST
-- Alex's Claude instance experiencing repeated crashes (restarted multiple times)
-- 5 team members have not confirmed commits - CRITICAL
+- Latest broadcast sent at 2:15 AM CEST  
+- Alex's Claude instance experiencing repeated crashes (restarted again)
+- 5 team members have not confirmed commits - CRITICAL OVERDUE
