@@ -9,15 +9,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/all-to-scribe.sh"
+            "command": "/home/chous/work/semantest/.claude/hooks/all-to-scribe.sh"
           },
           {
             "type": "command", 
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/agent-to-pm.sh"
+            "command": "/home/chous/work/semantest/.claude/hooks/agent-to-pm.sh"
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/blocker-detection.sh"
+            "command": "/home/chous/work/semantest/.claude/hooks/blocker-detection.sh"
           }
         ]
       }
@@ -28,11 +28,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tool-usage-to-pm.sh"
+            "command": "/home/chous/work/semantest/.claude/hooks/tool-usage-to-pm.sh"
           },
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tool-usage-to-scribe.sh"
+            "command": "/home/chous/work/semantest/.claude/hooks/tool-usage-to-scribe.sh"
           }
         ]
       },
@@ -41,7 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/notify-architect.sh"
+            "command": "/home/chous/work/semantest/.claude/hooks/notify-architect.sh"
           }
         ]
       }
