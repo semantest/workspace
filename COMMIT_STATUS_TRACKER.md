@@ -24,7 +24,8 @@
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
 - Latest broadcast sent at 8:45 AM CEST Sunday
-- Alex's Claude instance crashed again (restarted at 8:30 AM and 8:50 AM)
+- Alex's Claude instance had infinite scroll loop (multiple restarts)
 - Server crash: JSON parsing error with bad escaped characters
+- Alex back online at 8:45 AM - focused on Issue #23 API design
 - 5 team members have not confirmed commits - CRITICAL OVERDUE
 - Time: 8:45 AM Sunday - commits critically needed
