@@ -23,10 +23,10 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Latest broadcast sent at 11:30 AM CEST Sunday
-- Sprint success! Team delivered all 30-minute deliverables
+- Latest broadcast sent at 11:45 AM CEST Sunday
+- Team ready to tackle BLOCKERS!
+- Quinn: Taking on Issue #21 (Test Coverage Crisis)
+- Sam: Supporting Issue #22 (DALL-E 3 URL Detection)
 - Dana: 487 commits! Hour 86! Staging deployed
-- Sam: All 3 documentation guides complete
-- Quinn: Test coordination specs delivered
-- Alex: API implementation complete
-- Team momentum is incredible!
+- Integration tests: Quinn & Alex preparing
+- Team momentum continues!
