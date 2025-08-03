@@ -23,10 +23,12 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Latest broadcast sent at 3:20 PM CEST Sunday
-- Team ready to tackle BLOCKERS!
-- Quinn: Taking on Issue #21 (Test Coverage Crisis)
-- Sam: Supporting Issue #22 (DALL-E 3 URL Detection)
-- Dana: 487 commits! Hour 86! Staging deployed
+- Latest broadcast sent at 3:25 PM CEST Sunday
+- CRITICAL: Metaphysical integration is KEY priority!
+- Alex: Share API design with Metaphysical team
+- Eva: Expose browser extension endpoints
+- Quinn: Test batch generation + Issue #21
+- Sam: Document integration + Issue #22
+- Dana: 487 commits! Prepare for increased load!
 - Integration tests: Quinn & Alex preparing
 - Team momentum continues!
