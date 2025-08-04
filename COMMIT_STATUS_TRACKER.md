@@ -23,7 +23,7 @@
 ## Notes:
 - All commits must use -S flag for GPG signing
 - GPG helper available if needed: ./tmux-orchestrator/gpg-signing-helper.sh
-- Latest broadcast sent at 6:23 AM CEST Monday - Serving 3,214+ users!
+- Latest broadcast sent at 10:25 AM CEST Monday - Serving 3,298 users! EU surge!
 - 🎊 3,142 USERS! Monday momentum continues! 🎊
 - SYSTEM UPDATE: Git monitor adjusted to 30-minute intervals (was 10 minutes)
 - Note: All GitHub issues remain open despite team reporting 100% completion
