@@ -1,0 +1,262 @@
+# Multi-Agent Patterns
+# Enables concurrent agent spawning with different personas and tasks
+
+Multi_Agent_System:
+  description: "Concurrent agent execution with persona-based collaboration"
+  
+  spawn_modes:
+    single:
+      description: "Traditional single agent spawn"
+      syntax: "/spawn --task 'implement feature'"
+      behavior: "Synchronous execution"
+      
+    batch:
+      description: "Spawn multiple agents for different tasks"
+      syntax: "/spawn --batch tasks.yml"
+      behavior: "Parallel execution on different tasks"
+      
+    swarm:
+      description: "Multiple personas on same task"
+      syntax: "/spawn --swarm --task 'review architecture' --personas architect,security,performance"
+      behavior: "Collaborative analysis from multiple perspectives"
+      
+    matrix:
+      description: "Multiple personas on multiple tasks"
+      syntax: "/spawn --matrix config.yml"
+      behavior: "Full persona/task matrix execution"
+      
+  batch_configuration:
+    format: |
+      # Batch spawn configuration
+      agents:
+        - id: auth-backend
+          task: "Implement authentication API"
+          persona: backend
+          thinking: think-hard
+          mcps: [c7, seq]
+          priority: high
+          
+        - id: auth-frontend
+          task: "Create login UI components"
+          persona: frontend
+          thinking: think
+          mcps: [magic, c7]
+          priority: high
+          
+        - id: auth-security
+          task: "Security audit authentication flow"
+          persona: security
+          thinking: ultrathink
+          mcps: [c7, seq]
+          priority: critical
+          
+        - id: auth-tests
+          task: "Write authentication tests"
+          persona: qa
+          thinking: think
+          mcps: [c7, pup]
+          priority: medium
+          
+  swarm_configuration:
+    multi_persona_task:
+      description: "Multiple perspectives on single task"
+      example: |
+        Task: "Review and improve database schema"
+        
+        Personas:
+        - architect: Overall design and scalability
+        - backend: Query optimization and indexes
+        - performance: Caching and performance implications
+        - security: Access control and data protection
+        
+      benefits:
+        - "Comprehensive analysis"
+        - "No blind spots"
+        - "Balanced decision making"
+        - "Automatic conflict resolution"
+        
+  coordination:
+    execution_model:
+      parallel: "All agents run concurrently"
+      sequential: "Agents run in defined order"
+      dependent: "Agents wait for dependencies"
+      
+    communication:
+      shared_context: ".claude/agents/shared-context.yml"
+      message_queue: ".claude/agents/messages/"
+      results_aggregation: ".claude/agents/results/"
+      
+    conflict_resolution:
+      strategy: "consensus"
+      methods:
+        - voting: "Agents vote on conflicting recommendations"
+        - priority: "Higher priority persona wins"
+        - merge: "Combine non-conflicting suggestions"
+        - escalate: "Flag for human review"
+        
+  agent_lifecycle:
+    phases:
+      1_initialization:
+        - "Load task definition"
+        - "Apply persona configuration"
+        - "Set up workspace"
+        - "Check dependencies"
+        
+      2_execution:
+        - "Run task with persona context"
+        - "Generate outputs"
+        - "Log decisions and rationale"
+        - "Update shared context"
+        
+      3_coordination:
+        - "Share findings with other agents"
+        - "Resolve conflicts"
+        - "Aggregate results"
+        - "Update progress"
+        
+      4_completion:
+        - "Finalize outputs"
+        - "Clean up resources"
+        - "Report status"
+        - "Trigger dependent agents"
+        
+  spawn_flags:
+    # Batch spawning
+    "--batch": 
+      description: "Spawn from configuration file"
+      argument: "config.yml"
+      
+    # Swarm mode
+    "--swarm":
+      description: "Multiple personas, same task"
+      requires: "--personas"
+      
+    # Matrix mode
+    "--matrix":
+      description: "Multiple personas on multiple tasks"
+      argument: "matrix.yml"
+      
+    # Persona selection
+    "--personas":
+      description: "Comma-separated persona list"
+      example: "architect,security,qa"
+      
+    # Execution control
+    "--parallel":
+      description: "Run all agents concurrently (default)"
+      
+    "--sequential":
+      description: "Run agents in order"
+      
+    "--dependent":
+      description: "Honor task dependencies"
+      
+    # Output control
+    "--aggregate":
+      description: "Combine outputs into single report"
+      
+    "--separate":
+      description: "Keep agent outputs separate"
+      
+    # Coordination
+    "--coordinate":
+      description: "Enable inter-agent communication"
+      
+    "--independent":
+      description: "Agents work in isolation"
+      
+  example_workflows:
+    feature_development:
+      command: |
+        /spawn --batch feature-tasks.yml --coordinate --aggregate
+        
+      config: |
+        agents:
+          - task: "Design API endpoints"
+            persona: architect
+          - task: "Implement backend logic"
+            persona: backend
+          - task: "Create UI components"
+            persona: frontend
+          - task: "Write tests"
+            persona: qa
+            
+    security_review:
+      command: |
+        /spawn --swarm --task "Security audit user system" \
+               --personas security,architect,backend --aggregate
+               
+      output: "Combined security analysis from 3 perspectives"
+      
+    comprehensive_refactor:
+      command: |
+        /spawn --matrix refactor-matrix.yml --dependent
+        
+      config: |
+        tasks:
+          - id: analyze
+            description: "Analyze codebase issues"
+          - id: plan
+            description: "Plan refactoring approach"
+          - id: execute
+            description: "Execute refactoring"
+            depends_on: [analyze, plan]
+            
+        personas: [analyzer, refactorer, architect]
+        
+        # Creates 3x3 matrix = 9 agents
+        
+  output_aggregation:
+    modes:
+      unified:
+        description: "Single combined report"
+        format: |
+          # Task: {task_description}
+          
+          ## Combined Analysis
+          
+          ### Architect Perspective
+          {architect_output}
+          
+          ### Security Perspective
+          {security_output}
+          
+          ### Performance Perspective
+          {performance_output}
+          
+          ## Consensus Recommendations
+          {merged_recommendations}
+          
+          ## Conflicts Requiring Resolution
+          {conflicts}
+          
+      separate:
+        description: "Individual agent reports"
+        structure: |
+          outputs/
+            ├── agent-{id}-{persona}.md
+            ├── agent-{id}-{persona}.log
+            └── summary.md
+            
+  monitoring:
+    status_tracking:
+      file: ".claude/agents/status.yml"
+      updates: "real-time"
+      
+    progress_display: |
+      🚀 Multi-Agent Execution Status
+      
+      Running: 4 agents
+      ├── auth-backend (backend): 45% ████▌     
+      ├── auth-frontend (frontend): 60% ██████    
+      ├── auth-security (security): 30% ███       
+      └── auth-tests (qa): 15% █▌        
+      
+      Completed: 2 agents
+      ✅ db-design (architect)
+      ✅ api-spec (architect)
+      
+    notifications:
+      agent_complete: "✅ Agent {id} ({persona}) completed: {task}"
+      conflict_detected: "⚠️ Conflict between {agent1} and {agent2}: {issue}"
+      all_complete: "🎉 All agents completed successfully"

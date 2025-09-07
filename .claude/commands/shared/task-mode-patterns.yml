@@ -1,0 +1,165 @@
+# Task Mode Patterns
+# Enforces clear separation between task definition and task execution
+
+Task_Mode_System:
+  description: "Dual-mode system for task definition vs execution"
+  
+  modes:
+    define_mode:
+      name: "Task Definition Mode"
+      purpose: "Define what needs to be done without executing"
+      triggers:
+        - "/define-task"
+        - "/task --define"
+        - "Starting with: 'I want to...', 'I need to...', 'Please help me...'"
+      behavior:
+        - "Gather requirements"
+        - "Ask clarifying questions"
+        - "Create detailed task specifications"
+        - "Generate todo list"
+        - "NO execution of actual work"
+        - "Output task plan for approval"
+        
+    work_mode:
+      name: "Task Execution Mode"
+      purpose: "Execute previously defined tasks"
+      triggers:
+        - "/work-task"
+        - "/task --work"
+        - "Starting with: 'Work on task...', 'Execute task...', 'Do task...'"
+      behavior:
+        - "Load existing task definition"
+        - "Execute tasks from todo list"
+        - "Update task progress"
+        - "Report completion status"
+        - "NO new task definitions"
+        
+  task_definition_structure:
+    required_fields:
+      - title: "Brief task title"
+      - description: "Detailed description"
+      - success_criteria: "How to know when done"
+      - scope: "What's included/excluded"
+      
+    optional_fields:
+      - context: "Background information"
+      - constraints: "Limitations or requirements"
+      - dependencies: "What's needed first"
+      - estimated_effort: "Time/complexity estimate"
+      - priority: "high/medium/low"
+      
+  mode_enforcement:
+    ambiguous_requests:
+      response: |
+        🤔 I need clarification on your intent. Please choose:
+        
+        1. **Define a new task** (planning only):
+           `/define-task "your task description"`
+           
+        2. **Work on existing task** (execution):
+           `/work-task <task-id>`
+           
+        What would you like to do?
+        
+    define_mode_violations:
+      - attempting_execution: "⚠️ In task definition mode. Save task first with /task --save"
+      - writing_code: "⚠️ No code execution in definition mode. Complete definition first."
+      
+    work_mode_violations:
+      - creating_new_tasks: "⚠️ In work mode. Use /define-task for new tasks."
+      - changing_scope: "⚠️ Cannot modify task scope during execution."
+      
+  task_storage:
+    location: ".claude/tasks/"
+    format: "task-{id}-{timestamp}.yml"
+    
+    task_file_structure: |
+      id: "TASK-001"
+      title: "Implement user authentication"
+      status: "defined|in_progress|completed|blocked"
+      created: "2025-07-16T10:30:00Z"
+      definition:
+        description: "..."
+        success_criteria: ["..."]
+        scope:
+          included: ["..."]
+          excluded: ["..."]
+      todos: [...]
+      progress:
+        completed_items: []
+        current_item: null
+        blockers: []
+        
+  workflow_examples:
+    define_flow: |
+      User: I need to add OAuth2 authentication
+      Assistant: Starting task definition mode...
+      
+      📋 **Task Definition: OAuth2 Authentication**
+      
+      Let me gather requirements:
+      1. Which OAuth providers? (Google, GitHub, etc.)
+      2. User data to store?
+      3. Session management approach?
+      4. Existing auth system?
+      
+      [After gathering info...]
+      
+      📄 **Task Definition Complete**
+      - ID: TASK-001
+      - Title: OAuth2 Authentication
+      - Todos: 8 items
+      
+      Save this task? Use `/task --save TASK-001`
+      
+    work_flow: |
+      User: /work-task TASK-001
+      Assistant: Loading task: OAuth2 Authentication
+      
+      📊 **Task Status**
+      - Total todos: 8
+      - Completed: 0
+      - Current: Setup OAuth2 dependencies
+      
+      Starting work on first todo...
+      [Executes actual implementation]
+      
+  commands:
+    define_task:
+      syntax: "/define-task <description>"
+      aliases: ["/task --define", "/plan-task"]
+      
+    work_task:
+      syntax: "/work-task <task-id>"
+      aliases: ["/task --work", "/execute-task"]
+      
+    task_management:
+      list: "/task --list"              # Show all tasks
+      show: "/task --show <id>"         # Show task details
+      save: "/task --save <id>"         # Save defined task
+      delete: "/task --delete <id>"     # Delete task
+      status: "/task --status <id>"     # Update status
+      
+  integration:
+    with_todos:
+      - "Todo list auto-populated from task definition"
+      - "Progress tracked against original definition"
+      - "Cannot add todos outside task definition"
+      
+    with_journal:
+      - "Task starts logged to journal"
+      - "Task completions logged"
+      - "Blockers documented"
+      
+  mode_indicators:
+    define_mode:
+      prompt_prefix: "📋 [DEFINE MODE]"
+      color: "blue"
+      
+    work_mode:
+      prompt_prefix: "⚡ [WORK MODE]"
+      color: "green"
+      
+    no_mode:
+      prompt_prefix: "❓ [NO MODE]"
+      color: "yellow"

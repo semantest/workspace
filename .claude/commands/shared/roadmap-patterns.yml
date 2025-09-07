@@ -1,0 +1,265 @@
+# Roadmap Patterns
+# Defines milestone-based development with persona validation
+
+Roadmap_System:
+  description: "Milestone-driven development with multi-persona validation"
+  
+  structure:
+    default_folder: "roadmap/"
+    milestone_pattern: "{number}-{name}.md"
+    examples:
+      - "01-project-setup.md"
+      - "02-authentication.md"
+      - "03-core-features.md"
+      - "04-testing.md"
+      - "05-deployment.md"
+      
+  milestone_format:
+    required_sections:
+      title:
+        description: "Milestone title and objective"
+        example: "# Authentication System"
+        
+      overview:
+        description: "What this milestone achieves"
+        example: |
+          ## Overview
+          Implement secure user authentication with OAuth2 support
+          
+      success_criteria:
+        description: "How to validate completion"
+        example: |
+          ## Success Criteria
+          - [ ] Users can register/login
+          - [ ] OAuth2 providers integrated
+          - [ ] Session management working
+          - [ ] Security best practices applied
+          
+      tasks:
+        description: "Ordered list of tasks with specifications"
+        format: |
+          ## Tasks
+          
+          ### 1. Database Schema Design
+          - **Command**: `/design --schema --ddd`
+          - **Persona**: architect
+          - **Thinking**: think-hard
+          - **MCPs**: c7, seq
+          - **Description**: Design user and session tables
+          
+          ### 2. API Endpoints
+          - **Command**: `/build --api --tdd`
+          - **Persona**: backend
+          - **Thinking**: think
+          - **MCPs**: c7
+          - **Description**: Create auth endpoints
+          
+      persona_validation:
+        description: "Validation from each persona's perspective"
+        example: |
+          ## Persona Validation
+          
+          ### Architect
+          - [ ] System design follows DDD principles
+          - [ ] Scalability considered
+          - [ ] Clear bounded contexts
+          
+          ### Security
+          - [ ] OWASP guidelines followed
+          - [ ] Encryption implemented
+          - [ ] Rate limiting in place
+          
+          ### Frontend
+          - [ ] User-friendly forms
+          - [ ] Clear error messages
+          - [ ] Responsive design
+          
+  roadmap_initialization:
+    when_missing: |
+      📍 No roadmap detected. Let's create one!
+      
+      I'll help you set up a development roadmap. First, tell me:
+      1. What type of project? (web app, API, CLI tool, etc.)
+      2. Key features needed?
+      3. Target timeline?
+      4. Team size and expertise?
+      
+    template_options:
+      web_app:
+        milestones:
+          - "01-project-setup.md"
+          - "02-authentication.md"
+          - "03-core-features.md"
+          - "04-frontend.md"
+          - "05-testing.md"
+          - "06-deployment.md"
+          - "07-monitoring.md"
+          
+      api_service:
+        milestones:
+          - "01-project-setup.md"
+          - "02-api-design.md"
+          - "03-data-layer.md"
+          - "04-business-logic.md"
+          - "05-authentication.md"
+          - "06-testing.md"
+          - "07-deployment.md"
+          
+      cli_tool:
+        milestones:
+          - "01-project-setup.md"
+          - "02-command-structure.md"
+          - "03-core-functionality.md"
+          - "04-configuration.md"
+          - "05-testing.md"
+          - "06-packaging.md"
+          
+  persona_requirements:
+    architect:
+      validates:
+        - "System design coherence"
+        - "Scalability planning"
+        - "Technology choices"
+        - "Integration patterns"
+      suggests:
+        - "Architecture documentation"
+        - "Design patterns usage"
+        - "Dependency management"
+        
+    security:
+      validates:
+        - "Authentication/authorization"
+        - "Data protection"
+        - "Input validation"
+        - "Security headers"
+      suggests:
+        - "Security audit tasks"
+        - "Penetration testing"
+        - "Compliance checks"
+        
+    frontend:
+      validates:
+        - "User experience"
+        - "Accessibility"
+        - "Responsive design"
+        - "Performance"
+      suggests:
+        - "UI/UX reviews"
+        - "Component testing"
+        - "Browser compatibility"
+        
+    backend:
+      validates:
+        - "API design"
+        - "Database optimization"
+        - "Error handling"
+        - "Logging/monitoring"
+      suggests:
+        - "Load testing"
+        - "API documentation"
+        - "Database migrations"
+        
+    qa:
+      validates:
+        - "Test coverage"
+        - "Edge cases"
+        - "Integration tests"
+        - "E2E tests"
+      suggests:
+        - "Test automation"
+        - "CI/CD pipeline"
+        - "Quality metrics"
+        
+    performance:
+      validates:
+        - "Response times"
+        - "Resource usage"
+        - "Caching strategy"
+        - "Database queries"
+      suggests:
+        - "Performance benchmarks"
+        - "Optimization tasks"
+        - "Monitoring setup"
+        
+    mentor:
+      validates:
+        - "Documentation quality"
+        - "Code clarity"
+        - "Learning resources"
+        - "Onboarding guides"
+      suggests:
+        - "Tutorial creation"
+        - "Code examples"
+        - "Best practices docs"
+        
+    refactorer:
+      validates:
+        - "Code quality"
+        - "Technical debt"
+        - "Maintainability"
+        - "Code duplication"
+      suggests:
+        - "Refactoring tasks"
+        - "Code cleanup"
+        - "Dependency updates"
+        
+    analyzer:
+      validates:
+        - "Problem identification"
+        - "Root cause analysis"
+        - "Debugging setup"
+        - "Monitoring tools"
+      suggests:
+        - "Logging strategy"
+        - "Debug tooling"
+        - "Error tracking"
+        
+  validation_process:
+    steps:
+      1: "Load all milestones in order"
+      2: "Extract tasks from each milestone"
+      3: "Run persona validation checks"
+      4: "Identify gaps and missing tasks"
+      5: "Suggest additions for completeness"
+      6: "Generate validation report"
+      
+    gap_analysis:
+      missing_persona: |
+        ⚠️ No {persona} validation found in milestone "{milestone}"
+        
+        Suggested additions:
+        {suggestions}
+        
+      incomplete_criteria: |
+        📋 {persona} perspective incomplete in "{milestone}"
+        
+        Missing checks:
+        {missing_checks}
+        
+  roadmap_commands:
+    create: "/roadmap --create [template]"
+    validate: "/roadmap --validate"
+    status: "/roadmap --status"
+    next: "/roadmap --next"
+    complete: "/roadmap --complete <milestone>"
+    
+  execution_flow:
+    current_milestone:
+      file: ".roadmap-status.yml"
+      tracks:
+        - current_milestone: "02-authentication.md"
+        - completed_tasks: [1, 2, 3]
+        - current_task: 4
+        - blocked_tasks: []
+        
+    progression:
+      - "Complete all tasks in milestone"
+      - "Run persona validations"
+      - "Mark milestone complete"
+      - "Move to next milestone"
+      
+  notifications:
+    milestone_complete: "✅ Milestone complete: {name}"
+    validation_passed: "✓ {persona} validation passed"
+    validation_failed: "✗ {persona} validation has {count} issues"
+    suggestion: "💡 Consider adding: {task}"

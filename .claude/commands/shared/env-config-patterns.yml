@@ -1,0 +1,171 @@
+# Environment Configuration Patterns
+# Defines .env file support for project-specific flag defaults
+
+Environment_Configuration:
+  description: "Project-specific flag defaults via .env file"
+  
+  config_files:
+    priority_order:
+      1: ".env.local"      # Highest priority (user overrides)
+      2: ".env"            # Project defaults
+      3: ".superclaude"    # Alternative naming
+      
+  supported_variables:
+    # Documentation format defaults
+    SUPERCLAUDE_ORG_MODE: 
+      type: "boolean"
+      description: "Enable Org-mode format by default"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--org-mode"
+      
+    SUPERCLAUDE_MD:
+      type: "boolean"  
+      description: "Explicitly use Markdown format"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--md"
+      
+    SUPERCLAUDE_JOURNAL:
+      type: "boolean"
+      description: "Enable/disable journal updates"  
+      values: ["true", "false", "1", "0"]
+      default: "true"
+      maps_to: "--journal / --no-journal"
+      
+    # MCP Server Configuration
+    SUPERCLAUDE_MCP_ALL:
+      type: "boolean"
+      description: "Enable all MCP servers"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--all-mcp"
+      
+    SUPERCLAUDE_NO_MCP:
+      type: "boolean"
+      description: "Disable all MCP servers"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--no-mcp"
+      
+    SUPERCLAUDE_MCP_C7:
+      type: "boolean"
+      description: "Enable Context7 documentation"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--c7 / --no-c7"
+      
+    SUPERCLAUDE_MCP_SEQ:
+      type: "boolean"
+      description: "Enable Sequential thinking"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--seq / --no-seq"
+      
+    SUPERCLAUDE_MCP_MAGIC:
+      type: "boolean"
+      description: "Enable Magic UI builder"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--magic / --no-magic"
+      
+    SUPERCLAUDE_MCP_PUP:
+      type: "boolean"
+      description: "Enable Puppeteer automation"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--pup / --no-pup"
+      
+    # Thinking modes
+    SUPERCLAUDE_THINK:
+      type: "string"
+      description: "Default thinking depth"
+      values: ["normal", "hard", "ultra"]
+      maps_to: "--think / --think-hard / --ultrathink"
+      
+    # Compression
+    SUPERCLAUDE_ULTRACOMPRESSED:
+      type: "boolean"
+      description: "Enable UltraCompressed mode by default"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--uc"
+      
+    # Quality settings
+    SUPERCLAUDE_STRICT:
+      type: "boolean"
+      description: "Enable strict mode by default"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--strict"
+      
+    SUPERCLAUDE_VALIDATE:
+      type: "boolean"
+      description: "Enable validation by default"
+      values: ["true", "false", "1", "0"]
+      maps_to: "--validate"
+      
+    # Default persona
+    SUPERCLAUDE_PERSONA:
+      type: "string"
+      description: "Default persona to activate"
+      values: ["architect", "frontend", "backend", "analyzer", "security", "mentor", "refactorer", "performance", "qa"]
+      maps_to: "--persona-{value}"
+      
+    # Task mode enforcement
+    SUPERCLAUDE_TASK_MODE_STRICT:
+      type: "boolean"
+      description: "Enforce strict task mode separation"
+      values: ["true", "false", "1", "0"]
+      default: "true"
+      
+    SUPERCLAUDE_AUTO_SAVE_TASKS:
+      type: "boolean"
+      description: "Automatically save task definitions"
+      values: ["true", "false", "1", "0"]
+      default: "false"
+      
+    # Roadmap configuration
+    SUPERCLAUDE_ROADMAP_FOLDER:
+      type: "string"
+      description: "Folder containing milestone files"
+      default: "roadmap/"
+      example: "docs/roadmap/"
+      
+  example_env_file: |
+    # SuperClaude Project Configuration
+    # Copy to .env and customize for your project
+    
+    # Documentation Format
+    SUPERCLAUDE_ORG_MODE=true        # Use Org-mode for this project
+    SUPERCLAUDE_JOURNAL=true         # Keep module change journal
+    
+    # MCP Servers (per-project basis)
+    SUPERCLAUDE_MCP_C7=true          # Enable documentation lookup
+    SUPERCLAUDE_MCP_SEQ=false        # Disable sequential thinking
+    SUPERCLAUDE_MCP_MAGIC=true       # Enable UI generation
+    SUPERCLAUDE_MCP_PUP=false        # Disable browser automation
+    
+    # Default Behavior
+    SUPERCLAUDE_THINK=hard           # Default to think-hard mode
+    SUPERCLAUDE_ULTRACOMPRESSED=false # Normal verbosity
+    SUPERCLAUDE_PERSONA=backend      # Default to backend persona
+    
+    # Quality Settings
+    SUPERCLAUDE_VALIDATE=true        # Always validate
+    SUPERCLAUDE_STRICT=false         # Not strict by default
+    
+  loading_behavior:
+    - check_gitignore: "Ensure .env is in .gitignore"
+    - load_order: "Load in priority order (.env.local > .env > .superclaude)"
+    - merge_strategy: "Higher priority files override lower priority"
+    - validation: "Validate boolean and enum values"
+    - security: "Never log sensitive values"
+    
+  integration:
+    with_commands:
+      - "All commands respect environment defaults"
+      - "Command-line flags override environment variables"
+      - "Explicit flags always take precedence"
+      
+    precedence:
+      1: "Command-line flags (highest)"
+      2: ".env.local file"
+      3: ".env file"  
+      4: ".superclaude file"
+      5: "System defaults (lowest)"
+      
+  notifications:
+    loaded: "🔧 Loaded project configuration from {file}"
+    invalid_value: "⚠️ Invalid value for {variable}: {value}"
+    using_default: "📌 Using environment default: {flag}"

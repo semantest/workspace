@@ -1,0 +1,245 @@
+# Org-mode Format Patterns
+# Defines conversion rules and patterns for Org-mode documentation
+
+Org_Mode_Conversion:
+  description: "Patterns for converting documentation to Org-mode format"
+  
+  file_extensions:
+    org_mode: ".org"
+    markdown: ".md"
+    
+  exceptions:
+    - "README.md"  # Always keep as markdown
+    
+  conversion_rules:
+    headers:
+      - from: "# "      # H1
+        to: "* "
+      - from: "## "     # H2
+        to: "** "
+      - from: "### "    # H3
+        to: "*** "
+      - from: "#### "   # H4
+        to: "**** "
+      - from: "##### "  # H5
+        to: "***** "
+      - from: "###### " # H6
+        to: "****** "
+        
+    emphasis:
+      - from: "**text**"     # Bold
+        to: "*text*"
+      - from: "__text__"     # Bold alt
+        to: "*text*"
+      - from: "*text*"       # Italic
+        to: "/text/"
+      - from: "_text_"       # Italic alt
+        to: "/text/"
+      - from: "***text***"   # Bold+Italic
+        to: "*/text/*"
+      - from: "~~text~~"     # Strikethrough
+        to: "+text+"
+      - from: "`code`"       # Inline code
+        to: "~code~"
+        
+    blocks:
+      - from: "```language"  # Code block start
+        to: "#+BEGIN_SRC language"
+      - from: "```"          # Code block end
+        to: "#+END_SRC"
+      - from: "> quote"      # Blockquote
+        to: "#+BEGIN_QUOTE\nquote\n#+END_QUOTE"
+        
+    links:
+      - from: "[text](url)"  # Link
+        to: "[[url][text]]"
+      - from: "![alt](url)"  # Image
+        to: "[[url]]"
+        
+    lists:
+      # Unordered lists use - in both formats
+      # Ordered lists need conversion
+      - from: "1. item"      # Ordered list
+        to: "1) item"
+      - from: "2. item"
+        to: "2) item"
+        
+    tables:
+      # Tables are similar but org-mode uses | at start and end
+      - from: "| col1 | col2 |"
+        to: "| col1 | col2 |"
+      - from: "|------|------|"
+        to: "|------+------|"
+        
+    metadata:
+      - from: "---\ntitle: Title\n---"  # YAML frontmatter
+        to: "#+TITLE: Title"
+      - from: "author:"
+        to: "#+AUTHOR:"
+      - from: "date:"
+        to: "#+DATE:"
+        
+  file_naming:
+    pattern: "<name>.org"
+    exceptions:
+      - "README.md"
+      
+  directory_structure:
+    # Same directory structure, just different file extensions
+    preserve: true
+    
+  export_options:
+    # Org-mode export settings
+    header: |
+      #+OPTIONS: toc:t num:t H:6 \n:nil @:t ::t |:t ^:{} _:{} *:t TeX:t LaTeX:t
+      #+STARTUP: showall
+      
+Documentation_Format_Selection:
+  description: "Logic for selecting documentation format based on flags"
+  
+  default_format: "markdown"
+  
+  flag_priority:
+    # If both flags are present, --org-mode takes precedence
+    1: "--org-mode"
+    2: "--md"
+    
+  format_mapping:
+    "--org-mode": "org"
+    "--md": "markdown"
+    
+  file_operations:
+    create:
+      markdown: "📄 Created: {file}.md"
+      org: "📄 Created: {file}.org"
+    update:
+      markdown: "📝 Updated: {file}.md"
+      org: "📝 Updated: {file}.org"
+      
+  validation:
+    # Ensure README.md is never converted
+    always_markdown:
+      - "README.md"
+      - "readme.md"
+      - "Readme.md"
+
+Module_Journal:
+  description: "Patterns for maintaining module change journals"
+  
+  journal_location:
+    path: "docs/journal"
+    markdown_file: "docs/journal.md"
+    org_file: "docs/journal.org"
+    
+  entry_structure:
+    markdown:
+      header: "## {module} - {date}"
+      subheader: "### Changes"
+      item_prefix: "- "
+      code_block: "```{language}\n{code}\n```"
+      separator: "\n---\n"
+      
+    org_mode:
+      header: "** {module} - {date}"
+      subheader: "*** Changes"
+      item_prefix: "- "
+      code_block: "#+BEGIN_SRC {language}\n{code}\n#+END_SRC"
+      separator: ""
+      timestamp: "[{date}]"
+      
+  entry_format:
+    # Each journal entry contains
+    components:
+      - module_name: "Module or component name"
+      - timestamp: "ISO 8601 format timestamp"
+      - change_type: "added|modified|fixed|removed|refactored"
+      - description: "Brief description of changes"
+      - files_affected: "List of files modified"
+      - code_snippets: "Optional relevant code examples"
+      
+  change_types:
+    added: "✨ Added"
+    modified: "📝 Modified"
+    fixed: "🐛 Fixed"
+    removed: "🗑️ Removed"
+    refactored: "♻️ Refactored"
+    documented: "📚 Documented"
+    tested: "✅ Tested"
+    
+  journal_header:
+    markdown: |
+      # Module Change Journal
+      
+      This journal tracks changes made to modules and components in this project.
+      
+    org_mode: |
+      #+TITLE: Module Change Journal
+      #+AUTHOR: SuperClaude
+      #+STARTUP: overview
+      
+      * Overview
+      This journal tracks changes made to modules and components in this project.
+      
+  journal_operations:
+    create:
+      - check_docs_directory: "Ensure docs/ directory exists"
+      - create_journal_file: "Create new journal.{md,org} if doesn't exist"
+      - add_header: "Add appropriate header for format"
+      
+    update:
+      - read_existing: "Read current journal content"
+      - prepend_entry: "Add new entry at the beginning (newest first)"
+      - preserve_history: "Keep all previous entries intact"
+      
+  example_entry:
+    markdown: |
+      ## Authentication Module - 2025-07-16T10:30:00Z
+      
+      ### Changes
+      - ✨ Added OAuth2 integration for Google authentication
+      - 📝 Modified login flow to support multiple providers
+      - 🐛 Fixed token refresh logic
+      
+      ### Files Affected
+      - `src/auth/oauth2.js`
+      - `src/auth/providers/google.js`
+      - `src/middleware/auth.js`
+      
+      ### Code Example
+      ```javascript
+      // New OAuth2 configuration
+      const oauth2Config = {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          redirectUri: '/auth/google/callback'
+        }
+      };
+      ```
+      
+      ---
+      
+    org_mode: |
+      ** Authentication Module [2025-07-16 Thu 10:30]
+      
+      *** Changes
+      - ✨ Added OAuth2 integration for Google authentication
+      - 📝 Modified login flow to support multiple providers  
+      - 🐛 Fixed token refresh logic
+      
+      *** Files Affected
+      - src/auth/oauth2.js
+      - src/auth/providers/google.js
+      - src/middleware/auth.js
+      
+      *** Code Example
+      #+BEGIN_SRC javascript
+      // New OAuth2 configuration
+      const oauth2Config = {
+        google: {
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          redirectUri: '/auth/google/callback'
+        }
+      };
+      #+END_SRC

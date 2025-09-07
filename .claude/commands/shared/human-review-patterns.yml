@@ -1,0 +1,240 @@
+# Human Review Workflow Patterns
+# Continuous integration with human oversight
+
+## Human_Review_Workflow
+
+```yaml
+Overview:
+  Purpose: "Enable controlled continuous integration with human oversight"
+  Default: "Enabled by default, disable with --no-human-review"
+  Philosophy: "Document everything, branch per task, human in the loop"
+
+Task_Documentation:
+  Directory: "tasks/"
+  File_Format: "[id]-[summary].md"
+  ID_Generation:
+    Method: "Sequential numbering"
+    Implementation: |
+      - Find highest ID in tasks/ directory
+      - New ID = highest + 1
+      - Zero-pad to 4 digits (0001, 0002, etc.)
+  
+  Summary_Format:
+    Rules:
+      - "Brief, descriptive summary"
+      - "Replace spaces with underscores"
+      - "Lowercase, no special characters"
+      - "Max 50 characters"
+    Examples:
+      - "0001-add_user_authentication.md"
+      - "0002-refactor_database_layer.md"
+      - "0003-implement_payment_gateway.md"
+
+Task_Structure:
+  Initial_Sections:
+    Specification: |
+      # Specification
+      
+      ## Objective
+      [Clear statement of what needs to be accomplished]
+      
+      ## Requirements
+      - [Requirement 1]
+      - [Requirement 2]
+      
+      ## Constraints
+      - [Technical constraints]
+      - [Business constraints]
+      
+      ## Success Criteria
+      - [Measurable outcome 1]
+      - [Measurable outcome 2]
+  
+  Implementation_Section: |
+    # Implementation
+    
+    ## Step 1: [Description]
+    - **Action**: [What was done]
+    - **Rationale**: [Why this approach]
+    - **Changes**: [Files modified/created]
+    - **Commit**: [Commit hash if --tdd enabled]
+    
+    ## Step 2: [Description]
+    ...
+  
+  Final_Section: |
+    # Summary
+    
+    ## Changes Made
+    - [High-level change 1]
+    - [High-level change 2]
+    
+    ## Technical Decisions
+    - **Decision**: [What was decided]
+      **Rationale**: [Why this decision]
+    
+    ## Testing
+    - [Test coverage added]
+    - [Test results]
+    
+    ## Next Steps
+    - [Follow-up tasks if any]
+
+Git_Workflow:
+  Branch_Creation:
+    Naming: "tasks/[id]-[summary]"
+    Base: "Current branch"
+    Command: "git checkout -b tasks/[id]-[summary]"
+  
+  Commit_Strategy:
+    With_TDD:
+      Red_Phase: "🧪 [Task-ID] Add failing test for [feature]"
+      Green_Phase: "✅ [Task-ID] Implement [feature]"
+      Refactor_Phase: "🚀 [Task-ID] Refactor [feature]"
+    Without_TDD:
+      Feature: "✨ [Task-ID] Add [feature]"
+      Fix: "🐛 [Task-ID] Fix [issue]"
+      Refactor: "♻️ [Task-ID] Refactor [component]"
+      Docs: "📝 [Task-ID] Document [feature]"
+  
+  PR_Template: |
+    ## Task: [ID] - [Summary]
+    
+    ### Documentation
+    - Task document: `tasks/[id]-[summary].md`
+    - Story (if applicable): `stories/[id]-[summary].md`
+    
+    ### Changes
+    [Summary from task document]
+    
+    ### Testing
+    [Testing summary from task document]
+    
+    ### Review Checklist
+    - [ ] Task specification met
+    - [ ] Tests passing
+    - [ ] Documentation updated
+    - [ ] journal.md files updated
+    - [ ] Story created (if applicable)
+
+Documentation_Updates:
+  Journal_Updates:
+    Trigger: "Any module changes"
+    Location: "[module]/journal.md"
+    Format: |
+      ## [Date] - Task [ID]: [Summary]
+      
+      ### Changes
+      - [Change 1]
+      - [Change 2]
+      
+      ### Impact
+      - [Impact on module]
+      
+      ### Technical Notes
+      - [Important technical detail]
+  
+  Story_Creation:
+    Trigger: "Significant user-facing changes"
+    Location: "stories/[id]-[summary].md"
+    Format: |
+      # [Feature Name]: A Story
+      
+      ## The Challenge
+      [Narrative description of the problem]
+      
+      ## The Journey
+      [How the solution was discovered/implemented]
+      
+      ## The Solution
+      [What was built and how it helps]
+      
+      ## The Impact
+      [How this changes the user experience]
+  
+  Story_Update:
+    File: "story.md"
+    Trigger: "Major milestone or significant stories"
+    Approach: "Append new chapter or update existing narrative"
+
+Automation_Helpers:
+  Task_ID_Generation: |
+    # Find next task ID
+    last_id=$(find tasks -name "*.md" | sed 's/.*\/\([0-9]\+\)-.*/\1/' | sort -n | tail -1)
+    next_id=$(printf "%04d" $((10#$last_id + 1)))
+  
+  Summary_Sanitization: |
+    # Convert summary to filename format
+    summary=$(echo "$1" | tr '[:upper:]' '[:lower:]' | tr ' ' '_' | sed 's/[^a-z0-9_]//g' | cut -c1-50)
+  
+  Branch_Safety: |
+    # Ensure clean working directory
+    if [[ -n $(git status -s) ]]; then
+      echo "Working directory not clean. Commit or stash changes first."
+      exit 1
+    fi
+
+Integration_Points:
+  CI_Pipeline:
+    Task_Start: "Create task document, create branch"
+    Each_Change: "Update implementation section, commit"
+    Task_End: "Add summary, update journals, create story"
+    Review: "Create PR with task documentation"
+  
+  Commands_Integration:
+    All_Commands: "Respect --human-review flag"
+    Task_Commands: "Auto-create task documentation"
+    Git_Commands: "Auto-handle branching and commits"
+    Document_Commands: "Auto-update journals and stories"
+
+Examples:
+  Simple_Feature: |
+    # Task: Add user avatar upload
+    /build --feature --human-review
+    # Creates: tasks/0001-add_user_avatar_upload.md
+    # Branch: tasks/0001-add_user_avatar_upload
+    # Commits with task ID prefix
+    
+  Complex_Refactor: |
+    # Task: Refactor authentication system
+    /improve --refactor --human-review --tdd
+    # Creates: tasks/0002-refactor_authentication_system.md
+    # Branch: tasks/0002-refactor_authentication_system
+    # TDD workflow with red/green/refactor commits
+    
+  Bug_Fix: |
+    # Task: Fix memory leak in cache
+    /troubleshoot --fix --human-review
+    # Creates: tasks/0003-fix_memory_leak_in_cache.md
+    # Branch: tasks/0003-fix_memory_leak_in_cache
+    # Documents investigation and fix
+```
+
+## Quality_Control
+
+```yaml
+Review_Requirements:
+  Task_Document:
+    Must_Include:
+      - "Clear specification"
+      - "All implementation steps"
+      - "Summary with rationale"
+      - "Test results"
+    
+  Code_Review:
+    Focus_Areas:
+      - "Specification compliance"
+      - "Test coverage"
+      - "Documentation quality"
+      - "Git history clarity"
+  
+  Automation_Checks:
+    Pre_Merge:
+      - "All tests passing"
+      - "Documentation complete"
+      - "Journals updated"
+      - "No merge conflicts"
+```
+
+---
+*Human Review Patterns v1.0 - Enabling controlled continuous integration with human oversight*
