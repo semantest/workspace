@@ -47,7 +47,28 @@ const sidebars = {
         },
         {
           type: 'category',
-          label: 'Browser',
+          label: 'Application Layer',
+          items: [
+            'components/application/overview',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Domain Layer',
+          items: [
+            'components/domain/overview',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Backend Services',
+          items: [
+            'components/backend/overview',
+          ],
+        },
+        {
+          type: 'category',
+          label: 'Browser Integration',
           items: [
             'components/browser/websocket',
           ],
@@ -57,6 +78,8 @@ const sidebars = {
           label: 'Extensions',
           items: [
             'components/extensions/chrome',
+            'components/extensions/content-script-api',
+            'components/extensions/user-guide',
           ],
         },
         {
@@ -68,9 +91,10 @@ const sidebars = {
         },
         {
           type: 'category',
-          label: 'SDK',
+          label: 'SDK & Client',
           items: [
             'components/sdk/client',
+            'components/sdk/overview',
           ],
         },
       ],
@@ -99,6 +123,7 @@ const sidebars = {
       label: 'Deployment',
       items: [
         'deployment/docker',
+        'deployment/infrastructure/overview',
       ],
     },
   ],

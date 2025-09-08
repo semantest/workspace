@@ -7,12 +7,20 @@ on:
       - 'docs/**'
       - '**/*.md'
       - '**/*.org'
+      - 'github-pages-setup/**'
+      - 'scripts/sync-docs.js'
+      - '.github/workflows/docs-deploy.yml'
+      - '*/docs/**'
   pull_request:
     branches: [ main ]
     paths:
       - 'docs/**'
-      - '**/*.md'
+      - '**/*.md' 
       - '**/*.org'
+      - 'github-pages-setup/**'
+      - 'scripts/sync-docs.js'
+      - '.github/workflows/docs-deploy.yml'
+      - '*/docs/**'
   workflow_dispatch:
 
 permissions:
@@ -41,6 +49,16 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
+      - name: Sync documentation from modules
+        run: |
+          # Make sync script executable
+          chmod +x scripts/sync-docs.js
+          
+          # Run documentation synchronization
+          node scripts/sync-docs.js
+          
+          echo "📚 Documentation synchronized from all modules"
+
       - name: Install dependencies
         working-directory: ./github-pages-setup/docusaurus
         run: |
@@ -53,10 +71,28 @@ jobs:
       - name: Build documentation
         working-directory: ./github-pages-setup/docusaurus
         run: |
+          # Build Docusaurus site
           npm run build
+          
           # Copy built files to _site for GitHub Pages
           mkdir -p ../../_site
           cp -r build/* ../../_site/
+          
+          echo "🏗️ Documentation built successfully"
+          
+          # Verify key pages exist
+          if [ -f "../../_site/index.html" ]; then
+            echo "✅ Homepage generated"
+          else
+            echo "❌ Homepage not found"
+            exit 1
+          fi
+          
+          if [ -f "../../_site/docs/overview/index.html" ] || [ -f "../../_site/docs/components/core/overview/index.html" ]; then
+            echo "✅ Overview page generated"
+          else
+            echo "⚠️ Overview page location changed or missing"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

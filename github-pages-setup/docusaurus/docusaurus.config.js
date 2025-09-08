@@ -79,7 +79,7 @@ const config = {
             label: 'Documentation',
           },
           {
-            to: '/api',
+            to: '/docs/api/client',
             label: 'API',
             position: 'left',
           },
@@ -107,15 +107,15 @@ const config = {
             items: [
               {
                 label: 'Getting Started',
-                to: '/docs/getting-started',
+                to: '/docs/getting-started/quick-start',
               },
               {
                 label: 'Architecture',
-                to: '/docs/architecture',
+                to: '/docs/architecture/introduction',
               },
               {
                 label: 'Components',
-                to: '/docs/components',
+                to: '/docs/components/core/overview',
               },
             ],
           },
