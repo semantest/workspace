@@ -39,7 +39,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/semantest/semantest.git"
+    "url": "git+https://github.com/semantest/semantest.git"
   },
-  "license": "GPL-3.0"
+  "license": "GPL-3.0",
+  "main": "PROOF_WEBSOCKET_WORKS.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": "",
+  "bugs": {
+    "url": "https://github.com/semantest/semantest/issues"
+  },
+  "homepage": "https://github.com/semantest/semantest#readme"
 }

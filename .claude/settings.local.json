@@ -1,29 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls:*)",
-      "Bash(git rev-parse:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(for:*)",
-      "Bash(do)",
-      "Bash(if [ -d \"$dir/.git\" ])",
-      "Bash(then)",
-      "Bash(echo \"✓ $dir is a git repository\")",
-      "Bash(else)",
-      "Bash(echo:*)",
-      "Bash(fi)",
-      "Bash(done)",
-      "Bash(find:*)",
-      "Bash(npm install:*)",
-      "Bash(npm run build:*)",
-      "Bash(npm test)",
-      "Bash(mkdir:*)",
-      "Bash(npm test:*)",
-      "Bash(grep:*)",
-      "Bash(touch:*)",
-      "Bash(git submodule:*)",
-      "Bash(do [ -f \"$dir/journal.org\" ])"
+      "mcp__ruv-swarm",
+      "mcp__claude-flow"
     ],
     "deny": []
   }
