@@ -1,0 +1,52 @@
+{
+  "blogPosts": [
+    {
+      "id": "welcome",
+      "metadata": {
+        "permalink": "/workspace/blog/welcome",
+        "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/blog/2024-01-01-welcome.md",
+        "source": "@site/blog/2024-01-01-welcome.md",
+        "title": "Welcome to Semantest",
+        "description": "Welcome to the official documentation for Semantest, a modular, domain-driven testing framework for browser automation.",
+        "date": "2024-01-01T10:00:00.000Z",
+        "formattedDate": "January 1, 2024",
+        "tags": [
+          {
+            "label": "announcement",
+            "permalink": "/workspace/blog/tags/announcement"
+          },
+          {
+            "label": "getting-started",
+            "permalink": "/workspace/blog/tags/getting-started"
+          }
+        ],
+        "readingTime": 0.985,
+        "hasTruncateMarker": true,
+        "authors": [
+          {
+            "name": "Semantest Team",
+            "title": "Development Team",
+            "url": "https://github.com/semantest",
+            "imageURL": "https://github.com/semantest.png",
+            "key": "semantest-team"
+          }
+        ],
+        "frontMatter": {
+          "slug": "welcome",
+          "title": "Welcome to Semantest",
+          "authors": [
+            "semantest-team"
+          ],
+          "tags": [
+            "announcement",
+            "getting-started"
+          ],
+          "date": "2024-01-01T10:00",
+          "hide_table_of_contents": false
+        },
+        "unlisted": false
+      },
+      "content": "Welcome to the official documentation for Semantest, a modular, domain-driven testing framework for browser automation.\n\n<!--truncate-->\n\n## What is Semantest?\n\nSemantest is a comprehensive browser automation framework that allows you to interact with web pages using natural, semantic commands. Whether you're downloading images from Google, automating ChatGPT interactions, or building complex test suites, Semantest provides the tools you need.\n\n## Key Features\n\n- 🌐 **Chrome Extension Integration** - Seamless browser automation\n- 🔌 **WebSocket Communication** - Real-time bidirectional communication\n- 🎯 **Semantic Commands** - Natural language-like automation\n- 📦 **Modular Architecture** - Clean separation of concerns\n- 🛡️ **Type Safety** - Full TypeScript support\n- 🧪 **Test-Driven** - Built with testing in mind\n\n## Getting Started\n\nHead over to our [Quick Start Guide](/docs/getting-started/quick-start) to begin your journey with Semantest.\n\n## Documentation Structure\n\nOur documentation is organized into several key sections:\n\n- **[Architecture](/docs/architecture/introduction)** - Understand the system design\n- **[Components](/docs/components/core/overview)** - Explore individual modules\n- **[Developer Guide](/docs/developer-guide/contributing)** - Contribution guidelines\n- **[API Reference](/docs/api/client)** - Detailed API documentation\n\n## Community\n\nJoin our growing community of developers building the future of browser automation:\n\n- [GitHub Discussions](https://github.com/semantest/workspace/discussions)\n- [Issue Tracker](https://github.com/semantest/workspace/issues)\n- [Contributing Guide](/docs/developer-guide/contributing)\n\nWe're excited to have you on board! 🚀"
+    }
+  ]
+}

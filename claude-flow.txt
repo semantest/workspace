@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+PROMPT="Build a system that programmatically uses chatgpt's image generation from its own web application, using prompts. It consists of a browser extension customized for chatgpt. The browser extension communicates via websocket to a nodejs server, which is listening for requests in the form of events. Both the browser extension and the nodejs server are built on top of a shared kernel named 'semantest'. There will be other use cases besides chatgpt in which semantest would prove itself uselful. Additionally, there's a CLI tool for chatgpt that builds events using the user input, and sends them to the nodejs server. Read the specs/ folder for more information. Use Playwright MCP to manage a browser. However, if a new browser is launched, I need to log in into chatgpt first."
+npx claude-flow@alpha hive-mind spawn "${PROMPT}" --agents 10 --strategy development --claude --memory-namespace "semantest"

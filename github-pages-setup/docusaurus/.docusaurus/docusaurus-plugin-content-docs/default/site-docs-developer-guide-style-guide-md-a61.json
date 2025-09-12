@@ -1,0 +1,31 @@
+{
+  "id": "developer-guide/style-guide",
+  "title": "Code Style Guide",
+  "description": "This guide defines the coding standards and conventions used throughout the Semantest project. Consistent code style improves readability, maintainability, and collaboration.",
+  "source": "@site/docs/developer-guide/style-guide.md",
+  "sourceDirName": "developer-guide",
+  "slug": "/developer-guide/style-guide",
+  "permalink": "/workspace/docs/developer-guide/style-guide",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/developer-guide/style-guide.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753557493,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "style-guide",
+    "title": "Code Style Guide",
+    "sidebar_label": "Style Guide"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Best Practices",
+    "permalink": "/workspace/docs/developer-guide/best-practices"
+  },
+  "next": {
+    "title": "Client SDK",
+    "permalink": "/workspace/docs/api/client"
+  }
+}

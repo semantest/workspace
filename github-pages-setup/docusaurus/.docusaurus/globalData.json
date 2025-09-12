@@ -1,0 +1,143 @@
+{
+  "docusaurus-plugin-content-docs": {
+    "default": {
+      "path": "/workspace/docs",
+      "versions": [
+        {
+          "name": "current",
+          "label": "Latest",
+          "isLast": true,
+          "path": "/workspace/docs/",
+          "mainDocId": "overview",
+          "docs": [
+            {
+              "id": "api/backend",
+              "path": "/workspace/docs/api/backend",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "api/client",
+              "path": "/workspace/docs/api/client",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "architecture/introduction",
+              "path": "/workspace/docs/architecture/introduction",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/application/overview",
+              "path": "/workspace/docs/components/application/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/backend/overview",
+              "path": "/workspace/docs/components/backend/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/browser/websocket",
+              "path": "/workspace/docs/components/browser/websocket",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/core/overview",
+              "path": "/workspace/docs/components/core/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/domain/overview",
+              "path": "/workspace/docs/components/domain/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/domains/image-download",
+              "path": "/workspace/docs/components/domains/image-download",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/extensions/chrome",
+              "path": "/workspace/docs/components/extensions/chrome",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/extensions/content-script-api",
+              "path": "/workspace/docs/components/extensions/content-script-api",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/extensions/user-guide",
+              "path": "/workspace/docs/components/extensions/user-guide",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/sdk/client",
+              "path": "/workspace/docs/components/sdk/client",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "components/sdk/overview",
+              "path": "/workspace/docs/components/sdk/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "deployment/docker",
+              "path": "/workspace/docs/deployment/docker",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "deployment/infrastructure/overview",
+              "path": "/workspace/docs/deployment/infrastructure/overview",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/best-practices",
+              "path": "/workspace/docs/developer-guide/best-practices",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/contributing",
+              "path": "/workspace/docs/developer-guide/contributing",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/debugging",
+              "path": "/workspace/docs/developer-guide/debugging",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/style-guide",
+              "path": "/workspace/docs/developer-guide/style-guide",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "developer-guide/testing",
+              "path": "/workspace/docs/developer-guide/testing",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "getting-started/quick-start",
+              "path": "/workspace/docs/getting-started/quick-start",
+              "sidebar": "tutorialSidebar"
+            },
+            {
+              "id": "overview",
+              "path": "/workspace/docs/",
+              "sidebar": "tutorialSidebar"
+            }
+          ],
+          "draftIds": [],
+          "sidebars": {
+            "tutorialSidebar": {
+              "link": {
+                "path": "/workspace/docs/",
+                "label": "Overview"
+              }
+            }
+          }
+        }
+      ],
+      "breadcrumbs": true
+    }
+  }
+}

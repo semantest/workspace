@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Secure Pre-Migration Backup Script
 # Creates encrypted backup with proper security measures
@@ -26,34 +26,34 @@ echo "📦 Creating secure backup archive..."
 TEMP_ARCHIVE="${BACKUP_DIR}/temp-${TIMESTAMP}.tar.gz"
 
 tar -czf "${TEMP_ARCHIVE}" \
-    --exclude=node_modules \
-    --exclude=.git \
-    --exclude=dist \
-    --exclude=build \
-    --exclude=coverage \
-    --exclude="*.log" \
-    --exclude=.DS_Store \
-    --exclude=backups \
-    --exclude=__pycache__ \
-    --exclude=.pytest_cache \
-    --exclude=.vscode \
-    --exclude=.idea \
-    --exclude=".env*" \
-    --exclude="*.key" \
-    --exclude="*.pem" \
-    --exclude="*.crt" \
-    --exclude="*.p12" \
-    --exclude="*secret*" \
-    --exclude="*password*" \
-    --exclude="*token*" \
-    --exclude="*api_key*" \
-    .
+  --exclude=node_modules \
+  --exclude=.git \
+  --exclude=dist \
+  --exclude=build \
+  --exclude=coverage \
+  --exclude="*.log" \
+  --exclude=.DS_Store \
+  --exclude=backups \
+  --exclude=__pycache__ \
+  --exclude=.pytest_cache \
+  --exclude=.vscode \
+  --exclude=.idea \
+  --exclude=".env*" \
+  --exclude="*.key" \
+  --exclude="*.pem" \
+  --exclude="*.crt" \
+  --exclude="*.p12" \
+  --exclude="*secret*" \
+  --exclude="*password*" \
+  --exclude="*token*" \
+  --exclude="*api_key*" \
+  .
 
 if [ $? -eq 0 ]; then
-    echo "  ✓ Archive created successfully"
+  echo "  ✓ Archive created successfully"
 else
-    echo "❌ Failed to create archive"
-    exit 1
+  echo "❌ Failed to create archive"
+  exit 1
 fi
 
 # Encrypt the archive
@@ -74,7 +74,7 @@ SIZE=$(du -h "${ENCRYPTED_ARCHIVE}" | cut -f1)
 
 # Create secure manifest (without exposing sensitive info)
 MANIFEST_FILE="${BACKUP_DIR}/backup-manifest.json"
-cat > "${MANIFEST_FILE}" << EOF
+cat >"${MANIFEST_FILE}" <<EOF
 {
   "timestamp": "${TIMESTAMP}",
   "archiveName": "${ARCHIVE_NAME}",
@@ -89,12 +89,12 @@ chmod 600 "${MANIFEST_FILE}"
 
 # Store passphrase securely (in real scenario, use key management service)
 PASSPHRASE_FILE="${BACKUP_DIR}/passphrase.key"
-echo "${PASSPHRASE}" > "${PASSPHRASE_FILE}"
+echo "${PASSPHRASE}" >"${PASSPHRASE_FILE}"
 chmod 400 "${PASSPHRASE_FILE}"
 
 # Create secure README
 README_FILE="${BACKUP_DIR}/README.md"
-cat > "${README_FILE}" << EOF
+cat >"${README_FILE}" <<EOF
 # Secure Pre-Migration Backup
 
 ## Security Notice
@@ -137,7 +137,7 @@ chmod 600 "${README_FILE}"
 mkdir -p "${PROJECT_BACKUP_DIR}"
 chmod 700 "${PROJECT_BACKUP_DIR}"
 
-cat > "${PROJECT_BACKUP_DIR}/backup-reference.txt" << EOF
+cat >"${PROJECT_BACKUP_DIR}/backup-reference.txt" <<EOF
 Secure backup created at: ${BACKUP_DIR}
 Timestamp: ${TIMESTAMP}
 Size: ${SIZE}

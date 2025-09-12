@@ -1,0 +1,31 @@
+{
+  "id": "developer-guide/contributing",
+  "title": "Contributing to Semantest",
+  "description": "Thank you for your interest in contributing to Semantest! This guide will help you get started with contributing to our semantic web automation framework.",
+  "source": "@site/docs/developer-guide/contributing.md",
+  "sourceDirName": "developer-guide",
+  "slug": "/developer-guide/contributing",
+  "permalink": "/workspace/docs/developer-guide/contributing",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/developer-guide/contributing.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753557493,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "contributing",
+    "title": "Contributing to Semantest",
+    "sidebar_label": "Contributing"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/sdk/overview"
+  },
+  "next": {
+    "title": "Testing",
+    "permalink": "/workspace/docs/developer-guide/testing"
+  }
+}

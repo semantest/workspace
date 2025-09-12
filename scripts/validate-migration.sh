@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Semantest Migration Validation Script
 # Validates the WebBuddy → Semantest migration
@@ -23,11 +23,11 @@ run_check() {
     local check_command="$2"
     local success_message="$3"
     local failure_message="$4"
-    
+
     echo -n "Checking $check_name... "
     TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-    
-    if eval "$check_command" > /dev/null 2>&1; then
+
+    if eval "$check_command" >/dev/null 2>&1; then
         echo -e "${GREEN}✅ PASS${NC}"
         [ -n "$success_message" ] && echo "   $success_message"
         PASSED_CHECKS=$((PASSED_CHECKS + 1))
@@ -44,10 +44,10 @@ manual_check() {
     local check_name="$1"
     local result="$2"
     local message="$3"
-    
+
     echo -n "Checking $check_name... "
     TOTAL_CHECKS=$((TOTAL_CHECKS + 1))
-    
+
     if [ "$result" = "pass" ]; then
         echo -e "${GREEN}✅ PASS${NC}"
         PASSED_CHECKS=$((PASSED_CHECKS + 1))
@@ -58,7 +58,7 @@ manual_check() {
         echo -e "${YELLOW}⚠️  WARN${NC}"
         FAILED_CHECKS=$((FAILED_CHECKS + 1))
     fi
-    
+
     [ -n "$message" ] && echo "   $message"
     echo ""
 }

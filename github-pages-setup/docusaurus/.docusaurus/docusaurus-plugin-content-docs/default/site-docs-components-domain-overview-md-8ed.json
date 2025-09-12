@@ -1,0 +1,29 @@
+{
+  "id": "components/domain/overview",
+  "title": "Overview",
+  "description": "Domain models and business logic",
+  "source": "@site/docs/components/domain/overview.md",
+  "sourceDirName": "components/domain",
+  "slug": "/components/domain/overview",
+  "permalink": "/workspace/docs/components/domain/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/domain/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "overview",
+    "title": "Overview",
+    "sidebar_label": "Overview",
+    "description": "Domain models and business logic"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/application/overview"
+  },
+  "next": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/backend/overview"
+  }
+}

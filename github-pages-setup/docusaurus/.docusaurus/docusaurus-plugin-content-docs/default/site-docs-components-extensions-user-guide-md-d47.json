@@ -1,0 +1,29 @@
+{
+  "id": "components/extensions/user-guide",
+  "title": "User Guide",
+  "description": "ChatGPT addon and browser automation extension",
+  "source": "@site/docs/components/extensions/user-guide.md",
+  "sourceDirName": "components/extensions",
+  "slug": "/components/extensions/user-guide",
+  "permalink": "/workspace/docs/components/extensions/user-guide",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/extensions/user-guide.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "user-guide",
+    "title": "User Guide",
+    "sidebar_label": "User Guide",
+    "description": "ChatGPT addon and browser automation extension"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Content Script API",
+    "permalink": "/workspace/docs/components/extensions/content-script-api"
+  },
+  "next": {
+    "title": "Image Download",
+    "permalink": "/workspace/docs/components/domains/image-download"
+  }
+}

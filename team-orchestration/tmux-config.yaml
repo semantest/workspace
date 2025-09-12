@@ -1,0 +1,79 @@
+session_name: semantest
+root_dir: /home/chous/github/rydnr/claude/semantest-workspace
+windows:
+  - name: anders
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace"
+        - "echo 'Anders - Team Manager (Coordinator Only)'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+  
+  - name: rafa
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace/nodejs.server"
+        - "echo 'Rafa - Software Architect'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: wences
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace/extension.chrome"
+        - "echo 'Wences - Frontend Developer'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: alex
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace"
+        - "echo 'Alex - DevOps Engineer'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: ana
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace"
+        - "echo 'Ana - Team Monitor (Updates JOURNAL.md)'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: alfredo
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace/nodejs.server"
+        - "echo 'Alfredo - Backend Engineer'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: irene
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace/typescript.client"
+        - "echo 'Irene - UX Designer'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: ma
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace/"
+        - "echo 'MA - QA'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: emilio
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace/"
+        - "echo 'Emilio - Writer'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: alberto
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace/"
+        - "echo 'Alberto - Security'"
+        - "claude --permission-mode bypassPermissions --dangerously-skip-permissions"
+
+  - name: monitor
+    panes:
+      - commands:
+        - "cd /home/chous/github/rydnr/claude/semantest-workspace"
+        - "echo 'Monitoring Dashboard'"
+        - "watch -n 5 'echo Team Status; tmux list-windows -t semantest'"

@@ -1,0 +1,31 @@
+{
+  "id": "getting-started/quick-start",
+  "title": "Quick Start",
+  "description": "Get up and running with Semantest in just 5 minutes! This guide will walk you through installation, basic setup, and your first automation.",
+  "source": "@site/docs/getting-started/quick-start.md",
+  "sourceDirName": "getting-started",
+  "slug": "/getting-started/quick-start",
+  "permalink": "/workspace/docs/getting-started/quick-start",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/getting-started/quick-start.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753557493,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "quick-start",
+    "title": "Quick Start",
+    "sidebar_label": "Quick Start"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Introduction",
+    "permalink": "/workspace/docs/architecture/introduction"
+  },
+  "next": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/core/overview"
+  }
+}

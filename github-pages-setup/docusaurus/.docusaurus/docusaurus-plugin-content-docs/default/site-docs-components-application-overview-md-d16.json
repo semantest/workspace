@@ -1,0 +1,29 @@
+{
+  "id": "components/application/overview",
+  "title": "Overview",
+  "description": "Core application logic and orchestration",
+  "source": "@site/docs/components/application/overview.md",
+  "sourceDirName": "components/application",
+  "slug": "/components/application/overview",
+  "permalink": "/workspace/docs/components/application/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/application/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "overview",
+    "title": "Overview",
+    "sidebar_label": "Overview",
+    "description": "Core application logic and orchestration"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/core/overview"
+  },
+  "next": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/domain/overview"
+  }
+}

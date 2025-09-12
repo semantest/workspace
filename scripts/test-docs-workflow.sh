@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # 🧪 Documentation Workflow Test Script
 # Tests the complete documentation generation and deployment process
 
-set -e  # Exit on any error
+set -e # Exit on any error
 
 WORKSPACE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DOCUSAURUS_DIR="$WORKSPACE_ROOT/github-pages-setup/docusaurus"
@@ -125,21 +125,21 @@ echo ""
 
 # Step 6: Test local server (optional)
 echo "🌐 Step 6: Testing local server..."
-if command -v curl &> /dev/null; then
+if command -v curl &>/dev/null; then
     # Start server in background
     npm run serve &
     SERVER_PID=$!
-    
+
     # Give server time to start
     sleep 5
-    
+
     # Test homepage
     if curl -s http://localhost:3000/workspace/ | grep -q "Semantest"; then
         echo "✅ Local server working - homepage accessible"
     else
         echo "⚠️ Local server not responding or homepage missing content"
     fi
-    
+
     # Clean up server
     kill $SERVER_PID 2>/dev/null || true
     wait $SERVER_PID 2>/dev/null || true
@@ -168,7 +168,7 @@ TOTAL_ASSETS=$(find "$BUILD_DIR" -type f ! -name "*.html" | wc -l)
 
 echo "==================== TEST REPORT ===================="
 echo "✅ Documentation sync: SUCCESS"
-echo "✅ Dependencies install: SUCCESS"  
+echo "✅ Dependencies install: SUCCESS"
 echo "✅ Documentation build: SUCCESS"
 echo "📊 Total HTML pages: $TOTAL_PAGES"
 echo "📊 Total assets: $TOTAL_ASSETS"

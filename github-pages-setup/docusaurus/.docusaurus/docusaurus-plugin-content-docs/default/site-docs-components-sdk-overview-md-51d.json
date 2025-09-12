@@ -1,0 +1,29 @@
+{
+  "id": "components/sdk/overview",
+  "title": "Overview",
+  "description": "Client SDK for browser automation",
+  "source": "@site/docs/components/sdk/overview.md",
+  "sourceDirName": "components/sdk",
+  "slug": "/components/sdk/overview",
+  "permalink": "/workspace/docs/components/sdk/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/sdk/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "overview",
+    "title": "Overview",
+    "sidebar_label": "Overview",
+    "description": "Client SDK for browser automation"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Client SDK",
+    "permalink": "/workspace/docs/components/sdk/client"
+  },
+  "next": {
+    "title": "Contributing",
+    "permalink": "/workspace/docs/developer-guide/contributing"
+  }
+}

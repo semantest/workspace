@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Semantest Pre-Migration Backup Script
 # Creates a full backup of all repositories before migration
@@ -25,7 +25,7 @@ mkdir -p "${BACKUP_ROOT}"
 
 # Backup metadata
 echo "📋 Creating backup metadata..."
-cat > "${BACKUP_ROOT}/backup-metadata.json" << EOF
+cat >"${BACKUP_ROOT}/backup-metadata.json" <<EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "type": "pre-migration",
@@ -39,16 +39,16 @@ EOF
 echo "📦 Starting repository backups..."
 for repo in "${REPOS[@]}"; do
   echo "  → Backing up ${repo}..."
-  
+
   if [ -d "${repo}" ]; then
     # Create tarball excluding node_modules and .git
     tar --exclude='node_modules' \
-        --exclude='.git' \
-        --exclude='dist' \
-        --exclude='build' \
-        -czf "${BACKUP_ROOT}/${repo}.tar.gz" \
-        "${repo}/"
-    
+      --exclude='.git' \
+      --exclude='dist' \
+      --exclude='build' \
+      -czf "${BACKUP_ROOT}/${repo}.tar.gz" \
+      "${repo}/"
+
     echo "    ✓ ${repo} backed up successfully"
   else
     echo "    ⚠️  ${repo} directory not found, skipping"
@@ -58,15 +58,15 @@ done
 # Backup scripts and configuration
 echo "📄 Backing up scripts and configuration..."
 tar -czf "${BACKUP_ROOT}/scripts-config.tar.gz" \
-    scripts/ \
-    roadmap/ \
-    *.md \
-    *.json \
-    .claude/ \
-    2>/dev/null || true
+  scripts/ \
+  roadmap/ \
+  *.md \
+  *.json \
+  .claude/ \
+  2>/dev/null || true
 
 # Create backup verification script
-cat > "${BACKUP_ROOT}/verify-backup.sh" << 'EOF'
+cat >"${BACKUP_ROOT}/verify-backup.sh" <<'EOF'
 #!/bin/bash
 echo "🔍 Verifying backup integrity..."
 for file in *.tar.gz; do

@@ -202,8 +202,8 @@ npm publish --access public --dry-run  # Test first
 npm publish --access public  # Publish to registry
 
 # 3. Update package scope permissions
-npm owner add semantest-team @semantest/core
-npm owner add semantest-team @semantest/cli
+npm owner add semantest @semantest/core
+npm owner add semantest @semantest/cli
 # ... repeat for all packages
 ```
 

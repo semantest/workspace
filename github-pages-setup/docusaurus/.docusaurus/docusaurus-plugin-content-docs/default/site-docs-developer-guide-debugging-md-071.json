@@ -1,0 +1,31 @@
+{
+  "id": "developer-guide/debugging",
+  "title": "Debugging Guide",
+  "description": "This guide provides comprehensive debugging strategies and tools for troubleshooting issues across all Semantest components.",
+  "source": "@site/docs/developer-guide/debugging.md",
+  "sourceDirName": "developer-guide",
+  "slug": "/developer-guide/debugging",
+  "permalink": "/workspace/docs/developer-guide/debugging",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/developer-guide/debugging.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753557493,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "debugging",
+    "title": "Debugging Guide",
+    "sidebar_label": "Debugging"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Testing",
+    "permalink": "/workspace/docs/developer-guide/testing"
+  },
+  "next": {
+    "title": "Best Practices",
+    "permalink": "/workspace/docs/developer-guide/best-practices"
+  }
+}

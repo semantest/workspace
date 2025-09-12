@@ -1,0 +1,427 @@
+{
+  "pluginId": "default",
+  "version": "current",
+  "label": "Latest",
+  "banner": null,
+  "badge": false,
+  "noIndex": false,
+  "className": "docs-version-current",
+  "isLast": true,
+  "docsSidebars": {
+    "tutorialSidebar": [
+      {
+        "type": "link",
+        "label": "Overview",
+        "href": "/workspace/docs/",
+        "docId": "overview",
+        "unlisted": false
+      },
+      {
+        "type": "category",
+        "label": "Architecture",
+        "items": [
+          {
+            "type": "link",
+            "label": "Introduction",
+            "href": "/workspace/docs/architecture/introduction",
+            "docId": "architecture/introduction",
+            "unlisted": false
+          }
+        ],
+        "collapsed": true,
+        "collapsible": true
+      },
+      {
+        "type": "category",
+        "label": "Getting Started",
+        "items": [
+          {
+            "type": "link",
+            "label": "Quick Start",
+            "href": "/workspace/docs/getting-started/quick-start",
+            "docId": "getting-started/quick-start",
+            "unlisted": false
+          }
+        ],
+        "collapsed": true,
+        "collapsible": true
+      },
+      {
+        "type": "category",
+        "label": "Components",
+        "items": [
+          {
+            "type": "category",
+            "label": "Core",
+            "items": [
+              {
+                "type": "link",
+                "label": "Overview",
+                "href": "/workspace/docs/components/core/overview",
+                "docId": "components/core/overview",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          },
+          {
+            "type": "category",
+            "label": "Application Layer",
+            "items": [
+              {
+                "type": "link",
+                "label": "Overview",
+                "href": "/workspace/docs/components/application/overview",
+                "docId": "components/application/overview",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          },
+          {
+            "type": "category",
+            "label": "Domain Layer",
+            "items": [
+              {
+                "type": "link",
+                "label": "Overview",
+                "href": "/workspace/docs/components/domain/overview",
+                "docId": "components/domain/overview",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          },
+          {
+            "type": "category",
+            "label": "Backend Services",
+            "items": [
+              {
+                "type": "link",
+                "label": "Overview",
+                "href": "/workspace/docs/components/backend/overview",
+                "docId": "components/backend/overview",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          },
+          {
+            "type": "category",
+            "label": "Browser Integration",
+            "items": [
+              {
+                "type": "link",
+                "label": "WebSocket Server",
+                "href": "/workspace/docs/components/browser/websocket",
+                "docId": "components/browser/websocket",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          },
+          {
+            "type": "category",
+            "label": "Extensions",
+            "items": [
+              {
+                "type": "link",
+                "label": "Chrome Extension",
+                "href": "/workspace/docs/components/extensions/chrome",
+                "docId": "components/extensions/chrome",
+                "unlisted": false
+              },
+              {
+                "type": "link",
+                "label": "Content Script API",
+                "href": "/workspace/docs/components/extensions/content-script-api",
+                "docId": "components/extensions/content-script-api",
+                "unlisted": false
+              },
+              {
+                "type": "link",
+                "label": "User Guide",
+                "href": "/workspace/docs/components/extensions/user-guide",
+                "docId": "components/extensions/user-guide",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          },
+          {
+            "type": "category",
+            "label": "Domains",
+            "items": [
+              {
+                "type": "link",
+                "label": "Image Download",
+                "href": "/workspace/docs/components/domains/image-download",
+                "docId": "components/domains/image-download",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          },
+          {
+            "type": "category",
+            "label": "SDK & Client",
+            "items": [
+              {
+                "type": "link",
+                "label": "Client SDK",
+                "href": "/workspace/docs/components/sdk/client",
+                "docId": "components/sdk/client",
+                "unlisted": false
+              },
+              {
+                "type": "link",
+                "label": "Overview",
+                "href": "/workspace/docs/components/sdk/overview",
+                "docId": "components/sdk/overview",
+                "unlisted": false
+              }
+            ],
+            "collapsed": true,
+            "collapsible": true
+          }
+        ],
+        "collapsed": true,
+        "collapsible": true
+      },
+      {
+        "type": "category",
+        "label": "Developer Guide",
+        "items": [
+          {
+            "type": "link",
+            "label": "Contributing",
+            "href": "/workspace/docs/developer-guide/contributing",
+            "docId": "developer-guide/contributing",
+            "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Testing",
+            "href": "/workspace/docs/developer-guide/testing",
+            "docId": "developer-guide/testing",
+            "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Debugging",
+            "href": "/workspace/docs/developer-guide/debugging",
+            "docId": "developer-guide/debugging",
+            "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Best Practices",
+            "href": "/workspace/docs/developer-guide/best-practices",
+            "docId": "developer-guide/best-practices",
+            "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Style Guide",
+            "href": "/workspace/docs/developer-guide/style-guide",
+            "docId": "developer-guide/style-guide",
+            "unlisted": false
+          }
+        ],
+        "collapsed": true,
+        "collapsible": true
+      },
+      {
+        "type": "category",
+        "label": "API Reference",
+        "items": [
+          {
+            "type": "link",
+            "label": "Client SDK",
+            "href": "/workspace/docs/api/client",
+            "docId": "api/client",
+            "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Backend API",
+            "href": "/workspace/docs/api/backend",
+            "docId": "api/backend",
+            "unlisted": false
+          }
+        ],
+        "collapsed": true,
+        "collapsible": true
+      },
+      {
+        "type": "category",
+        "label": "Deployment",
+        "items": [
+          {
+            "type": "link",
+            "label": "Docker",
+            "href": "/workspace/docs/deployment/docker",
+            "docId": "deployment/docker",
+            "unlisted": false
+          },
+          {
+            "type": "link",
+            "label": "Overview",
+            "href": "/workspace/docs/deployment/infrastructure/overview",
+            "docId": "deployment/infrastructure/overview",
+            "unlisted": false
+          }
+        ],
+        "collapsed": true,
+        "collapsible": true
+      }
+    ]
+  },
+  "docs": {
+    "api/backend": {
+      "id": "api/backend",
+      "title": "Backend REST API",
+      "description": "The Semantest Backend API provides RESTful endpoints for managing image downloads, sessions, and automation workflows. It complements the WebSocket server by offering traditional HTTP-based interactions.",
+      "sidebar": "tutorialSidebar"
+    },
+    "api/client": {
+      "id": "api/client",
+      "title": "Client SDK API",
+      "description": "The Semantest Client SDK provides a TypeScript/JavaScript interface for automating web interactions through semantic commands.",
+      "sidebar": "tutorialSidebar"
+    },
+    "architecture/introduction": {
+      "id": "architecture/introduction",
+      "title": "Architecture Introduction",
+      "description": "Semantest is built on a foundation of modern software architecture principles, combining Domain-Driven Design (DDD), Event-Driven Architecture (EDA), and microservices patterns to create a robust, scalable, and maintainable testing framework.",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/application/overview": {
+      "id": "components/application/overview",
+      "title": "Overview",
+      "description": "Core application logic and orchestration",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/backend/overview": {
+      "id": "components/backend/overview",
+      "title": "Overview",
+      "description": "Backend API and WebSocket server",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/browser/websocket": {
+      "id": "components/browser/websocket",
+      "title": "WebSocket Server",
+      "description": "The Semantest WebSocket Server is the central communication hub that orchestrates all automation activities. It provides real-time, bidirectional communication between clients and browser extensions.",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/core/overview": {
+      "id": "components/core/overview",
+      "title": "Core Components Overview",
+      "description": "The Semantest Core package provides fundamental building blocks and shared utilities used across all components of the system. It implements the foundational patterns and abstractions that ensure consistency and maintainability.",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/domain/overview": {
+      "id": "components/domain/overview",
+      "title": "Overview",
+      "description": "Domain models and business logic",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/domains/image-download": {
+      "id": "components/domains/image-download",
+      "title": "Image Download Domain",
+      "description": "The Image Download domain encapsulates all business logic related to discovering, selecting, and downloading images from web sources. It implements Domain-Driven Design principles to provide a clean, maintainable solution for semantic image acquisition.",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/extensions/chrome": {
+      "id": "components/extensions/chrome",
+      "title": "Chrome Extension",
+      "description": "The Semantest Chrome Extension is the core component that enables browser automation through semantic commands. It acts as the bridge between your automation scripts and the web pages you want to interact with.",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/extensions/content-script-api": {
+      "id": "components/extensions/content-script-api",
+      "title": "Content Script API",
+      "description": "ChatGPT addon and browser automation extension",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/extensions/user-guide": {
+      "id": "components/extensions/user-guide",
+      "title": "User Guide",
+      "description": "ChatGPT addon and browser automation extension",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/sdk/client": {
+      "id": "components/sdk/client",
+      "title": "Client SDK",
+      "description": "The Semantest Client SDK provides a comprehensive TypeScript/JavaScript interface for automating web interactions through semantic commands. It enables developers to integrate Semantest's powerful automation capabilities into their applications.",
+      "sidebar": "tutorialSidebar"
+    },
+    "components/sdk/overview": {
+      "id": "components/sdk/overview",
+      "title": "Overview",
+      "description": "Client SDK for browser automation",
+      "sidebar": "tutorialSidebar"
+    },
+    "deployment/docker": {
+      "id": "deployment/docker",
+      "title": "Docker Deployment",
+      "description": "Deploy Semantest using Docker for consistent, reproducible environments across development, staging, and production.",
+      "sidebar": "tutorialSidebar"
+    },
+    "deployment/infrastructure/overview": {
+      "id": "deployment/infrastructure/overview",
+      "title": "Overview",
+      "description": "Deployment and infrastructure configuration",
+      "sidebar": "tutorialSidebar"
+    },
+    "developer-guide/best-practices": {
+      "id": "developer-guide/best-practices",
+      "title": "Best Practices",
+      "description": "This guide outlines best practices for developing, maintaining, and deploying Semantest components. Following these practices ensures code quality, performance, and maintainability.",
+      "sidebar": "tutorialSidebar"
+    },
+    "developer-guide/contributing": {
+      "id": "developer-guide/contributing",
+      "title": "Contributing to Semantest",
+      "description": "Thank you for your interest in contributing to Semantest! This guide will help you get started with contributing to our semantic web automation framework.",
+      "sidebar": "tutorialSidebar"
+    },
+    "developer-guide/debugging": {
+      "id": "developer-guide/debugging",
+      "title": "Debugging Guide",
+      "description": "This guide provides comprehensive debugging strategies and tools for troubleshooting issues across all Semantest components.",
+      "sidebar": "tutorialSidebar"
+    },
+    "developer-guide/style-guide": {
+      "id": "developer-guide/style-guide",
+      "title": "Code Style Guide",
+      "description": "This guide defines the coding standards and conventions used throughout the Semantest project. Consistent code style improves readability, maintainability, and collaboration.",
+      "sidebar": "tutorialSidebar"
+    },
+    "developer-guide/testing": {
+      "id": "developer-guide/testing",
+      "title": "Testing Guide",
+      "description": "This guide covers testing practices, patterns, and tools used in the Semantest project. We follow Test-Driven Development (TDD) principles and maintain high test coverage standards.",
+      "sidebar": "tutorialSidebar"
+    },
+    "getting-started/quick-start": {
+      "id": "getting-started/quick-start",
+      "title": "Quick Start",
+      "description": "Get up and running with Semantest in just 5 minutes! This guide will walk you through installation, basic setup, and your first automation.",
+      "sidebar": "tutorialSidebar"
+    },
+    "overview": {
+      "id": "overview",
+      "title": "Overview",
+      "description": "What is Semantest?",
+      "sidebar": "tutorialSidebar"
+    }
+  }
+}

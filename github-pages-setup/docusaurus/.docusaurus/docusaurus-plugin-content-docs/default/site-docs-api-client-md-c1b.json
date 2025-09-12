@@ -1,0 +1,31 @@
+{
+  "id": "api/client",
+  "title": "Client SDK API",
+  "description": "The Semantest Client SDK provides a TypeScript/JavaScript interface for automating web interactions through semantic commands.",
+  "source": "@site/docs/api/client.md",
+  "sourceDirName": "api",
+  "slug": "/api/client",
+  "permalink": "/workspace/docs/api/client",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/api/client.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753557493,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "client",
+    "title": "Client SDK API",
+    "sidebar_label": "Client SDK"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Style Guide",
+    "permalink": "/workspace/docs/developer-guide/style-guide"
+  },
+  "next": {
+    "title": "Backend API",
+    "permalink": "/workspace/docs/api/backend"
+  }
+}

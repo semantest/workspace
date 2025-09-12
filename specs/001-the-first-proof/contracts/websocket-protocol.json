@@ -1,0 +1,169 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "WebSocket Protocol for Image Generation",
+  "description": "Defines the WebSocket message protocol between server and browser extension",
+  
+  "definitions": {
+    "GenerateImageRequestedEvent": {
+      "type": "object",
+      "required": ["type", "correlationId", "timestamp", "payload"],
+      "properties": {
+        "type": { "const": "GenerateImageRequestedEvent" },
+        "correlationId": { 
+          "type": "string",
+          "format": "uuid"
+        },
+        "timestamp": { 
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "required": ["prompt", "fileName", "downloadFolder", "domainName"],
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            },
+            "fileName": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9._-]+$",
+              "maxLength": 255
+            },
+            "downloadFolder": {
+              "type": "string",
+              "pattern": "^/.*"
+            },
+            "domainName": {
+              "type": "string",
+              "enum": ["chatgpt.com"]
+            }
+          }
+        }
+      }
+    },
+    
+    "ImageGenerationInitiatedEvent": {
+      "type": "object",
+      "required": ["type", "correlationId", "timestamp", "payload"],
+      "properties": {
+        "type": { "const": "ImageGenerationInitiatedEvent" },
+        "correlationId": { 
+          "type": "string",
+          "format": "uuid"
+        },
+        "timestamp": { 
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "required": ["promptSubmitted", "tabId"],
+          "properties": {
+            "promptSubmitted": {
+              "type": "string"
+            },
+            "tabId": {
+              "type": "string"
+            },
+            "estimatedTime": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    
+    "ImageDownloadedEvent": {
+      "type": "object",
+      "required": ["type", "correlationId", "timestamp", "payload"],
+      "properties": {
+        "type": { "const": "ImageDownloadedEvent" },
+        "correlationId": { 
+          "type": "string",
+          "format": "uuid"
+        },
+        "timestamp": { 
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "required": ["filePath", "fileSize", "mimeType", "downloadTime"],
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "pattern": "^/.*"
+            },
+            "fileSize": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 52428800
+            },
+            "mimeType": {
+              "type": "string",
+              "pattern": "^image/"
+            },
+            "downloadTime": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    
+    "ErrorEvent": {
+      "type": "object",
+      "required": ["type", "timestamp", "payload"],
+      "properties": {
+        "type": { "const": "ErrorEvent" },
+        "correlationId": { 
+          "type": "string",
+          "format": "uuid"
+        },
+        "timestamp": { 
+          "type": "string",
+          "format": "date-time"
+        },
+        "payload": {
+          "type": "object",
+          "required": ["code", "message", "recoverable"],
+          "properties": {
+            "code": {
+              "type": "string",
+              "enum": [
+                "CONNECTION_LOST",
+                "TAB_NOT_FOUND",
+                "TIMEOUT",
+                "DOWNLOAD_FAILED",
+                "PERMISSION_DENIED",
+                "INVALID_INPUT",
+                "RATE_LIMITED",
+                "UNKNOWN"
+              ]
+            },
+            "message": {
+              "type": "string"
+            },
+            "context": {
+              "type": "object"
+            },
+            "recoverable": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    }
+  },
+  
+  "oneOf": [
+    { "$ref": "#/definitions/GenerateImageRequestedEvent" },
+    { "$ref": "#/definitions/ImageGenerationInitiatedEvent" },
+    { "$ref": "#/definitions/ImageDownloadedEvent" },
+    { "$ref": "#/definitions/ErrorEvent" }
+  ]
+}

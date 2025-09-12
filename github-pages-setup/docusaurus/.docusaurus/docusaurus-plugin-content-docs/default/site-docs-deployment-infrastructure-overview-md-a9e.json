@@ -1,0 +1,25 @@
+{
+  "id": "deployment/infrastructure/overview",
+  "title": "Overview",
+  "description": "Deployment and infrastructure configuration",
+  "source": "@site/docs/deployment/infrastructure/overview.md",
+  "sourceDirName": "deployment/infrastructure",
+  "slug": "/deployment/infrastructure/overview",
+  "permalink": "/workspace/docs/deployment/infrastructure/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/deployment/infrastructure/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "overview",
+    "title": "Overview",
+    "sidebar_label": "Overview",
+    "description": "Deployment and infrastructure configuration"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Docker",
+    "permalink": "/workspace/docs/deployment/docker"
+  }
+}

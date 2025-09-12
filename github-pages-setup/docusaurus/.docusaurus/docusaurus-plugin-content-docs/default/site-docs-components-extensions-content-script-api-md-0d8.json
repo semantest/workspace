@@ -1,0 +1,29 @@
+{
+  "id": "components/extensions/content-script-api",
+  "title": "Content Script API",
+  "description": "ChatGPT addon and browser automation extension",
+  "source": "@site/docs/components/extensions/content-script-api.md",
+  "sourceDirName": "components/extensions",
+  "slug": "/components/extensions/content-script-api",
+  "permalink": "/workspace/docs/components/extensions/content-script-api",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/extensions/content-script-api.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "content-script-api",
+    "title": "Content Script API",
+    "sidebar_label": "Content Script API",
+    "description": "ChatGPT addon and browser automation extension"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Chrome Extension",
+    "permalink": "/workspace/docs/components/extensions/chrome"
+  },
+  "next": {
+    "title": "User Guide",
+    "permalink": "/workspace/docs/components/extensions/user-guide"
+  }
+}

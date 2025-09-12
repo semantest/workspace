@@ -1,0 +1,31 @@
+{
+  "id": "components/core/overview",
+  "title": "Core Components Overview",
+  "description": "The Semantest Core package provides fundamental building blocks and shared utilities used across all components of the system. It implements the foundational patterns and abstractions that ensure consistency and maintainability.",
+  "source": "@site/docs/components/core/overview.md",
+  "sourceDirName": "components/core",
+  "slug": "/components/core/overview",
+  "permalink": "/workspace/docs/components/core/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/core/overview.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753557493,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "overview",
+    "title": "Core Components Overview",
+    "sidebar_label": "Overview"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Quick Start",
+    "permalink": "/workspace/docs/getting-started/quick-start"
+  },
+  "next": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/application/overview"
+  }
+}

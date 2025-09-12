@@ -1,0 +1,44 @@
+{
+  "permalink": "/workspace/blog/welcome",
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/blog/2024-01-01-welcome.md",
+  "source": "@site/blog/2024-01-01-welcome.md",
+  "title": "Welcome to Semantest",
+  "description": "Welcome to the official documentation for Semantest, a modular, domain-driven testing framework for browser automation.",
+  "date": "2024-01-01T10:00:00.000Z",
+  "formattedDate": "January 1, 2024",
+  "tags": [
+    {
+      "label": "announcement",
+      "permalink": "/workspace/blog/tags/announcement"
+    },
+    {
+      "label": "getting-started",
+      "permalink": "/workspace/blog/tags/getting-started"
+    }
+  ],
+  "readingTime": 0.985,
+  "hasTruncateMarker": true,
+  "authors": [
+    {
+      "name": "Semantest Team",
+      "title": "Development Team",
+      "url": "https://github.com/semantest",
+      "imageURL": "https://github.com/semantest.png",
+      "key": "semantest-team"
+    }
+  ],
+  "frontMatter": {
+    "slug": "welcome",
+    "title": "Welcome to Semantest",
+    "authors": [
+      "semantest-team"
+    ],
+    "tags": [
+      "announcement",
+      "getting-started"
+    ],
+    "date": "2024-01-01T10:00",
+    "hide_table_of_contents": false
+  },
+  "unlisted": false
+}

@@ -1,0 +1,29 @@
+{
+  "id": "components/backend/overview",
+  "title": "Overview",
+  "description": "Backend API and WebSocket server",
+  "source": "@site/docs/components/backend/overview.md",
+  "sourceDirName": "components/backend",
+  "slug": "/components/backend/overview",
+  "permalink": "/workspace/docs/components/backend/overview",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/components/backend/overview.md",
+  "tags": [],
+  "version": "current",
+  "frontMatter": {
+    "id": "overview",
+    "title": "Overview",
+    "sidebar_label": "Overview",
+    "description": "Backend API and WebSocket server"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Overview",
+    "permalink": "/workspace/docs/components/domain/overview"
+  },
+  "next": {
+    "title": "WebSocket Server",
+    "permalink": "/workspace/docs/components/browser/websocket"
+  }
+}

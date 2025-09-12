@@ -1,0 +1,31 @@
+{
+  "id": "developer-guide/best-practices",
+  "title": "Best Practices",
+  "description": "This guide outlines best practices for developing, maintaining, and deploying Semantest components. Following these practices ensures code quality, performance, and maintainability.",
+  "source": "@site/docs/developer-guide/best-practices.md",
+  "sourceDirName": "developer-guide",
+  "slug": "/developer-guide/best-practices",
+  "permalink": "/workspace/docs/developer-guide/best-practices",
+  "draft": false,
+  "unlisted": false,
+  "editUrl": "https://github.com/semantest/semantest.github.io/tree/main/docs/developer-guide/best-practices.md",
+  "tags": [],
+  "version": "current",
+  "lastUpdatedBy": "Claude Code",
+  "lastUpdatedAt": 1753557493,
+  "formattedLastUpdatedAt": "Jul 26, 2025",
+  "frontMatter": {
+    "id": "best-practices",
+    "title": "Best Practices",
+    "sidebar_label": "Best Practices"
+  },
+  "sidebar": "tutorialSidebar",
+  "previous": {
+    "title": "Debugging",
+    "permalink": "/workspace/docs/developer-guide/debugging"
+  },
+  "next": {
+    "title": "Style Guide",
+    "permalink": "/workspace/docs/developer-guide/style-guide"
+  }
+}

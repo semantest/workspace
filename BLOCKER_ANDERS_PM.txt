@@ -1,0 +1,1 @@
+CRITICAL BLOCKER: Anders (PM) cannot start - Claude binary not found at /home/chous/bin/claude. Team coordination impaired. Please fix PM environment.

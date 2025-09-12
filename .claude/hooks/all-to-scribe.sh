@@ -1,1 +1,0 @@
-/home/chous/work/semantest/.claude/hooks/all-to-scribe-hook.sh
